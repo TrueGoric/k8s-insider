@@ -1,0 +1,23 @@
+#!/command/with-contenv bash
+
+ETH_IF=eth0
+WG_IF=wg0
+
+NFT_TABLE=tun_table
+KUBE_IP=$(ip addr show dev $ETH_IF | awk -e '/inet/ {print $2}' | sed 's|/32||')
+
+nft delete table inet $NFT_TABLE
+
+ip route add to local $KUBE_IP dev $ETH_IF table local src $KUBE_IP
+
+ip rule del priority 1000
+ip rule del priority 1001
+ip rule del priority 2000
+ip rule del priority 3000
+
+ip route flush table 1000
+ip route flush table 1001
+ip route flush table 2000
+ip route flush table 3000
+
+ip link delete dev $WG_IF

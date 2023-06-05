@@ -1,0 +1,51 @@
+#!/command/with-contenv bash
+
+ETH_IF=eth0
+WG_IF=wg0
+
+NFT_TABLE=tun_table
+
+WG_SERVER_CONFIG_DIR=/config/server
+
+KUBE_IP=$(ip addr show dev $ETH_IF | awk -e '/inet/ {print $2}' | sed 's|/32||')
+WG_MTU=$(ip route show default | awk -e '{for (i=1; i<=NF;i++){ if ($i == "mtu") {print $(i+1) - 80} }}')
+
+echo '[tunnel] Setting up WireGuard...'
+
+echo '[tunnel] wg link up...'
+ip link add $WG_IF type wireguard
+
+wg setconf $WG_IF $WG_SERVER_CONFIG_DIR/server.conf
+
+ip link set mtu $WG_MTU up dev $WG_IF
+
+echo '[tunnel] setting up nftables...'
+nft add table inet $NFT_TABLE
+nft add chain inet $NFT_TABLE postrouting '{ type filter hook postrouting priority raw; }'
+nft add chain inet $NFT_TABLE prerouting '{ type filter hook prerouting priority raw; }'
+nft add chain inet $NFT_TABLE forward '{ type filter hook forward priority filter; }'
+
+nft add rule inet $NFT_TABLE forward meta iif $WG_IF accept
+nft add rule inet $NFT_TABLE forward meta oif $WG_IF accept
+nft add rule inet $NFT_TABLE forward meta iif $ETH_IF accept
+nft add rule inet $NFT_TABLE forward meta oif $ETH_IF accept
+
+echo '[tunnel] removing default local route...'
+ip route del to $KUBE_IP table local
+
+echo '[tunnel] limiting TCPMSS...'
+nft add rule inet $NFT_TABLE prerouting tcp flags syn tcp option maxseg size set $((WG_MTU - 40)) # 20 bytes IP header + 20 bytes TCP header
+
+echo '[tunnel] routing wg packets locally...'
+ip rule add type unicast iif $ETH_IF ipproto udp dport 55555 priority 1000 table 1000
+ip route add to local $KUBE_IP dev $ETH_IF scope host table 1000
+
+echo '[tunnel] setting up routes from WireGuard interface...'
+ip rule add type unicast iif $WG_IF priority 2000 table 2000
+ip route add to unicast default dev $ETH_IF scope link table 2000
+
+echo '[tunnel] setting up routes from eth+ interface...'
+ip rule add type unicast iif $ETH_IF priority 3000 table 3000
+ip route add to unicast default dev $WG_IF scope link table 3000
+
+echo '[tunnel] Finished!'

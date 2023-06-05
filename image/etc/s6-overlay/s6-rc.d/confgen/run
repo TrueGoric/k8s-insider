@@ -1,0 +1,47 @@
+#!/command/with-contenv bash
+
+if [[ -z $SERVER_ADDRESS ]]
+then
+    echo 'SERVER_ADDRESS is not set!'
+    exit 10
+fi
+
+if [[ -z $SERVER_PORT ]]
+then
+    echo 'SERVER_PORT is not set!'
+    exit 10
+fi
+
+# reasonable defaults
+KUBE_SERVICE_CIDR=${KUBE_SERVICE_CIDR:-'10.96.0.0/12'}
+KUBE_POD_CIDR=${KUBE_POD_CIDR:='10.244.0.0/16'}
+
+KUBE_IP=$(ip addr show dev eth0 | awk -e '/inet/ {print $2}' | sed 's|/32||')
+
+CONFIG_TEMPLATE_DIR=/config-templates
+CONFIG_DIR=/config
+WG_PEER_CONFIG_DIR=$CONFIG_DIR/peer
+WG_SERVER_CONFIG_DIR=$CONFIG_DIR/server
+
+echo '[confgen] Generating configurations...'
+
+umask 077
+mkdir -p $WG_SERVER_CONFIG_DIR
+mkdir -p $WG_PEER_CONFIG_DIR
+
+echo '[confgen] generating WireGuard keys...'
+wg genkey | tee $WG_SERVER_CONFIG_DIR/private.key | wg pubkey > $WG_SERVER_CONFIG_DIR/public.key
+wg genkey | tee $WG_PEER_CONFIG_DIR/private.key | wg pubkey > $WG_PEER_CONFIG_DIR/public.key
+wg genpsk > $WG_PEER_CONFIG_DIR/preshared.key
+
+echo '[confgen] generating WireGuard server.conf...'
+eval "cat <<EOFOE > $WG_SERVER_CONFIG_DIR/server.conf
+$(cat $CONFIG_TEMPLATE_DIR/server.conf)
+EOFOE"
+
+echo '[confgen] generating WireGuard peer.conf...'
+eval "cat <<EOFOE > $WG_PEER_CONFIG_DIR/peer.conf
+$(cat $CONFIG_TEMPLATE_DIR/peer.conf)
+EOFOE"
+
+echo '[confgen] Finished!'
