@@ -1,4 +1,4 @@
-name: Docker
+name: Publish to ghcr.io
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -8,7 +8,6 @@ name: Docker
 on:
   push:
     tags: [ 'v*.*.*' ]
-  workflow_dispatch:
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -18,7 +17,8 @@ env:
 
 
 jobs:
-  build:
+  dockerfile:
+    name: Build and publish Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,7 +38,6 @@ jobs:
         uses: sigstore/cosign-installer@f3c664df7af409cb4873aa5068053ba9d61a57b6 #v2.6.0
         with:
           cosign-release: 'v1.13.1'
-
 
       # Workaround: https://github.com/docker/build-push-action/issues/461
       - name: Setup Docker buildx
@@ -61,6 +60,8 @@ jobs:
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
@@ -75,7 +76,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
       # repository is public to avoid leaking data.  If you would like to publish
@@ -88,3 +88,47 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+
+  helmchart:
+    name: Pack and publish Helm chart
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Clean version from tag
+        id: extract-semver
+        uses: actions-ecosystem/action-regex-match@v2
+        with:
+          text: ${{ github.ref_name }}
+          regex: '^v(.+)$'
+
+      - name: Substitute versions
+        id: substitue-helm-version
+        uses: mikefarah/yq@master
+        with:
+          cmd: |
+            yq '.version = "${{ steps.extract-semver.output.group1 }}"' chart/Chart.yaml
+            yq '.appVersion = "${{ steps.extract-semver.output.group1 }}"' chart/Chart.yaml
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+
+      - name: Release a chart
+        uses: helm/chart-releaser-action@v1.5.0
+        with:
+          charts_dir: .
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
