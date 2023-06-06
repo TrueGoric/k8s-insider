@@ -117,8 +117,8 @@ jobs:
         uses: mikefarah/yq@master
         with:
           cmd: |
-            yq '.version = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
-            yq '.appVersion = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
+            yq -i '.version = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
+            yq -i '.appVersion = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
 
       - name: Install Helm
         uses: azure/setup-helm@v3
