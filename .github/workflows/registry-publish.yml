@@ -117,7 +117,7 @@ jobs:
 
       - name: Log into registry ${{ env.REGISTRY }}
         run: |
-          helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-string ${{ secrets.GITHUB_TOKEN }}
+          helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release a chart
         if: ${{ success() }}
