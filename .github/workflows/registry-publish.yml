@@ -122,5 +122,5 @@ jobs:
       - name: Release a chart
         if: ${{ success() }}
         run: |
-          helm package ./chart --version ${{ steps.extracReplace NAMESPACE with the name of the personal account or organization to which you want the image to be scoped.t-semver.outputs.version }} --app-version ${{ steps.extract-semver.outputs.version }}
+          helm package ./chart --version ${{ steps.extract-semver.outputs.version }} --app-version ${{ steps.extract-semver.outputs.version }}
           helm push k8s-insider-chart-${{ steps.extract-semver.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.REPOSITORY }}
