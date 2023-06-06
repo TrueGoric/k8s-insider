@@ -123,4 +123,8 @@ jobs:
         if: ${{ success() }}
         run: |
           helm package ./chart --version ${{ steps.extract-semver.outputs.version }} --app-version ${{ steps.extract-semver.outputs.version }}
-          helm push k8s-insider-chart-${{ steps.extract-semver.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.REPOSITORY }}
+          helm push k8s-insider-chart-${{ steps.extract-semver.outputs.version }}.tgz oci://${{ env.REGISTRY }}/$(printf '${{ env.REPOSITORY }}' | awk '{print tolower($0)}')
+
+      - name: Logout from ${{ env.REGISTRY }} registry
+        run: |
+          helm registry logout ${{ env.REGISTRY }}
