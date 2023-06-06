@@ -110,7 +110,7 @@ jobs:
       - name: Clean version from tag
         id: extract-semver
         run: |
-          echo "{version}={$(printf ${{ github.ref_name }} | sed s/^v//)}" >> $GITHUB_OUTPUT
+          echo "version=$(printf ${{ github.ref_name }} | sed s/^v//)" >> $GITHUB_OUTPUT
 
       - name: Substitute versions
         id: substitue-helm-version
