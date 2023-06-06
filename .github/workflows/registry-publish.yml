@@ -110,7 +110,7 @@ jobs:
       - name: Clean version from tag
         id: extract-semver
         run: |
-          echo "{version}={$(printf $LOL | sed s/^v//)}" >> $GITHUB_OUTPUT
+          echo "{version}={$(printf ${{ github.ref_name }} | sed s/^v//)}" >> $GITHUB_OUTPUT
 
       - name: Substitute versions
         id: substitue-helm-version
@@ -126,6 +126,6 @@ jobs:
       - name: Release a chart
         uses: helm/chart-releaser-action@v1.5.0
         with:
-          charts_dir: .
+          charts_dir: /
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
