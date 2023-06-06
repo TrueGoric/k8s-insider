@@ -10,8 +10,8 @@ on:
     tags: [ 'v*.*.*' ]
 
 env:
-  # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
+  REPOSITORY: ${{ github.repository_owner }}
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
@@ -92,7 +92,11 @@ jobs:
     name: Pack and publish Helm chart
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -108,20 +112,15 @@ jobs:
         run: |
           echo "version=$(printf ${{ github.ref_name }} | sed s/^v//)" >> $GITHUB_OUTPUT
 
-      - name: Substitute versions
-        id: substitue-helm-version
-        uses: mikefarah/yq@master
-        with:
-          cmd: |
-            yq -i '.version = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
-            yq -i '.appVersion = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
-
       - name: Install Helm
         uses: azure/setup-helm@v3
 
+      - name: Log into registry ${{ env.REGISTRY }}
+        run: |
+          helm registry login ${{ env.REGISTRY }} --username ${{ github.actor }} --password-string ${{ secrets.GITHUB_TOKEN }}
+
       - name: Release a chart
-        uses: helm/chart-releaser-action@v1.5.0
-        with:
-          charts_dir: .
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        if: ${{ success() }}
+        run: |
+          helm package ./chart --version ${{ steps.extracReplace NAMESPACE with the name of the personal account or organization to which you want the image to be scoped.t-semver.outputs.version }} --app-version ${{ steps.extract-semver.outputs.version }}
+          helm push k8s-insider-chart-${{ steps.extract-semver.outputs.version }}.tgz oci://${{ env.REGISTRY }}/${{ env.REPOSITORY }}
