@@ -117,8 +117,8 @@ jobs:
         uses: mikefarah/yq@master
         with:
           cmd: |
-            yq '.version = "${{ steps.extract-semver.output.version }}"' chart/Chart.yaml
-            yq '.appVersion = "${{ steps.extract-semver.output.version }}"' chart/Chart.yaml
+            yq '.version = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
+            yq '.appVersion = "${{ steps.extract-semver.outputs.version }}"' chart/Chart.yaml
 
       - name: Install Helm
         uses: azure/setup-helm@v3
@@ -126,6 +126,6 @@ jobs:
       - name: Release a chart
         uses: helm/chart-releaser-action@v1.5.0
         with:
-          charts_dir: /
+          charts_dir: .
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
