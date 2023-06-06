@@ -15,7 +15,6 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
 
-
 jobs:
   dockerfile:
     name: Build and publish Docker image
@@ -110,18 +109,16 @@ jobs:
 
       - name: Clean version from tag
         id: extract-semver
-        uses: actions-ecosystem/action-regex-match@v2
-        with:
-          text: ${{ github.ref_name }}
-          regex: '^v(.+)$'
+        run: |
+          echo "{version}={$(printf $LOL | sed s/^v//)}" >> $GITHUB_OUTPUT
 
       - name: Substitute versions
         id: substitue-helm-version
         uses: mikefarah/yq@master
         with:
           cmd: |
-            yq '.version = "${{ steps.extract-semver.output.group1 }}"' chart/Chart.yaml
-            yq '.appVersion = "${{ steps.extract-semver.output.group1 }}"' chart/Chart.yaml
+            yq '.version = "${{ steps.extract-semver.output.version }}"' chart/Chart.yaml
+            yq '.appVersion = "${{ steps.extract-semver.output.version }}"' chart/Chart.yaml
 
       - name: Install Helm
         uses: azure/setup-helm@v3
