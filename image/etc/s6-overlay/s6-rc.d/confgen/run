@@ -1,4 +1,5 @@
 #!/command/with-contenv bash
+# shellcheck shell=bash
 
 if [[ -z $SERVER_ADDRESS ]]
 then
@@ -16,6 +17,7 @@ fi
 KUBE_SERVICE_CIDR=${KUBE_SERVICE_CIDR:-'10.96.0.0/12'}
 KUBE_POD_CIDR=${KUBE_POD_CIDR:='10.244.0.0/16'}
 
+# shellcheck disable=SC2034
 KUBE_IP=$(ip addr show dev eth0 | awk -e '/inet/ {print $2}' | sed 's|/32||')
 
 CONFIG_TEMPLATE_DIR=/config-templates

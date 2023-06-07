@@ -1,4 +1,5 @@
 #!/command/with-contenv bash
+# shellcheck shell=bash
 
 ETH_IF=eth0
 WG_IF=wg0
@@ -17,7 +18,7 @@ ip link add $WG_IF type wireguard
 
 wg setconf $WG_IF $WG_SERVER_CONFIG_DIR/server.conf
 
-ip link set mtu $WG_MTU up dev $WG_IF
+ip link set mtu "$WG_MTU" up dev $WG_IF
 
 echo '[tunnel] setting up nftables...'
 nft add table inet $NFT_TABLE
@@ -31,14 +32,14 @@ nft add rule inet $NFT_TABLE forward meta iif $ETH_IF accept
 nft add rule inet $NFT_TABLE forward meta oif $ETH_IF accept
 
 echo '[tunnel] removing default local route...'
-ip route del to $KUBE_IP table local
+ip route del to "$KUBE_IP" table local
 
 echo '[tunnel] limiting TCPMSS...'
 nft add rule inet $NFT_TABLE prerouting tcp flags syn tcp option maxseg size set $((WG_MTU - 40)) # 20 bytes IP header + 20 bytes TCP header
 
 echo '[tunnel] routing wg packets locally...'
 ip rule add type unicast iif $ETH_IF ipproto udp dport 55555 priority 1000 table 1000
-ip route add to local $KUBE_IP dev $ETH_IF scope host table 1000
+ip route add to local "$KUBE_IP" dev $ETH_IF scope host table 1000
 
 echo '[tunnel] setting up routes from WireGuard interface...'
 ip rule add type unicast iif $WG_IF priority 2000 table 2000
