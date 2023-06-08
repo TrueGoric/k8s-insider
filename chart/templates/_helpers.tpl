@@ -35,6 +35,7 @@ Common labels
 */}}
 {{- define "k8s-insider.labels" -}}
 helm.sh/chart: {{ include "k8s-insider.chart" . }}
+k8s-insider/release-name: {{ .Release.Name }}
 {{ include "k8s-insider.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
