@@ -9,7 +9,9 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
     #[arg(short = 'n', long, global = true, default_value = DEFAULT_NAMESPACE)]
-    namespace: String,
+    pub namespace: String,
+    #[arg(short = 'v', long = "verbose", global = true)]
+    pub verbose_logging: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -42,65 +44,65 @@ pub enum Commands {
 pub struct InstallArgs {
     /// name of the release (must be unique within the namespace)
     #[arg(default_value = DEAFULT_RELEASE_NAME)]
-    release_name: String,
+    pub release_name: String,
     /// DNS service IP (autodetected if unset)
     #[arg(long)]
-    kube_dns: Option<String>,
+    pub kube_dns: Option<String>,
     /// cluster service CIDR (autodetected if unset)
     #[arg(long)]
-    service_cidr: Option<String>,
+    pub service_cidr: Option<String>,
     /// cluster domain name assigned to services (autodetected if unset)
     #[arg(long)]
-    service_domain: Option<String>,        
+    pub service_domain: Option<String>,        
     /// cluster pod CIDR (autodetected if unset)
     #[arg(long)]
-    pod_cidr: Option<String>,
+    pub pod_cidr: Option<String>,
     /// publicly accessible cluster IP (autodetected if unset)
     #[arg(long)]
-    cluster_address: Option<String>,
+    pub cluster_address: Option<String>,
     #[arg(short = 's', long, default_value = "NodePort")]
-    service_type: String,
+    pub service_type: String,
     #[arg(short = 'p', long, default_value = "31111")]
-    service_port: u16,
+    pub service_port: u16,
 }
 
 #[derive(Debug, Args)]
 pub struct UninstallArgs {
     /// name of the release to uninstall (required if there's more than one configured)
     #[arg()]
-    release_name: Option<String>,
+    pub release_name: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// name of the release to connect to (required if there's more than one configured)
     #[arg()]
-    release_name: Option<String>,
+    pub release_name: Option<String>,
     /// whether to omit patching the DNS resolver on connection
-    dont_patch_dns: bool,
+    pub dont_patch_dns: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct GetConfArgs {
     /// name of the release to connect to (required if there's more than one configured)
     #[arg()]
-    release_name: Option<String>,
+    pub release_name: Option<String>,
     /// if set, the command will write the config to a file instead of stdout
     #[arg(short = 'o', long)]
-    output: Option<String>,
+    pub output: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct PatchDnsArgs {
     /// name of the interface to patch
-    interface_name: String,
+    pub interface_name: String,
     /// cluster domain name assigned to services
-    services_domain: String
+    pub services_domain: String
 }
 
 #[derive(Debug, Args)]
 pub struct UpgradeArgs {
     /// just check for new version, don't perfom the update
     #[arg(short = 'c', long)]
-    check_only: bool,
+    pub check_only: bool,
 }
