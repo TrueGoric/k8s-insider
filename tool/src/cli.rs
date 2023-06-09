@@ -8,11 +8,46 @@ pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+    #[command(flatten)]
+    pub global_args: GlobalArgs
+}
+
+#[derive(Debug, Args)]
+pub struct GlobalArgs {
+    /// kubernetes namespace to work with
     #[arg(short = 'n', long, global = true, default_value = DEFAULT_NAMESPACE)]
     pub namespace: String,
+    /// override default kubeconfig
+    #[arg(long, global = true)]
+    pub kube_config: Option<String>,
+    /// enable verbose output
     #[arg(short = 'v', long = "verbose", global = true)]
     pub verbose_logging: bool,
+    /// enable trace output (more detailed than verbose, overrides it if present)
+    #[arg(long = "trace", global = true)]
+    pub trace_logging: bool,
 }
+
+impl GlobalArgs {
+    pub fn get_log_level(&self) -> LogLevel {
+        if self.trace_logging {
+            return LogLevel::Trace;
+        }
+
+        if self.verbose_logging {
+            return LogLevel::Verbose;
+        }
+
+        LogLevel::Normal
+    }
+}
+
+pub enum LogLevel {
+    Normal,
+    Verbose,
+    Trace
+}
+
 
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
@@ -57,13 +92,6 @@ pub struct InstallArgs {
     /// cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<String>,
-    /// publicly accessible cluster IP (autodetected if unset)
-    #[arg(long)]
-    pub cluster_address: Option<String>,
-    #[arg(short = 's', long, default_value = "NodePort")]
-    pub service_type: String,
-    #[arg(short = 'p', long, default_value = "31111")]
-    pub service_port: u16,
 }
 
 #[derive(Debug, Args)]
