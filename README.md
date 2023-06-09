@@ -1,2 +1,2 @@
 # k8s-insider
-Kubernetes networking over WireGuard
+Access your kubernetes cluster over WireGuard
