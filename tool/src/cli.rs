@@ -60,6 +60,12 @@ pub enum Commands {
     /// uninstall k8s-insider from the cluster
     #[command(alias = "u")]
     Uninstall(UninstallArgs),
+    /// uninstall all k8s-insider releases from the cluster
+    #[command()]
+    UninstallAll(UninstallAllArgs),
+    /// list k8s-insider releases on the cluster
+    #[command(alias = "l")]
+    List,
     /// connect to the cluster
     #[command(alias = "c")]
     Connect(ConnectArgs),
@@ -97,7 +103,7 @@ pub struct InstallArgs {
     /// if set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
-    // push the release even if it already exists in the cluster
+    /// push the release even if it already exists in the cluster
     #[arg(long)]
     pub force: bool,
     /// substitutes the k8s-insider container image if specified
@@ -110,9 +116,19 @@ pub struct UninstallArgs {
     /// name of the release to uninstall (required if there's more than one configured)
     #[arg()]
     pub release_name: Option<String>,
+    /// if set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct UninstallAllArgs {
     /// try to remove the namespace afterwards
     #[arg(long)]
     pub delete_namespace: bool,
+    /// if set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]

@@ -1,6 +1,6 @@
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::install::install;
+use commands::{install::install, uninstall::{uninstall, uninstall_all}, list::list};
 use env_logger::Target;
 use log::LevelFilter;
 
@@ -21,7 +21,9 @@ async fn main() -> anyhow::Result<()> {
     match &cli.command {
         Some(command) => match command {
             Commands::Install(args) => install(&cli.global_args, args).await?,
-            Commands::Uninstall(args) => todo!(),
+            Commands::Uninstall(args) => uninstall(&cli.global_args, args).await?,
+            Commands::UninstallAll(args) => uninstall_all(&cli.global_args, args).await?,
+            Commands::List => list(&cli.global_args).await?,
             Commands::Connect(args) => todo!(),
             Commands::Disconnect => todo!(),
             Commands::GetConf(args) => todo!(),
