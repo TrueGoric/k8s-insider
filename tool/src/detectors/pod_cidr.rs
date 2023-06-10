@@ -48,25 +48,26 @@ async fn get_cluster_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>>
         .list(&any_filter)
         .await?
         .into_iter()
-        .filter_map(|configmap| match &configmap.metadata.name {
-            Some(name) => match name.as_str() {
-                CILIUM_CONFIGMAP_NAME => match try_get_cilium_cidr(&configmap) {
-                    Some(cidr) => Some(CniCidr {
-                        cni: Cni::Cilium,
-                        cidr,
+        .filter_map(|configmap| {
+            configmap
+                .metadata
+                .name
+                .as_ref()
+                .and_then(|name| match name.as_str() {
+                    CILIUM_CONFIGMAP_NAME => try_get_cilium_cidr(&configmap).and_then(|cidr| {
+                        Some(CniCidr {
+                            cni: Cni::Cilium,
+                            cidr,
+                        })
                     }),
-                    None => None,
-                },
-                FLANNEL_CONFIGMAP_NAME => match try_get_flannel_cidr(&configmap) {
-                    Some(cidr) => Some(CniCidr {
-                        cni: Cni::Flannel,
-                        cidr,
+                    FLANNEL_CONFIGMAP_NAME => try_get_flannel_cidr(&configmap).and_then(|cidr| {
+                        Some(CniCidr {
+                            cni: Cni::Flannel,
+                            cidr,
+                        })
                     }),
-                    None => None,
-                },
-                _ => None,
-            },
-            None => None,
+                    _ => None,
+                })
         })
         .collect();
 
@@ -76,25 +77,26 @@ async fn get_cluster_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>>
 fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<String> {
     debug!("Found {CILIUM_CONFIGMAP_NAME} configmap!");
 
-    match &configmap.data {
-        Some(data) => match &data.get(CILIUM_IPV4_CIDR_KEY) {
-            Some(value) => Some((*value).to_owned()),
-            None => {
-                debug!("{CILIUM_CONFIGMAP_NAME} is missing the '{CILIUM_IPV4_CIDR_KEY}' key!");
-                None
-            }
-        },
-        None => {
+    configmap
+        .data
+        .as_ref()
+        .or_else(|| {
             debug!("{CILIUM_CONFIGMAP_NAME} is missing the data section!");
             None
-        }
-    }
+        })
+        .and_then(|data| data.get(CILIUM_IPV4_CIDR_KEY))
+        .or_else(|| {
+            debug!("{CILIUM_CONFIGMAP_NAME} is missing the '{CILIUM_IPV4_CIDR_KEY}' key!");
+            None
+        })
+        .and_then(|cidr| Some(cidr.to_owned()))
 }
 
 fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<String> {
     debug!("Found {FLANNEL_CONFIGMAP_NAME} configmap!");
 
-    configmap.data
+    configmap
+        .data
         .as_ref()
         .or_else(|| {
             debug!("{FLANNEL_CONFIGMAP_NAME} is missing the data section!");
@@ -105,20 +107,25 @@ fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<String> {
             debug!("{FLANNEL_CONFIGMAP_NAME} is missing the '{FLANNEL_NET_CONF_KEY}' key!");
             None
         })
-        .and_then(|value| serde_json::from_str::<HashMap<String, serde_json::Value>>(value).map_or_else(|err|{
-            debug!("{FLANNEL_NET_CONF_KEY} is not a valid JSON! {err:?}");
-            None    
-        }, |val| Some(val)))
+        .and_then(|value| {
+            serde_json::from_str::<HashMap<String, serde_json::Value>>(value).map_or_else(
+                |err| {
+                    debug!("{FLANNEL_NET_CONF_KEY} is not a valid JSON! {err:?}");
+                    None
+                },
+                |val| Some(val),
+            )
+        })
         .as_ref()
         .and_then(|conf| conf.get(FLANNEL_NETWORK_CONF_PROPERTY))
         .or_else(|| {
             debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is missing from {FLANNEL_NET_CONF_KEY}!");
-            None    
+            None
         })
         .and_then(|value| value.as_str())
         .or_else(|| {
             debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is not a valid CIDR!");
-            None    
+            None
         })
         .and_then(|cidr| Some(cidr.to_owned()))
 }
