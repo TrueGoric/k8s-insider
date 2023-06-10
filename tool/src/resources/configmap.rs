@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::core::ObjectMeta;
 
-use super::{release::Release, get_release_labels};
+use super::{release::Release, get_common_labels};
+
+const CONFIGMAP_NAME: &str = "k8s-insider-config";
 
 pub fn generate_configmap(release_info: &Release) -> ConfigMap {
     let mut configmap_data = BTreeMap::from([
@@ -19,8 +21,8 @@ pub fn generate_configmap(release_info: &Release) -> ConfigMap {
 
     let configmap = ConfigMap {
         metadata: ObjectMeta {
-            labels: Some(get_release_labels(&release_info.release_name)),
-            name: Some(release_info.release_name.to_owned()),
+            labels: Some(get_common_labels()),
+            name: Some(CONFIGMAP_NAME.to_owned()),
             namespace: Some(release_info.release_namespace.to_owned()),
             ..Default::default()
         },

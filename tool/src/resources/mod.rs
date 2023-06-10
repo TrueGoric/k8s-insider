@@ -14,6 +14,13 @@ pub fn get_common_release_labels(release_name: &str) -> String {
             app.kubernetes.io/managed-by=k8s-insider-cli")
 }
 
+pub fn get_common_labels() -> BTreeMap<String, String> {
+    BTreeMap::from([
+        ("app.kubernetes.io/name".to_owned(), "k8s-insider".to_owned()),
+        ("app.kubernetes.io/managed-by".to_owned(), "k8s-insider-cli".to_owned()),
+    ])
+}
+
 pub fn get_release_labels(release_name: &str) -> BTreeMap<String, String> {
     BTreeMap::from([
         ("k8s-insider/release-name".to_owned(), release_name.to_owned()),
