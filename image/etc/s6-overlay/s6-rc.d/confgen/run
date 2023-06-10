@@ -17,8 +17,10 @@ fi
 KUBE_SERVICE_CIDR=${KUBE_SERVICE_CIDR:-'10.96.0.0/12'}
 KUBE_POD_CIDR=${KUBE_POD_CIDR:='10.244.0.0/16'}
 
+ETH_IF=eth0
+
 # shellcheck disable=SC2034
-KUBE_IP=$(ip addr show dev $ETH_IF | awk -e '/inet/ {sub("/[0-9]{1,2}$", "", $2); print $2}')
+KUBE_IP=$(ip addr show dev "$ETH_IF" | awk -e '/inet/ {sub("/[0-9]{1,2}$", "", $2); print $2}')
 
 CONFIG_TEMPLATE_DIR=/config-templates
 CONFIG_DIR=/config
