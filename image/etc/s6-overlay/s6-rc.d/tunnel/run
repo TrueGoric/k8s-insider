@@ -8,8 +8,8 @@ NFT_TABLE=tun_table
 
 WG_SERVER_CONFIG_DIR=/config/server
 
-KUBE_IP=$(ip addr show dev $ETH_IF | awk -e '/inet/ {print $2}' | sed 's|/32||')
-WG_MTU=$(ip route show default | awk -e '{for (i=1; i<=NF;i++){ if ($i == "mtu") {print $(i+1) - 80} }}')
+KUBE_IP=$(ip addr show dev $ETH_IF | awk -e '/inet/ {sub("/[0-9]{1,2}$", "", $2); print $2}')
+WG_MTU=$(ip link show $ETH_IF | awk -e '{for (i=1; i<=NF;i++){ if ($i == "mtu") {print $(i+1) - 80} }}')
 
 echo '[tunnel] Setting up WireGuard...'
 
