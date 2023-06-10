@@ -35,7 +35,7 @@ pub async fn install(global_args: GlobalArgs, args: InstallArgs) -> anyhow::Resu
     }
 
     debug!("Preparing release...");
-    let release_info = prepare_release(global_args, args, &client).await?;
+    let release_info = prepare_release(args, &client).await?;
 
     Ok(())
 }
@@ -82,7 +82,6 @@ async fn check_if_resource_exists<T: Clone + DeserializeOwned + core::fmt::Debug
 }
 
 async fn prepare_release(
-    global_args: GlobalArgs,
     args: InstallArgs,
     client: &Client,
 ) -> anyhow::Result<ReleaseInfo> {
