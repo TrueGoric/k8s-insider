@@ -25,6 +25,9 @@ CONFIG_DIR=/config
 WG_PEER_CONFIG_DIR=$CONFIG_DIR/peer
 WG_SERVER_CONFIG_DIR=$CONFIG_DIR/server
 
+SERVER_ADDRESS="127.0.0.1"
+SERVER_PORT="55555"
+
 echo '[confgen] Generating configurations...'
 
 umask 077
