@@ -11,10 +11,6 @@ settings:
     clusterAddress: "192.168.49.2" # this should be set to the public IP of the cluster
   peerDns: "10.96.0.10"
 
-service:
-  type: NodePort
-  port: 31111
-
 imagePullSecrets: []
 fullnameOverride: ""
 
