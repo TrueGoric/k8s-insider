@@ -101,12 +101,7 @@ async fn check_if_release_exists(
         &release_params,
         &Api::namespaced(client.clone(), namespace),
     )
-    .await?
-        && check_if_resource_exists::<ConfigMap>(
-            &release_params,
-            &Api::namespaced(client.clone(), namespace),
-        )
-        .await?)
+    .await?)
 }
 
 async fn check_if_resource_exists<T: Clone + DeserializeOwned + core::fmt::Debug>(
