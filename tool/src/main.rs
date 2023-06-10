@@ -18,9 +18,9 @@ async fn main() -> anyhow::Result<()> {
 
     configure_logging(&cli.global_args);
 
-    match cli.command {
+    match &cli.command {
         Some(command) => match command {
-            Commands::Install(args) => install(cli.global_args, args).await?,
+            Commands::Install(args) => install(&cli.global_args, args).await?,
             Commands::Uninstall(args) => todo!(),
             Commands::Connect(args) => todo!(),
             Commands::Disconnect => todo!(),

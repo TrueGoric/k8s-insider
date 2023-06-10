@@ -3,6 +3,8 @@ use clap::{Parser, Subcommand, Args};
 pub const DEAFULT_RELEASE_NAME: &str = "local-access";
 pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
 
+pub const DEFAULT_IMAGE: &str = "ghcr.io/truegoric/k8s-insider:latest";
+
 #[derive(Debug, Parser)]
 #[command(version, about)]
 pub struct Cli {
@@ -92,6 +94,15 @@ pub struct InstallArgs {
     /// cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<String>,
+    /// if set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+    // push the release even if it already exists in the cluster
+    #[arg(long)]
+    pub force: bool,
+    /// substitutes the k8s-insider container image if specified
+    #[arg(long, default_value = DEFAULT_IMAGE)]
+    pub image_name: String,
 }
 
 #[derive(Debug, Args)]
@@ -99,6 +110,9 @@ pub struct UninstallArgs {
     /// name of the release to uninstall (required if there's more than one configured)
     #[arg()]
     pub release_name: Option<String>,
+    /// try to remove the namespace afterwards
+    #[arg(long)]
+    pub delete_namespace: bool,
 }
 
 #[derive(Debug, Args)]
