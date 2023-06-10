@@ -16,7 +16,7 @@ use crate::{
     resources::{
         configmap::generate_configmap,
         deployment::generate_deployment,
-        get_common_release_listparams,
+        get_release_listparams,
         namespace::create_namespace_if_not_exists,
         release::{Release, ReleaseBuilder},
     },
@@ -25,12 +25,13 @@ use crate::{
 const FIELD_MANAGER: &str = "k8s-insider";
 
 pub async fn install(global_args: &GlobalArgs, args: &InstallArgs) -> anyhow::Result<()> {
-    debug!("Loading configuration...");
+    info!("Installing release '{}'...", args.release_name);
+
     let client = create_client(&global_args.kube_config)
         .await
         .context("Couldn't initialize k8s API client!")?;
 
-    let release_params = get_common_release_listparams(&args.release_name);
+    let release_params = get_release_listparams(&args.release_name);
 
     debug!("Checking if there's another release with the same name in the cluster/namespace...");
     if check_if_release_exists(&release_params, &global_args.namespace, &client).await? {
