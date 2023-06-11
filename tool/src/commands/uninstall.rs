@@ -1,27 +1,23 @@
 use anyhow::{anyhow, Context};
-use k8s_openapi::api::{
-    apps::v1::Deployment,
-    core::v1::ConfigMap,
-};
-use kube::{api::DeleteParams, core::PartialObjectMeta, Api};
+use k8s_openapi::api::{apps::v1::Deployment, core::v1::ConfigMap};
+use kube::{api::DeleteParams, core::PartialObjectMeta, Api, Client};
 use log::{info, warn};
 
 use crate::{
     cli::{GlobalArgs, UninstallAllArgs, UninstallArgs},
-    kubernetes::create_client,
     resources::{get_common_listparams, get_release_listparams, namespace::try_remove_namespace},
 };
 
-pub async fn uninstall(global_args: &GlobalArgs, args: &UninstallArgs) -> anyhow::Result<()> {
+pub async fn uninstall(
+    global_args: &GlobalArgs,
+    args: &UninstallArgs,
+    client: &Client,
+) -> anyhow::Result<()> {
     if let Some(release_name) = &args.release_name {
         info!("Uninstalling release '{}'...", release_name);
     } else {
         info!("Uninstalling default release ...");
     }
-
-    let client = create_client(&global_args.kube_config)
-        .await
-        .context("Couldn't initialize k8s API client!")?;
 
     let releases_params = match &args.release_name {
         Some(name) => get_release_listparams(name),
@@ -51,12 +47,9 @@ pub async fn uninstall(global_args: &GlobalArgs, args: &UninstallArgs) -> anyhow
 pub async fn uninstall_all(
     global_args: &GlobalArgs,
     args: &UninstallAllArgs,
+    client: &Client,
 ) -> anyhow::Result<()> {
     info!("Uninstalling k8s-insider from the cluster...");
-
-    let client = create_client(&global_args.kube_config)
-        .await
-        .context("Couldn't initialize k8s API client!")?;
 
     let releases_params = get_common_listparams();
     let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);

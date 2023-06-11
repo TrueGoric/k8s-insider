@@ -1,7 +1,9 @@
+use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
 use commands::{install::install, uninstall::{uninstall, uninstall_all}, list::list};
 use env_logger::Target;
+use kubernetes::create_client;
 use log::LevelFilter;
 
 use crate::cli::Cli;
@@ -18,12 +20,16 @@ async fn main() -> anyhow::Result<()> {
 
     configure_logging(&cli.global_args);
 
+    let client = create_client(&cli.global_args.kube_config, &cli.global_args.kube_context)
+        .await
+        .context("Couldn't initialize k8s API client!")?;
+
     match &cli.command {
         Some(command) => match command {
-            Commands::Install(args) => install(&cli.global_args, args).await?,
-            Commands::Uninstall(args) => uninstall(&cli.global_args, args).await?,
-            Commands::UninstallAll(args) => uninstall_all(&cli.global_args, args).await?,
-            Commands::List => list(&cli.global_args).await?,
+            Commands::Install(args) => install(&cli.global_args, args, &client).await?,
+            Commands::Uninstall(args) => uninstall(&cli.global_args, args, &client).await?,
+            Commands::UninstallAll(args) => uninstall_all(&cli.global_args, args, &client).await?,
+            Commands::List => list(&cli.global_args, &client).await?,
             Commands::Connect(args) => todo!(),
             Commands::Disconnect => todo!(),
             Commands::GetConf(args) => todo!(),

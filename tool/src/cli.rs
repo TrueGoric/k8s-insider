@@ -22,6 +22,9 @@ pub struct GlobalArgs {
     /// override default kubeconfig
     #[arg(long, global = true)]
     pub kube_config: Option<String>,
+    /// override default kubeconfig context
+    #[arg(long, global = true)]
+    pub kube_context: Option<String>,
     /// enable verbose output
     #[arg(short = 'v', long = "verbose", global = true)]
     pub verbose_logging: bool,

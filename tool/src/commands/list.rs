@@ -1,14 +1,10 @@
 use anyhow::Context;
 use k8s_openapi::api::apps::v1::Deployment;
-use kube::Api;
+use kube::{Api, Client};
 
-use crate::{cli::GlobalArgs, kubernetes::create_client, resources::get_common_listparams};
+use crate::{cli::GlobalArgs, resources::get_common_listparams};
 
-pub async fn list(global_args: &GlobalArgs) -> anyhow::Result<()> {
-    let client = create_client(&global_args.kube_config)
-        .await
-        .context("Couldn't initialize k8s API client!")?;
-
+pub async fn list(global_args: &GlobalArgs, client: &Client) -> anyhow::Result<()> {
     let releases_params = get_common_listparams();
     let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
     let deployments = deployment_api

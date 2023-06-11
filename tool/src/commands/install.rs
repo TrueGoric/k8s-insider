@@ -12,7 +12,6 @@ use log::{debug, info, warn};
 use crate::{
     cli::{GlobalArgs, InstallArgs},
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
-    kubernetes::create_client,
     resources::{
         configmap::generate_configmap,
         deployment::generate_deployment,
@@ -24,12 +23,12 @@ use crate::{
 
 const FIELD_MANAGER: &str = "k8s-insider";
 
-pub async fn install(global_args: &GlobalArgs, args: &InstallArgs) -> anyhow::Result<()> {
+pub async fn install(
+    global_args: &GlobalArgs,
+    args: &InstallArgs,
+    client: &Client,
+) -> anyhow::Result<()> {
     info!("Installing release '{}'...", args.release_name);
-
-    let client = create_client(&global_args.kube_config)
-        .await
-        .context("Couldn't initialize k8s API client!")?;
 
     let release_params = get_release_listparams(&args.release_name);
 
