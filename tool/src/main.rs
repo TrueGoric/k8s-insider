@@ -1,17 +1,22 @@
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{install::install, uninstall::{uninstall, uninstall_all}, list::list};
+use commands::{
+    install::install,
+    list::list,
+    uninstall::{uninstall, uninstall_all},
+};
 use env_logger::Target;
-use kubernetes::create_client;
 use log::LevelFilter;
+use operations::kubernetes::create_client;
 
 use crate::cli::Cli;
 
 mod cli;
 mod commands;
 mod detectors;
-mod kubernetes;
+mod helpers;
+mod operations;
 mod resources;
 
 #[tokio::main(flavor = "current_thread")]
@@ -34,7 +39,6 @@ async fn main() -> anyhow::Result<()> {
             Commands::Disconnect => todo!(),
             Commands::GetConf(args) => todo!(),
             Commands::PatchDns(args) => todo!(),
-            Commands::Upgrade(args) => todo!(),
         },
         None => (),
     }
@@ -50,7 +54,7 @@ fn configure_logging(global_args: &GlobalArgs) {
         .format_timestamp(None)
         .format_module_path(match log_level {
             LogLevel::Trace => true,
-            _ => false
+            _ => false,
         })
         .format_target(false)
         .format_level(false)
@@ -59,7 +63,7 @@ fn configure_logging(global_args: &GlobalArgs) {
     if let LogLevel::Normal = log_level {
         logger.filter(Some("k8s_insider"), LevelFilter::Info);
     }
-    
+
     if let LogLevel::Verbose = log_level {
         logger.filter(Some("k8s_insider"), LevelFilter::Debug);
     }

@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand, Args};
+use clap::{Parser, Subcommand, Args, ValueEnum};
 
 pub const DEAFULT_RELEASE_NAME: &str = "local-access";
 pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
@@ -81,9 +81,19 @@ pub enum Commands {
     /// patch the DNS resolver to avoid loops when deploying on the local machine
     #[command(alias = "p")]
     PatchDns(PatchDnsArgs),
-    /// check for a new verion of the tool and upgrade
-    #[command(alias = "update")]
-    Upgrade(UpgradeArgs)
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+#[value()]
+pub enum ServiceType {
+    #[value(name = "None")]
+    None,
+    #[value(name = "NodePort")]
+    NodePort,
+    #[value(name = "LoadBalancer")]
+    LoadBalancer,
+    #[value(name = "ExternalIp")]
+    ExternalIp,
 }
 
 #[derive(Debug, Args)]
@@ -91,6 +101,16 @@ pub struct InstallArgs {
     /// name of the release (must be unique within the namespace)
     #[arg(default_value = DEAFULT_RELEASE_NAME)]
     pub release_name: String,
+    /// type of the public facing service that will be used to connect to the k8s-insider instance
+    #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
+    pub service_type: ServiceType,
+    /// manually sets the connection IP (valid for NodePort and ExternalIp service types)
+    /// 
+    /// required for ExternalIp services,
+    /// when defined with NodePort service type it skips the autodetection of node IPs and
+    /// instructs clients to connect using the provided address.
+    #[arg(long)]
+    pub external_ip: Option<String>,
     /// DNS service IP (autodetected if unset)
     #[arg(long)]
     pub kube_dns: Option<String>,
@@ -159,11 +179,4 @@ pub struct PatchDnsArgs {
     pub interface_name: String,
     /// cluster domain name assigned to services
     pub services_domain: String
-}
-
-#[derive(Debug, Args)]
-pub struct UpgradeArgs {
-    /// just check for new version, don't perfom the update
-    #[arg(short = 'c', long)]
-    pub check_only: bool,
 }

@@ -9,4 +9,17 @@ pub struct Release {
     pub service_cidr: String,
     pub service_domain: Option<String>,
     pub pod_cidr: String,
+    pub service: ReleaseService
+}
+
+#[derive(Debug, Clone)]
+pub enum ReleaseService {
+    None,
+    NodePort {
+        predefined_ips: Option<String>
+    },
+    LoadBalancer,
+    ExternalIp {
+        ip: String
+    }
 }

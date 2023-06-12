@@ -1,11 +1,17 @@
+use std::{any::type_name, fmt::Debug};
+
 use anyhow::{anyhow, Context};
-use k8s_openapi::api::{apps::v1::Deployment, core::v1::ConfigMap};
+use k8s_openapi::api::{apps::v1::Deployment, core::v1::{ConfigMap, Service}};
 use kube::{api::DeleteParams, core::PartialObjectMeta, Api, Client};
 use log::{info, warn};
+use serde::de::DeserializeOwned;
 
 use crate::{
     cli::{GlobalArgs, UninstallAllArgs, UninstallArgs},
-    resources::{get_common_listparams, get_release_listparams, namespace::try_remove_namespace},
+    resources::{
+        labels::{get_common_listparams, get_release_listparams},
+        namespace::try_remove_namespace,
+    }, helpers::pretty_type_name,
 };
 
 pub async fn uninstall(
@@ -25,10 +31,16 @@ pub async fn uninstall(
     };
 
     let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
+    let service_api: Api<Service> = Api::namespaced(client.clone(), &global_args.namespace);
+
     let deployments = deployment_api
         .list_metadata(&releases_params)
         .await
-        .context("Couldn't retrieve releases from the cluster!")?;
+        .context("Couldn't retrieve release deployments from the cluster!")?;
+    let services = service_api
+        .list_metadata(&releases_params)
+        .await
+        .context("Couldn't retrieve release services from the cluster!")?;
 
     if args.release_name.is_none() && deployments.items.len() > 1 {
         return Err(anyhow!("Multiple releases detected on the cluster!"));
@@ -39,7 +51,8 @@ pub async fn uninstall(
         ..Default::default()
     };
 
-    remove_deployments(&deployments.items, &delete_params, &deployment_api).await?;
+    remove_resources(&deployments.items, &delete_params, &deployment_api).await?;
+    remove_resources(&services.items, &delete_params, &service_api).await?;
 
     Ok(())
 }
@@ -54,6 +67,7 @@ pub async fn uninstall_all(
     let releases_params = get_common_listparams();
     let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
     let configmap_api: Api<ConfigMap> = Api::namespaced(client.clone(), &global_args.namespace);
+    let service_api: Api<Service> = Api::namespaced(client.clone(), &global_args.namespace);
 
     let deployments = deployment_api
         .list_metadata(&releases_params)
@@ -63,14 +77,20 @@ pub async fn uninstall_all(
         .list_metadata(&releases_params)
         .await
         .context("Couldn't retrieve configmaps from the cluster!")?;
+    let services = service_api
+        .list_metadata(&releases_params)
+        .await
+        .context("Couldn't retrieve release services from the cluster!")?;
+
 
     let delete_params = DeleteParams {
         dry_run: args.dry_run,
         ..Default::default()
     };
 
-    remove_deployments(&deployments.items, &delete_params, &deployment_api).await?;
-    remove_configmaps(&configmaps.items, &delete_params, &configmap_api).await?;
+    remove_resources(&deployments.items, &delete_params, &deployment_api).await?;
+    remove_resources(&configmaps.items, &delete_params, &configmap_api).await?;
+    remove_resources(&services.items, &delete_params, &service_api).await?;
 
     if args.delete_namespace {
         info!("Removing namespace '{}'...", global_args.namespace);
@@ -82,40 +102,21 @@ pub async fn uninstall_all(
     Ok(())
 }
 
-async fn remove_deployments(
-    deployments: &Vec<PartialObjectMeta<Deployment>>,
+async fn remove_resources<T: Clone + DeserializeOwned + Debug>(
+    resources: &Vec<PartialObjectMeta<T>>,
     delete_params: &DeleteParams,
-    deployment_api: &Api<Deployment>,
+    api: &Api<T>,
 ) -> anyhow::Result<()> {
-    for deployment in deployments {
-        if let Some(name) = &deployment.metadata.name {
-            info!("Removing '{name}' release from the cluster...");
-            deployment_api
+    let resource_name = pretty_type_name::<T>();
+    for service in resources {
+        if let Some(name) = &service.metadata.name {
+            info!("Removing '{name}' release {} from the cluster...", resource_name);
+            api
                 .delete(&name, &delete_params)
                 .await
-                .context("Couldn't delete a release deployment from the cluster!")?;
+                .context(format!("Couldn't delete a release {} from the cluster!", resource_name))?;
         } else {
-            warn!("Cluster returned a nameless deployment!"); // this shouldn't happen
-        }
-    }
-
-    Ok(())
-}
-
-async fn remove_configmaps(
-    configmaps: &Vec<PartialObjectMeta<ConfigMap>>,
-    delete_params: &DeleteParams,
-    configmap_api: &Api<ConfigMap>,
-) -> anyhow::Result<()> {
-    for configmap in configmaps {
-        if let Some(name) = &configmap.metadata.name {
-            info!("Removing '{name}' configmap from the cluster...");
-            configmap_api
-                .delete(&name, &delete_params)
-                .await
-                .context("Couldn't delete a configmap from the cluster!")?;
-        } else {
-            warn!("Cluster returned a nameless configmap!"); // this shouldn't happen
+            warn!("Cluster returned a nameless {}!", resource_name); // this shouldn't happen
         }
     }
 

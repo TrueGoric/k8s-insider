@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::core::ObjectMeta;
 
-use super::{release::Release, get_common_labels};
+use super::{release::Release, labels::get_common_labels};
 
 const CONFIGMAP_NAME: &str = "k8s-insider-config";
 

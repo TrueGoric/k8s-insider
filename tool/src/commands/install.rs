@@ -1,23 +1,26 @@
+use std::fmt::Debug;
+
 use anyhow::{anyhow, Context};
-use k8s_openapi::{
-    api::{apps::v1::Deployment, core::v1::ConfigMap},
-    serde::de::DeserializeOwned,
-};
+use k8s_openapi::{api::apps::v1::Deployment, Metadata, NamespaceResourceScope};
 use kube::{
     api::{ListParams, Patch, PatchParams},
-    Api, Client,
+    core::ObjectMeta,
+    Api, Client, Resource,
 };
 use log::{debug, info, warn};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
-    cli::{GlobalArgs, InstallArgs},
+    cli::{GlobalArgs, InstallArgs, ServiceType},
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
+    operations::kubernetes::check_if_resource_exists,
     resources::{
         configmap::generate_configmap,
         deployment::generate_deployment,
-        get_release_listparams,
+        labels::get_release_listparams,
         namespace::create_namespace_if_not_exists,
-        release::{Release, ReleaseBuilder},
+        release::{Release, ReleaseBuilder, ReleaseService},
+        service::generate_service,
     },
 };
 
@@ -50,15 +53,13 @@ pub async fn install(
     debug!("Preparing release...");
     let release_info = prepare_release(global_args, args, &client).await?;
     let configmap = generate_configmap(&release_info);
-    let configmap_name = configmap.metadata.name.as_ref().unwrap();
     let deployment = generate_deployment(&release_info, &configmap.metadata.name.as_ref().unwrap());
-    let deployment_name = deployment.metadata.name.as_ref().unwrap();
+    let service = generate_service(&release_info, extract_port_name(&deployment));
 
     debug!("{configmap:#?}");
     debug!("{deployment:#?}");
+    debug!("{service:#?}");
 
-    let configmap_api: Api<ConfigMap> = Api::namespaced(client.clone(), &global_args.namespace);
-    let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
     let patch_params = PatchParams {
         dry_run: args.dry_run,
         field_manager: Some(FIELD_MANAGER.to_owned()),
@@ -71,17 +72,12 @@ pub async fn install(
     );
     create_namespace_if_not_exists(&client, &patch_params, &release_info.release_namespace).await?;
 
-    info!("Creating the configmap on the cluster...");
-    configmap_api
-        .patch(configmap_name, &patch_params, &Patch::Apply(&configmap))
-        .await
-        .context("Unable to create the configmap!")?;
+    create_resource(client, &global_args.namespace, &deployment, &patch_params).await?;
+    create_resource(client, &global_args.namespace, &configmap, &patch_params).await?;
 
-    info!("Creating the deployment on the cluster...");
-    deployment_api
-        .patch(deployment_name, &patch_params, &Patch::Apply(&deployment))
-        .await
-        .context("Unable to create the deployment!")?;
+    if let Some(service) = service {
+        create_resource(client, &global_args.namespace, &service, &patch_params).await?;
+    }
 
     info!(
         "Successfully deployed '{}' release!",
@@ -103,23 +99,52 @@ async fn check_if_release_exists(
     .await?)
 }
 
-async fn check_if_resource_exists<T: Clone + DeserializeOwned + core::fmt::Debug>(
-    release_params: &ListParams,
-    api: &Api<T>,
-) -> anyhow::Result<bool> {
-    let matching_deployments = api
-        .list_metadata(&release_params)
-        .await
-        .context("Couldn't retrieve resources from the cluster!")?;
+fn extract_port_name(deployment: &Deployment) -> &str {
+    deployment
+        .spec
+        .as_ref()
+        .unwrap()
+        .template
+        .spec
+        .as_ref()
+        .unwrap()
+        .containers
+        .first()
+        .unwrap()
+        .ports
+        .as_ref()
+        .unwrap()
+        .first()
+        .unwrap()
+        .name
+        .as_ref()
+        .unwrap() // ┌(˘⌣˘)ʃ
+}
 
-    match matching_deployments.items.len() {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => {
-            warn!("There are multiple resources matching the release! This could cause unintented behavior!");
-            Ok(true)
-        }
-    }
+async fn create_resource<T>(
+    client: &Client,
+    namespace: &str,
+    resource: &T,
+    patch_params: &PatchParams,
+) -> anyhow::Result<()>
+where
+    T: Metadata<Ty = ObjectMeta>
+        + Resource<Scope = NamespaceResourceScope, DynamicType = ()>
+        + Serialize
+        + Clone
+        + DeserializeOwned
+        + Debug,
+{
+    info!("Creating the resource on the cluster...");
+
+    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+    let resource_name = resource.metadata().name.as_ref().unwrap();
+    resource_api
+        .patch(resource_name, patch_params, &Patch::Apply(resource))
+        .await
+        .context("Unable to create the {}!")?;
+
+    Ok(())
 }
 
 async fn prepare_release(
@@ -167,6 +192,19 @@ async fn prepare_release(
                 value.clone()
             }
             None => detect_pod_cidr(client).await?,
+        })
+        .service(match &args.service_type {
+            ServiceType::None => ReleaseService::None,
+            ServiceType::NodePort => ReleaseService::NodePort {
+                predefined_ips: args.external_ip.clone()
+            },
+            ServiceType::LoadBalancer => ReleaseService::LoadBalancer,
+            ServiceType::ExternalIp => ReleaseService::ExternalIp {
+                ip: args.external_ip
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("--external-ip argument is mandatory when using service of type ExternalIp!"))?
+                    .clone()
+                },
         })
         .build()?;
 

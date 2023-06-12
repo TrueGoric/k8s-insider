@@ -1,10 +1,10 @@
-use std::time::{SystemTime, Duration};
-
 use anyhow::anyhow;
 use k8s_openapi::api::core::v1::{Service, ServiceSpec};
-use kube::{Client, Api, api::PostParams, core::ObjectMeta};
-use log::{info, debug};
+use kube::{api::PostParams, core::ObjectMeta, Api, Client};
+use log::{debug, info};
 use regex::Regex;
+
+use crate::helpers::get_secs_since_unix_epoch;
 
 const DEFAULT_NAMESPACE: &str = "default";
 
@@ -22,7 +22,9 @@ pub async fn detect_service_cidr(client: &Client) -> anyhow::Result<String> {
     let service_cidr_regex: Regex =
         Regex::new("The range of valid IPs is (?<cidr>[0-9a-f./:]+)").unwrap();
     let service_cidr = match service_post_response {
-        Ok(_) => panic!("Kubernetes accepted an invalid service definition - something is not right."),
+        Ok(_) => {
+            panic!("Kubernetes accepted an invalid service definition - something is not right.")
+        }
         Err(error) => match error {
             kube::Error::Api(error) => Ok(service_cidr_regex
                 .captures(&error.message)
@@ -51,10 +53,7 @@ fn get_faux_service() -> Service {
         metadata: ObjectMeta {
             name: Some(format!(
                 "thisiswheredreamsgotodie{}",
-                SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap_or(Duration::from_secs(2137420))
-                    .as_secs()
+                get_secs_since_unix_epoch()
             )),
             ..Default::default()
         },
