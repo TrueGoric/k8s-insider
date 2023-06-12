@@ -1,6 +1,21 @@
 # k8s-insider
 A zero-config, NAT-free way to access you kubernetes cluster network
 
+## What
+Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources.
+
+## Requirements
+TODO
+
+## Installation
+TODO
+
+## Quickstart
+```bash
+k8s-insider install
+k8s-install connect
+```
+
 ## License notice
 Copyright (C) 2023 Marcin Jędrasik
 
