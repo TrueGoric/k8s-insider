@@ -1,17 +1,21 @@
-use std::{any::type_name, fmt::Debug};
+use std::fmt::Debug;
 
 use anyhow::{anyhow, Context};
-use k8s_openapi::api::{apps::v1::Deployment, core::v1::{ConfigMap, Service}};
+use k8s_openapi::api::{
+    apps::v1::Deployment,
+    core::v1::{ConfigMap, Service},
+};
 use kube::{api::DeleteParams, core::PartialObjectMeta, Api, Client};
 use log::{info, warn};
 use serde::de::DeserializeOwned;
 
 use crate::{
     cli::{GlobalArgs, UninstallAllArgs, UninstallArgs},
+    helpers::pretty_type_name,
     resources::{
         labels::{get_common_listparams, get_release_listparams},
         namespace::try_remove_namespace,
-    }, helpers::pretty_type_name,
+    },
 };
 
 pub async fn uninstall(
@@ -82,7 +86,6 @@ pub async fn uninstall_all(
         .await
         .context("Couldn't retrieve release services from the cluster!")?;
 
-
     let delete_params = DeleteParams {
         dry_run: args.dry_run,
         ..Default::default()
@@ -110,11 +113,14 @@ async fn remove_resources<T: Clone + DeserializeOwned + Debug>(
     let resource_name = pretty_type_name::<T>();
     for service in resources {
         if let Some(name) = &service.metadata.name {
-            info!("Removing '{name}' release {} from the cluster...", resource_name);
-            api
-                .delete(&name, &delete_params)
-                .await
-                .context(format!("Couldn't delete a release {} from the cluster!", resource_name))?;
+            info!(
+                "Removing '{name}' release {} from the cluster...",
+                resource_name
+            );
+            api.delete(&name, &delete_params).await.context(format!(
+                "Couldn't delete a release {} from the cluster!",
+                resource_name
+            ))?;
         } else {
             warn!("Cluster returned a nameless {}!", resource_name); // this shouldn't happen
         }
