@@ -1,5 +1,8 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./app/k8s-insider/Cargo.toml"
+        "./app/Cargo.toml",
+        "./app/k8s-insider/Cargo.toml",
+        "./app/k8s-insider-agent/Cargo.toml",
+        "./app/k8s-insider-core/Cargo.toml",
     ]
 }
