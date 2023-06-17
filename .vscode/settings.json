@@ -1,5 +1,5 @@
 {
     "rust-analyzer.linkedProjects": [
-        "./tool/Cargo.toml"
+        "./app/k8s-insider/Cargo.toml"
     ]
 }
