@@ -4,7 +4,7 @@ use cli::{Commands, GlobalArgs, LogLevel};
 use commands::{
     install::install,
     list::list,
-    uninstall::{uninstall, uninstall_all},
+    uninstall::{uninstall, uninstall_all}, connect::connect,
 };
 use env_logger::Target;
 use log::LevelFilter;
@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
             Commands::Uninstall(args) => uninstall(&cli.global_args, args, &client).await?,
             Commands::UninstallAll(args) => uninstall_all(&cli.global_args, args, &client).await?,
             Commands::List => list(&cli.global_args, &client).await?,
-            Commands::Connect(args) => todo!(),
+            Commands::Connect(args) => connect(&cli.global_args, args, &client).await?,
             Commands::Disconnect => todo!(),
             Commands::GetConf(args) => todo!(),
             Commands::PatchDns(args) => todo!(),
