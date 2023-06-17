@@ -7,17 +7,14 @@ use commands::{
     uninstall::{uninstall, uninstall_all}, connect::connect,
 };
 use env_logger::Target;
+use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
-use operations::kubernetes::create_client;
 
 use crate::cli::Cli;
 
 mod cli;
 mod commands;
-mod detectors;
-mod helpers;
 mod operations;
-mod resources;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
@@ -25,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
 
     configure_logging(&cli.global_args);
 
-    let client = create_client(&cli.global_args.kube_config, &cli.global_args.kube_context)
+    let client = create_local_client(&cli.global_args.kube_config, &cli.global_args.kube_context)
         .await
         .context("Couldn't initialize k8s API client!")?;
 

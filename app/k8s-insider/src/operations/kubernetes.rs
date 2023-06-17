@@ -1,35 +1,7 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use k8s_openapi::api::core::v1::{Pod, Service, ServiceSpec};
-use kube::{
-    api::{AttachParams, ListParams},
-    config::{KubeConfigOptions, Kubeconfig},
-    Api, Client, Config,
-};
-use log::warn;
-use serde::de::DeserializeOwned;
+use kube::{api::AttachParams, Api, Client};
 use tokio::io::AsyncReadExt;
-
-pub async fn create_client(
-    config_path: &Option<String>,
-    context_name: &Option<String>,
-) -> anyhow::Result<Client> {
-    let config_options = KubeConfigOptions {
-        context: context_name.to_owned(),
-        ..Default::default()
-    };
-
-    let config = match config_path {
-        Some(path) => {
-            let kubeconfig = Kubeconfig::read_from(path)?;
-            Config::from_custom_kubeconfig(kubeconfig, &config_options).await?
-        }
-        None => Config::from_kubeconfig(&config_options).await?,
-    };
-
-    let client = Client::try_from(config)?;
-
-    Ok(client)
-}
 
 pub async fn get_text_file(
     client: &Client,
@@ -68,26 +40,10 @@ pub async fn get_text_file(
     Ok(file)
 }
 
-pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + core::fmt::Debug>(
-    release_params: &ListParams,
-    api: &Api<T>,
-) -> anyhow::Result<bool> {
-    let matching_deployments = api
-        .list_metadata(&release_params)
-        .await
-        .context("Couldn't retrieve resources from the cluster!")?;
-
-    match matching_deployments.items.len() {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => {
-            warn!("There are multiple resources matching the release! This could cause unintented behavior!");
-            Ok(true)
-        }
-    }
-}
-
-pub async fn get_service_accessible_address(client: &Client, service: &Service) -> anyhow::Result<String> {
+pub async fn get_service_accessible_address(
+    client: &Client,
+    service: &Service,
+) -> anyhow::Result<String> {
     let service_spec = service
         .spec
         .as_ref()

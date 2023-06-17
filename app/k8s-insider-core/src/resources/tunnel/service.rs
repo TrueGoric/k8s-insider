@@ -4,11 +4,9 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use super::{
-    annotations::get_service_annotations,
-    labels::get_release_labels,
-    release::{Release, ReleaseService},
-};
+use crate::resources::{annotations::get_service_annotations, labels::get_release_labels};
+
+use super::release::{Release, ReleaseService};
 
 const PORT_NUMBER: i32 = 31313;
 
@@ -56,7 +54,7 @@ pub fn generate_service(release_info: &Release, port_name: &str) -> Option<Servi
             annotations,
             ..Default::default()
         },
-        spec: spec,
+        spec,
         ..Default::default()
     })
 }

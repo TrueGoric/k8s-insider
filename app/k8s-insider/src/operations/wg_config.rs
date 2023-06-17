@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Context};
+use k8s_insider_core::helpers::get_secs_since_unix_epoch;
 use k8s_openapi::api::core::v1::Pod;
 use kube::{api::ListParams, Api, Client};
-
-use crate::helpers::get_secs_since_unix_epoch;
 
 use super::kubernetes::get_text_file;
 

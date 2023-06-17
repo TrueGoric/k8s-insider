@@ -10,7 +10,9 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use super::{release::Release, labels::get_release_labels};
+use crate::resources::labels::get_release_labels;
+
+use super::release::Release;
 
 const EXPOSED_PORT: i32 = 55555;
 const EXPOSED_PORT_NAME: &str = "vpn";

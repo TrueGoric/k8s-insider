@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Context};
-use k8s_openapi::api::apps::v1::Deployment;
-use kube::{Api, Client};
+use anyhow::Context;
+
+use k8s_insider_core::resources::labels::{get_common_listparams, get_release_listparams};
+use kube::Client;
 
 use crate::{
     cli::{ConnectArgs, GlobalArgs},
     operations::wg_config::get_peer_config,
-    resources::labels::{get_common_listparams, get_release_listparams},
 };
 
 pub async fn connect(

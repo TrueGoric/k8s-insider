@@ -1,27 +1,16 @@
-use std::fmt::Debug;
-
-use anyhow::{anyhow, Context};
-use k8s_openapi::{api::apps::v1::Deployment, Metadata, NamespaceResourceScope};
+use anyhow::anyhow;
+use k8s_insider_core::{kubernetes::operations::{
+    check_if_resource_exists, create_namespace_if_not_exists, create_resource,
+}, resources::{labels::get_release_listparams, tunnel::{configmap::generate_configmap, deployment::generate_deployment, service::generate_service, release::{Release, ReleaseBuilder, ReleaseService}}}, detectors::{detect_dns_service, detect_cluster_domain, detect_service_cidr, detect_pod_cidr}};
+use k8s_openapi::api::apps::v1::Deployment;
 use kube::{
-    api::{ListParams, Patch, PatchParams},
-    core::ObjectMeta,
-    Api, Client, Resource,
+    api::{ListParams, PatchParams},
+    Api, Client,
 };
 use log::{debug, info, warn};
-use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     cli::{GlobalArgs, InstallArgs, ServiceType},
-    detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
-    operations::kubernetes::check_if_resource_exists,
-    resources::{
-        configmap::generate_configmap,
-        deployment::generate_deployment,
-        labels::get_release_listparams,
-        namespace::create_namespace_if_not_exists,
-        release::{Release, ReleaseBuilder, ReleaseService},
-        service::generate_service,
-    },
 };
 
 const FIELD_MANAGER: &str = "k8s-insider";
@@ -119,32 +108,6 @@ fn extract_port_name(deployment: &Deployment) -> &str {
         .name
         .as_ref()
         .unwrap() // ┌(˘⌣˘)ʃ
-}
-
-async fn create_resource<T>(
-    client: &Client,
-    namespace: &str,
-    resource: &T,
-    patch_params: &PatchParams,
-) -> anyhow::Result<()>
-where
-    T: Metadata<Ty = ObjectMeta>
-        + Resource<Scope = NamespaceResourceScope, DynamicType = ()>
-        + Serialize
-        + Clone
-        + DeserializeOwned
-        + Debug,
-{
-    info!("Creating the resource on the cluster...");
-
-    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
-    let resource_name = resource.metadata().name.as_ref().unwrap();
-    resource_api
-        .patch(resource_name, patch_params, &Patch::Apply(resource))
-        .await
-        .context("Unable to create the {}!")?;
-
-    Ok(())
 }
 
 async fn prepare_release(

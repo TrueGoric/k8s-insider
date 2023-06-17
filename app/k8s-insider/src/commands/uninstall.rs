@@ -1,22 +1,16 @@
-use std::fmt::Debug;
-
 use anyhow::{anyhow, Context};
+use k8s_insider_core::{
+    kubernetes::operations::{remove_resources, try_remove_namespace},
+    resources::labels::{get_common_listparams, get_release_listparams},
+};
 use k8s_openapi::api::{
     apps::v1::Deployment,
     core::v1::{ConfigMap, Service},
 };
-use kube::{api::DeleteParams, core::PartialObjectMeta, Api, Client};
-use log::{info, warn};
-use serde::de::DeserializeOwned;
+use kube::{api::DeleteParams, Api, Client};
+use log::info;
 
-use crate::{
-    cli::{GlobalArgs, UninstallAllArgs, UninstallArgs},
-    helpers::pretty_type_name,
-    resources::{
-        labels::{get_common_listparams, get_release_listparams},
-        namespace::try_remove_namespace,
-    },
-};
+use crate::cli::{GlobalArgs, UninstallAllArgs, UninstallArgs};
 
 pub async fn uninstall(
     global_args: &GlobalArgs,
@@ -100,30 +94,6 @@ pub async fn uninstall_all(
         try_remove_namespace(&client, &delete_params, &global_args.namespace)
             .await
             .context("Couldn't remove the namespace!")?;
-    }
-
-    Ok(())
-}
-
-async fn remove_resources<T: Clone + DeserializeOwned + Debug>(
-    resources: &Vec<PartialObjectMeta<T>>,
-    delete_params: &DeleteParams,
-    api: &Api<T>,
-) -> anyhow::Result<()> {
-    let resource_name = pretty_type_name::<T>();
-    for service in resources {
-        if let Some(name) = &service.metadata.name {
-            info!(
-                "Removing '{name}' release {} from the cluster...",
-                resource_name
-            );
-            api.delete(&name, &delete_params).await.context(format!(
-                "Couldn't delete a release {} from the cluster!",
-                resource_name
-            ))?;
-        } else {
-            warn!("Cluster returned a nameless {}!", resource_name); // this shouldn't happen
-        }
     }
 
     Ok(())

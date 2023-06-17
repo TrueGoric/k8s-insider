@@ -1,8 +1,9 @@
 use anyhow::Context;
+use k8s_insider_core::resources::labels::get_common_listparams;
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::{Api, Client};
 
-use crate::{cli::GlobalArgs, resources::labels::get_common_listparams};
+use crate::cli::GlobalArgs;
 
 pub async fn list(global_args: &GlobalArgs, client: &Client) -> anyhow::Result<()> {
     let releases_params = get_common_listparams();

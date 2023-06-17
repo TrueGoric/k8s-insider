@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::core::ObjectMeta;
 
-use super::{release::Release, labels::get_common_labels};
+use crate::resources::labels::get_common_labels;
+
+use super::release::Release;
 
 const CONFIGMAP_NAME: &str = "k8s-insider-config";
 
@@ -11,7 +13,10 @@ pub fn generate_configmap(release_info: &Release) -> ConfigMap {
     let mut configmap_data = BTreeMap::from([
         ("SERVER_ADDRESS".to_owned(), "0.0.0.0".to_owned()),
         ("SERVER_PORT".to_owned(), "31111".to_owned()),
-        ("KUBE_SERVICE_CIDR".to_owned(), release_info.service_cidr.to_owned()),
+        (
+            "KUBE_SERVICE_CIDR".to_owned(),
+            release_info.service_cidr.to_owned(),
+        ),
         ("KUBE_POD_CIDR".to_owned(), release_info.pod_cidr.to_owned()),
     ]);
 
