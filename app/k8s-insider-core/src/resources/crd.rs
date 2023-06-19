@@ -21,7 +21,7 @@ pub struct TunnelSpec {
     pub persistent: bool,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 pub struct TunnelStatus {
     pub state: TunnelState,
     /// last handshake 
@@ -38,8 +38,10 @@ pub struct TunnelStatus {
     pub allowed_ips: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 pub enum TunnelState {
+    #[default]
+    Unknown,
     Creating,
     Created,
     Closed,

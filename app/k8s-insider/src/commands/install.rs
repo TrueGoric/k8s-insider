@@ -1,7 +1,14 @@
 use anyhow::anyhow;
-use k8s_insider_core::{kubernetes::operations::{
-    check_if_resource_exists, create_namespace_if_not_exists, create_resource,
-}, resources::{labels::get_release_listparams, tunnel::{configmap::generate_configmap, deployment::generate_deployment, service::generate_service, release::{Release, ReleaseBuilder, ReleaseService}}}, detectors::{detect_dns_service, detect_cluster_domain, detect_service_cidr, detect_pod_cidr}};
+use k8s_insider_core::{
+    detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
+    kubernetes::operations::{
+        check_if_resource_exists, create_namespace_if_not_exists, create_resource,
+    },
+    resources::{
+        labels::get_release_listparams,
+        release::{Release, ReleaseBuilder, ReleaseService},
+    },
+};
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::{
     api::{ListParams, PatchParams},
@@ -9,9 +16,7 @@ use kube::{
 };
 use log::{debug, info, warn};
 
-use crate::{
-    cli::{GlobalArgs, InstallArgs, ServiceType},
-};
+use crate::cli::{GlobalArgs, InstallArgs, ServiceType};
 
 const FIELD_MANAGER: &str = "k8s-insider";
 
@@ -41,9 +46,9 @@ pub async fn install(
 
     debug!("Preparing release...");
     let release_info = prepare_release(global_args, args, &client).await?;
-    let configmap = generate_configmap(&release_info);
-    let deployment = generate_deployment(&release_info, &configmap.metadata.name.as_ref().unwrap());
-    let service = generate_service(&release_info, extract_port_name(&deployment));
+    let configmap = release_info.generate_configmap();
+    let deployment = release_info.generate_deployment(&configmap);
+    let service = release_info.generate_service(extract_port_name(&deployment));
 
     debug!("{configmap:#?}");
     debug!("{deployment:#?}");
