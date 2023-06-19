@@ -2,12 +2,10 @@ use k8s_openapi::{
     api::core::v1::{Service, ServicePort, ServiceSpec},
     apimachinery::pkg::util::intstr::IntOrString,
 };
-use kube::core::ObjectMeta;
 
 use crate::resources::{
     annotations::get_service_annotations,
-    labels::get_release_labels,
-    release::{Release, ReleaseService},
+    release::{Release, ReleaseService}, labels::get_tunnel_labels,
 };
 
 const PORT_NUMBER: i32 = 31313;
@@ -18,7 +16,7 @@ impl Release {
             return None;
         }
 
-        let labels = get_release_labels(&self.release_name);
+        let labels = get_tunnel_labels();
         let port = ServicePort {
             name: Some(port_name.to_owned()),
             port: PORT_NUMBER,
@@ -51,13 +49,7 @@ impl Release {
             };
 
         Some(Service {
-            metadata: ObjectMeta {
-                name: Some(self.release_name.to_owned()),
-                namespace: Some(self.release_namespace.to_owned()),
-                labels: Some(labels),
-                annotations,
-                ..Default::default()
-            },
+            metadata: self.generate_tunnel_metadata(),
             spec,
             ..Default::default()
         })

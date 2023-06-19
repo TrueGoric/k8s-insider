@@ -5,7 +5,7 @@ use k8s_insider_core::{
         check_if_resource_exists, create_namespace_if_not_exists, create_resource,
     },
     resources::{
-        labels::get_release_listparams,
+        labels::get_tunnel_listparams,
         release::{Release, ReleaseBuilder, ReleaseService},
     },
 };
@@ -25,21 +25,21 @@ pub async fn install(
     args: &InstallArgs,
     client: &Client,
 ) -> anyhow::Result<()> {
-    info!("Installing release '{}'...", args.release_name);
+    info!("Installing k8s-insider into '{}' namespace...", global_args.namespace);
 
-    let release_params = get_release_listparams(&args.release_name);
+    let release_params = get_tunnel_listparams();
 
-    debug!("Checking if there's another release with the same name in the cluster/namespace...");
+    debug!("Checking if k8s-insider is already installed...");
     if check_if_release_exists(&release_params, &global_args.namespace, &client).await? {
         if args.force {
             warn!(
-                "Release {} already exists in the cluster, force deploying...",
-                args.release_name
+                "k8s-insider was already installed in the namespace '{}', force deploying...",
+                global_args.namespace
             );
         } else {
             return Err(anyhow!(
-                "Release {} already exists in the cluster!",
-                args.release_name
+                "k8s-insider was already installed in the namespace '{}'!",
+                global_args.namespace
             ));
         }
     }
@@ -47,7 +47,7 @@ pub async fn install(
     debug!("Preparing release...");
     let release_info = prepare_release(global_args, args, &client).await?;
     let configmap = release_info.generate_configmap();
-    let deployment = release_info.generate_deployment(&configmap);
+    let deployment = release_info.generate_tunnel_deployment(&configmap);
     let service = release_info.generate_service(extract_port_name(&deployment));
 
     debug!("{configmap:#?}");
@@ -62,9 +62,9 @@ pub async fn install(
 
     info!(
         "Ensuring the namespace '{}' is created...",
-        release_info.release_namespace
+        release_info.namespace
     );
-    create_namespace_if_not_exists(&client, &patch_params, &release_info.release_namespace).await?;
+    create_namespace_if_not_exists(&client, &patch_params, &release_info.namespace).await?;
 
     create_resource(client, &global_args.namespace, &deployment, &patch_params).await?;
     create_resource(client, &global_args.namespace, &configmap, &patch_params).await?;
@@ -74,20 +74,19 @@ pub async fn install(
     }
 
     info!(
-        "Successfully deployed '{}' release!",
-        release_info.release_name
+        "Successfully deployed k8s-insider!"
     );
 
     Ok(())
 }
 
 async fn check_if_release_exists(
-    release_params: &ListParams,
+    tunnel_params: &ListParams,
     namespace: &str,
     client: &Client,
 ) -> anyhow::Result<bool> {
     Ok(check_if_resource_exists::<Deployment>(
-        &release_params,
+        &tunnel_params,
         &Api::namespaced(client.clone(), namespace),
     )
     .await?)
@@ -121,17 +120,17 @@ async fn prepare_release(
     client: &Client,
 ) -> anyhow::Result<Release> {
     let release_info = ReleaseBuilder::default()
-        .release_name({
-            info!("Using release name: {}", args.release_name);
-            args.release_name.clone()
-        })
-        .release_namespace({
+        .namespace({
             info!("Using release namespace: {}", global_args.namespace);
             global_args.namespace.clone()
         })
-        .image_name({
-            info!("Using image name: {}", args.image_name);
-            args.image_name.clone()
+        .agent_image_name({
+            info!("Using agent image name: {}", args.agent_image_name);
+            args.agent_image_name.clone()
+        })
+        .tunnel_image_name({
+            info!("Using tunnel image name: {}", args.tunnel_image_name);
+            args.tunnel_image_name.clone()
         })
         .kube_dns(match &args.kube_dns {
             Some(value) => {

@@ -10,7 +10,7 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::{labels::get_release_labels, release::Release};
+use crate::resources::{release::Release, labels::get_agent_labels};
 
 const EXPOSED_PORT: i32 = 55555;
 const EXPOSED_PORT_NAME: &str = "vpn";
@@ -18,15 +18,12 @@ const EXPOSED_PORT_PROTOCOL: &str = "UDP";
 
 impl Release {
     pub fn generate_agent_deployment(&self, secret: &Secret) -> Deployment {
-        let labels = get_release_labels(&self.release_name);
+        let labels = get_agent_labels();
+        let metadata = self.generate_tunnel_metadata();
+        let metadata_name = metadata.name.as_ref().unwrap().to_owned();
 
         Deployment {
-            metadata: ObjectMeta {
-                name: Some(self.release_name.to_owned()),
-                namespace: Some(self.namespace.to_owned()),
-                labels: Some(labels.to_owned()),
-                ..Default::default()
-            },
+            metadata,
             spec: Some(DeploymentSpec {
                 replicas: Some(1),
                 selector: LabelSelector {
@@ -53,7 +50,7 @@ impl Release {
                             }]),
                             image: Some(self.agent_image_name.to_owned()),
                             image_pull_policy: Some("Always".to_owned()),
-                            name: self.release_name.to_owned(),
+                            name: metadata_name,
                             ports: Some(vec![ContainerPort {
                                 name: Some(EXPOSED_PORT_NAME.to_owned()),
                                 container_port: EXPOSED_PORT,

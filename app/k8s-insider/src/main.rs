@@ -1,11 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{
-    install::install,
-    list::list,
-    uninstall::{uninstall, uninstall_all}, connect::connect,
-};
+use commands::{connect::connect, install::install, uninstall::uninstall};
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -30,8 +26,6 @@ async fn main() -> anyhow::Result<()> {
         Some(command) => match command {
             Commands::Install(args) => install(&cli.global_args, args, &client).await?,
             Commands::Uninstall(args) => uninstall(&cli.global_args, args, &client).await?,
-            Commands::UninstallAll(args) => uninstall_all(&cli.global_args, args, &client).await?,
-            Commands::List => list(&cli.global_args, &client).await?,
             Commands::Connect(args) => connect(&cli.global_args, args, &client).await?,
             Commands::Disconnect => todo!(),
             Commands::GetConf(args) => todo!(),

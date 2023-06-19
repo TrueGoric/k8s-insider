@@ -1,9 +1,10 @@
-use clap::{Parser, Subcommand, Args, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 pub const DEAFULT_RELEASE_NAME: &str = "local-access";
 pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
 
-pub const DEFAULT_IMAGE: &str = "ghcr.io/truegoric/k8s-insider:latest";
+pub const DEFAULT_TUNNEL_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-tunnel:latest";
+pub const DEFAULT_AGENT_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-agent:latest";
 
 #[derive(Debug, Parser)]
 #[command(version, about)]
@@ -11,7 +12,7 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
     #[command(flatten)]
-    pub global_args: GlobalArgs
+    pub global_args: GlobalArgs,
 }
 
 #[derive(Debug, Args)]
@@ -50,9 +51,8 @@ impl GlobalArgs {
 pub enum LogLevel {
     Normal,
     Verbose,
-    Trace
+    Trace,
 }
-
 
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
@@ -63,12 +63,6 @@ pub enum Commands {
     /// uninstall k8s-insider from the cluster
     #[command(alias = "u")]
     Uninstall(UninstallArgs),
-    /// uninstall all k8s-insider releases from the cluster
-    #[command()]
-    UninstallAll(UninstallAllArgs),
-    /// list k8s-insider releases on the cluster
-    #[command(alias = "l")]
-    List,
     /// connect to the cluster
     #[command(alias = "c")]
     Connect(ConnectArgs),
@@ -98,14 +92,11 @@ pub enum ServiceType {
 
 #[derive(Debug, Args)]
 pub struct InstallArgs {
-    /// name of the release (must be unique within the namespace)
-    #[arg(default_value = DEAFULT_RELEASE_NAME)]
-    pub release_name: String,
     /// type of the public facing service that will be used to connect to the k8s-insider instance
     #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
     pub service_type: ServiceType,
     /// manually sets the connection IP (valid for NodePort and ExternalIp service types)
-    /// 
+    ///
     /// required for ExternalIp services,
     /// when defined with NodePort service type it skips the autodetection of node IPs and
     /// instructs clients to connect using the provided address.
@@ -119,33 +110,26 @@ pub struct InstallArgs {
     pub service_cidr: Option<String>,
     /// cluster domain name assigned to services (autodetected if unset)
     #[arg(long)]
-    pub service_domain: Option<String>,        
+    pub service_domain: Option<String>,
     /// cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<String>,
     /// if set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
-    /// push the release even if it already exists in the cluster
+    /// push the insallation even if it already exists in the cluster
     #[arg(long)]
     pub force: bool,
-    /// substitutes the k8s-insider container image if specified
-    #[arg(long, default_value = DEFAULT_IMAGE)]
-    pub image_name: String,
+    /// substitutes the k8s-insider-agent container image if specified
+    #[arg(long, default_value = DEFAULT_AGENT_IMAGE)]
+    pub agent_image_name: String,
+    /// substitutes the k8s-insider-tunnel container image if specified
+    #[arg(long, default_value = DEFAULT_TUNNEL_IMAGE)]
+    pub tunnel_image_name: String,
 }
 
 #[derive(Debug, Args)]
 pub struct UninstallArgs {
-    /// name of the release to uninstall (required if there's more than one configured)
-    #[arg()]
-    pub release_name: Option<String>,
-    /// if set, no action will be taken on the cluster
-    #[arg(long)]
-    pub dry_run: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct UninstallAllArgs {
     /// try to remove the namespace afterwards
     #[arg(long)]
     pub delete_namespace: bool,
@@ -156,18 +140,12 @@ pub struct UninstallAllArgs {
 
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
-    /// name of the release to connect to (required if there's more than one configured)
-    #[arg()]
-    pub release_name: Option<String>,
     /// whether to omit patching the DNS resolver on connection
     pub dont_patch_dns: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct GetConfArgs {
-    /// name of the release to connect to (required if there's more than one configured)
-    #[arg()]
-    pub release_name: Option<String>,
     /// if set, the command will write the config to a file instead of stdout
     #[arg(short = 'o', long)]
     pub output: Option<String>,
@@ -178,5 +156,5 @@ pub struct PatchDnsArgs {
     /// name of the interface to patch
     pub interface_name: String,
     /// cluster domain name assigned to services
-    pub services_domain: String
+    pub services_domain: String,
 }
