@@ -1,5 +1,5 @@
 # k8s-insider
-A zero-config, NAT-free way to access you kubernetes cluster network
+A zero-config way to access you kubernetes cluster network
 
 ## What
 Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources.
