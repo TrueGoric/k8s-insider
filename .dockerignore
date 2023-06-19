@@ -2,4 +2,4 @@
 .gitignore
 .github
 chart/
-tool/
+app/
