@@ -1,54 +1,20 @@
 #!/command/with-contenv bash
 # shellcheck shell=bash
 
-if [[ -z $SERVER_ADDRESS ]]
-then
-    echo 'SERVER_ADDRESS is not set!'
-    exit 10
-fi
+WG_IF=wg0
+WG_SERVER_CONFIG_DIR=/config
+WG_SERVER_CONFIG_NAME=wg0.conf
+WG_SERVER_CONFIG_PATH=$WG_SERVER_CONFIG_DIR/$WG_SERVER_CONFIG_NAME
 
-if [[ -z $SERVER_PORT ]]
-then
-    echo 'SERVER_PORT is not set!'
-    exit 10
-fi
+echo '[confgen] Listening to configuration changes...'
 
-# reasonable defaults
-KUBE_SERVICE_CIDR=${KUBE_SERVICE_CIDR:-'10.96.0.0/12'}
-KUBE_POD_CIDR=${KUBE_POD_CIDR:='10.244.0.0/16'}
+inotifywait --monitor --event create,moved_to,close_write $WG_SERVER_CONFIG_DIR |
+while read -r _DIRECTORY _EVENTS FILENAME; do
+  if [ "$FILENAME" = "$WG_SERVER_CONFIG_NAME" ]; then
+    echo '[confgen] Detected config change...'
+    wg syncconf $WG_IF <(wg-quick strip $WG_SERVER_CONFIG_PATH)
+    echo '[confgen] Applied new config!'
+  fi
+done
 
-ETH_IF=eth0
-
-# shellcheck disable=SC2034
-KUBE_IP=$(ip addr show dev "$ETH_IF" | awk -e '/inet/ {sub("/[0-9]{1,2}$", "", $2); print $2}')
-
-CONFIG_TEMPLATE_DIR=/config-templates
-CONFIG_DIR=/config
-WG_PEER_CONFIG_DIR=$CONFIG_DIR/peer
-WG_SERVER_CONFIG_DIR=$CONFIG_DIR/server
-
-SERVER_ADDRESS="127.0.0.1"
-SERVER_PORT="55555"
-
-echo '[confgen] Generating configurations...'
-
-umask 077
-mkdir -p $WG_SERVER_CONFIG_DIR
-mkdir -p $WG_PEER_CONFIG_DIR
-
-echo '[confgen] generating WireGuard keys...'
-wg genkey | tee $WG_SERVER_CONFIG_DIR/private.key | wg pubkey > $WG_SERVER_CONFIG_DIR/public.key
-wg genkey | tee $WG_PEER_CONFIG_DIR/private.key | wg pubkey > $WG_PEER_CONFIG_DIR/public.key
-wg genpsk > $WG_PEER_CONFIG_DIR/preshared.key
-
-echo '[confgen] generating WireGuard server.conf...'
-eval "cat <<EOFOE > $WG_SERVER_CONFIG_DIR/server.conf
-$(cat $CONFIG_TEMPLATE_DIR/server.conf)
-EOFOE"
-
-echo '[confgen] generating WireGuard peer.conf...'
-eval "cat <<EOFOE > $WG_PEER_CONFIG_DIR/peer.conf
-$(cat $CONFIG_TEMPLATE_DIR/peer.conf)
-EOFOE"
-
-echo '[confgen] Finished!'
+echo '[confgen] Exiting...'
