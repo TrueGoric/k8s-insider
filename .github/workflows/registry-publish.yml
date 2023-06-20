@@ -17,7 +17,7 @@ env:
 
 jobs:
   dockerfile:
-    name: Build and publish Docker image
+    name: Build and publish k8s-insider-tunnel image
     runs-on: ubuntu-latest
     permissions:
       contents: read
