@@ -1,4 +1,4 @@
 .git
 .gitignore
 .github
-app/
+app/target
