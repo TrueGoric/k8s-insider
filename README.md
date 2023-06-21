@@ -4,6 +4,17 @@ A zero-config way to access you kubernetes cluster network
 ## What
 Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources.
 
+## Features
+ - Dynamic IP assignment
+ - Automatic detection of service and pod CIDRs for:
+   - Flannel (installed with Helm/CLI)
+   - Cilium (installed with Helm/CLI)
+ - DNS resolution for pods and services
+
+## Upcoming features
+ - NAT-free routing
+ - IPv6 support
+
 ## Requirements
 TODO
 
