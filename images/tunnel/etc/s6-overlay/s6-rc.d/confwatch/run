@@ -6,15 +6,15 @@ WG_SERVER_CONFIG_DIR=/config
 WG_SERVER_CONFIG_NAME=wg0.conf
 WG_SERVER_CONFIG_PATH=$WG_SERVER_CONFIG_DIR/$WG_SERVER_CONFIG_NAME
 
-echo '[confgen] Listening to configuration changes...'
+echo '[confwatch] Listening to configuration changes...'
 
 inotifywait --monitor --event create,moved_to,close_write $WG_SERVER_CONFIG_DIR |
 while read -r _DIRECTORY _EVENTS FILENAME; do
   if [ "$FILENAME" = "$WG_SERVER_CONFIG_NAME" ]; then
-    echo '[confgen] Detected config change...'
+    echo '[confwatch] Detected config change...'
     wg syncconf $WG_IF <(wg-quick strip $WG_SERVER_CONFIG_PATH)
-    echo '[confgen] Applied new config!'
+    echo '[confwatch] Applied new config!'
   fi
 done
 
-echo '[confgen] Exiting...'
+echo '[confwatch] Exiting...'
