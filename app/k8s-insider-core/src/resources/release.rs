@@ -1,4 +1,8 @@
+use std::net::IpAddr;
+
+use anyhow::anyhow;
 use derive_builder::Builder;
+use ipnet::IpNet;
 use kube::core::ObjectMeta;
 
 use super::labels::get_agent_labels;
@@ -10,9 +14,11 @@ pub struct Release {
     pub tunnel_image_name: String,
     pub server_private_key: String,
     pub kube_dns: Option<String>,
-    pub service_cidr: String,
     pub service_domain: Option<String>,
-    pub pod_cidr: String,
+    pub service_cidr: IpNet,
+    pub pod_cidr: IpNet,
+    pub peer_cidr: IpNet,
+    pub router_ip: IpAddr,
     pub service: ReleaseService,
 }
 
@@ -25,6 +31,14 @@ pub enum ReleaseService {
 }
 
 impl Release {
+    pub fn validated(self) -> anyhow::Result<Self> {
+        if !self.peer_cidr.contains(&self.router_ip) {
+            return Err(anyhow!("Router IP is not part of the peer network CIDR!"));
+        }
+
+        Ok(self)
+    }
+
     pub fn generate_agent_metadata(&self) -> ObjectMeta {
         ObjectMeta {
             labels: Some(get_agent_labels()),

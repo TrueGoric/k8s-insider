@@ -1,4 +1,5 @@
-use k8s_openapi::chrono::{DateTime, Utc};
+use std::net::{IpAddr, SocketAddr};
+
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,8 @@ pub struct TunnelSpec {
     pub peer_public_key: String,
     /// tunnel's preshared key
     pub preshared_key: String,
+    /// static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
+    pub static_ip: Option<String>,
     /// if set to true this tunnel won't be automatically cleaned up after
     /// being unused for a preconfigured amount of time
     pub persistent: bool,
@@ -24,16 +27,16 @@ pub struct TunnelSpec {
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 pub struct TunnelStatus {
     pub state: TunnelState,
-    /// last handshake 
-    pub last_handshake: Option<DateTime<Utc>>,
     /// server public key
     pub server_public_key: Option<String>,
-    /// dyamically assigned peer address
-    pub address: Option<String>,
+    /// dynamically assigned peer address
+    pub address: Option<IpAddr>,
     /// dns address
-    pub dns: Option<String>,
+    pub dns: Option<IpAddr>,
     /// publicly available address
-    pub endpoint: Option<String>,
+    pub endpoint: Option<SocketAddr>,
+    /// publicly available address
+    pub endpoint_port: Option<u32>,
     /// routable ips for this tunnel
     pub allowed_ips: Option<String>,
 }
@@ -44,6 +47,9 @@ pub enum TunnelState {
     Unknown,
     Creating,
     Created,
+    Connected,
     Closed,
-    ErrorCreatingTunnel
+    ErrorCreatingTunnel,
+    ErrorIpAlreadyInUse,
+    ErrorIpOutOfRange
 }

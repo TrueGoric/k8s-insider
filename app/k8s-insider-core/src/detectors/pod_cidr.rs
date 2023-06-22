@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
+use ipnet::IpNet;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{api::ListParams, Api, Client};
 use log::{debug, info};
@@ -20,12 +21,12 @@ enum Cni {
 
 #[derive(Debug)]
 struct CniCidr {
-    pub cidr: String,
+    pub cidr: IpNet,
     pub cni: Cni,
 }
 
-pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<String> {
-    let configmaps = get_cluster_configmaps(client).await?;
+pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<IpNet> {
+    let configmaps = get_cni_configmaps(client).await?;
 
     for cni in configmaps {
         info!("Detected pod CIDR ({:?}): {}", cni.cni, cni.cidr);
@@ -37,7 +38,7 @@ pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<String> {
     ))
 }
 
-async fn get_cluster_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>> {
+async fn get_cni_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>> {
     let configmap_api: Api<ConfigMap> = Api::all(client.clone());
 
     // sorting through all configmaps in the cluster is not an ideal solution indeed
@@ -74,7 +75,7 @@ async fn get_cluster_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>>
     Ok(configmaps)
 }
 
-fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<String> {
+fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<IpNet> {
     debug!("Found {CILIUM_CONFIGMAP_NAME} configmap!");
 
     configmap
@@ -89,10 +90,17 @@ fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<String> {
             debug!("{CILIUM_CONFIGMAP_NAME} is missing the '{CILIUM_IPV4_CIDR_KEY}' key!");
             None
         })
-        .and_then(|cidr| Some(cidr.to_owned()))
+        .and_then(|cidr| {
+            cidr.parse::<IpNet>()
+                .or_else(|err| {
+                    debug!("{CILIUM_IPV4_CIDR_KEY} is not a valid CIDR: {err}!");
+                    Err(err)
+                })
+                .ok()
+        })
 }
 
-fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<String> {
+fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<IpNet> {
     debug!("Found {FLANNEL_CONFIGMAP_NAME} configmap!");
 
     configmap
@@ -127,5 +135,12 @@ fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<String> {
             debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is not a valid CIDR!");
             None
         })
-        .and_then(|cidr| Some(cidr.to_owned()))
+        .and_then(|cidr| {
+            cidr.parse::<IpNet>()
+                .or_else(|err| {
+                    debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is not a valid CIDR: {err}");
+                    Err(err)
+                })
+                .ok()
+        })
 }

@@ -1,4 +1,5 @@
 pub mod detectors;
+pub mod generators;
 pub mod helpers;
 pub mod kubernetes;
 pub mod tunnel_info;

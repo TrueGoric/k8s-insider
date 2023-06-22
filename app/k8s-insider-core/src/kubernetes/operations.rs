@@ -43,6 +43,7 @@ pub async fn create_namespace_if_not_exists(
         ..Default::default()
     };
 
+    info!("Ensuring namespace '{}' is created...", name);
     namespace_api
         .patch(&name, patch_params, &Patch::Apply(namespace))
         .await?;
@@ -83,7 +84,6 @@ pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + Debug>(
 
 pub async fn create_resource<T>(
     client: &Client,
-    namespace: &str,
     resource: &T,
     patch_params: &PatchParams,
 ) -> anyhow::Result<()>
@@ -97,6 +97,7 @@ where
 {
     info!("Creating the resource on the cluster...");
 
+    let namespace = resource.metadata().namespace.as_ref().unwrap();
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
     let resource_name = resource.metadata().name.as_ref().unwrap();
     resource_api

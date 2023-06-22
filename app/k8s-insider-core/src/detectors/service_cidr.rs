@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use ipnet::IpNet;
 use k8s_openapi::api::core::v1::{Service, ServiceSpec};
 use kube::{api::PostParams, core::ObjectMeta, Api, Client};
 use log::{debug, info};
@@ -8,7 +9,7 @@ use crate::helpers::get_secs_since_unix_epoch;
 
 const DEFAULT_NAMESPACE: &str = "default";
 
-pub async fn detect_service_cidr(client: &Client) -> anyhow::Result<String> {
+pub async fn detect_service_cidr(client: &Client) -> anyhow::Result<IpNet> {
     let services_api: Api<Service> = Api::namespaced(client.clone(), DEFAULT_NAMESPACE);
     let faux_service = get_faux_service();
 
@@ -41,7 +42,7 @@ pub async fn detect_service_cidr(client: &Client) -> anyhow::Result<String> {
         },
     };
 
-    let service_cidr = service_cidr?;
+    let service_cidr = service_cidr?.parse()?;
 
     info!("Detected service CIDR: {service_cidr}");
 

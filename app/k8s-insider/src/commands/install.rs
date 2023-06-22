@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
+    generators::wireguard::generate_wireguard_private_key,
     kubernetes::operations::{
         check_if_resource_exists, create_namespace_if_not_exists, create_resource,
     },
@@ -25,7 +26,10 @@ pub async fn install(
     args: &InstallArgs,
     client: &Client,
 ) -> anyhow::Result<()> {
-    info!("Installing k8s-insider into '{}' namespace...", global_args.namespace);
+    info!(
+        "Installing k8s-insider into '{}' namespace...",
+        global_args.namespace
+    );
 
     let release_params = get_tunnel_listparams();
 
@@ -33,49 +37,25 @@ pub async fn install(
     if check_if_release_exists(&release_params, &global_args.namespace, &client).await? {
         if args.force {
             warn!(
-                "k8s-insider was already installed in the namespace '{}', force deploying...",
+                "k8s-insider is already installed in the namespace '{}', force deploying...",
                 global_args.namespace
             );
         } else {
             return Err(anyhow!(
-                "k8s-insider was already installed in the namespace '{}'!",
+                "k8s-insider is already installed in the namespace '{}'!",
                 global_args.namespace
             ));
         }
     }
 
     debug!("Preparing release...");
-    let release_info = prepare_release(global_args, args, &client).await?;
-    let configmap = release_info.generate_configmap();
-    let deployment = release_info.generate_tunnel_deployment(&configmap);
-    let service = release_info.generate_service(extract_port_name(&deployment));
+    let release_info = prepare_release(global_args, args, &client)
+        .await?
+        .validated()?;
 
-    debug!("{configmap:#?}");
-    debug!("{deployment:#?}");
-    debug!("{service:#?}");
+    deploy_tunnel(&release_info, client, args.dry_run).await?;
 
-    let patch_params = PatchParams {
-        dry_run: args.dry_run,
-        field_manager: Some(FIELD_MANAGER.to_owned()),
-        ..Default::default()
-    };
-
-    info!(
-        "Ensuring the namespace '{}' is created...",
-        release_info.namespace
-    );
-    create_namespace_if_not_exists(&client, &patch_params, &release_info.namespace).await?;
-
-    create_resource(client, &global_args.namespace, &deployment, &patch_params).await?;
-    create_resource(client, &global_args.namespace, &configmap, &patch_params).await?;
-
-    if let Some(service) = service {
-        create_resource(client, &global_args.namespace, &service, &patch_params).await?;
-    }
-
-    info!(
-        "Successfully deployed k8s-insider!"
-    );
+    info!("Successfully deployed k8s-insider!");
 
     Ok(())
 }
@@ -92,28 +72,6 @@ async fn check_if_release_exists(
     .await?)
 }
 
-fn extract_port_name(deployment: &Deployment) -> &str {
-    deployment
-        .spec
-        .as_ref()
-        .unwrap()
-        .template
-        .spec
-        .as_ref()
-        .unwrap()
-        .containers
-        .first()
-        .unwrap()
-        .ports
-        .as_ref()
-        .unwrap()
-        .first()
-        .unwrap()
-        .name
-        .as_ref()
-        .unwrap() // ┌(˘⌣˘)ʃ
-}
-
 async fn prepare_release(
     global_args: &GlobalArgs,
     args: &InstallArgs,
@@ -124,13 +82,31 @@ async fn prepare_release(
             info!("Using release namespace: {}", global_args.namespace);
             global_args.namespace.clone()
         })
-        .agent_image_name({
-            info!("Using agent image name: {}", args.agent_image_name);
-            args.agent_image_name.clone()
+        .peer_cidr({
+            info!("Using peer CIDR: {}", args.peer_cidr);
+            args.peer_cidr.trunc()
         })
-        .tunnel_image_name({
-            info!("Using tunnel image name: {}", args.tunnel_image_name);
-            args.tunnel_image_name.clone()
+        .service_cidr(match &args.service_cidr {
+            Some(value) => {
+                info!("Using service CIDR: {value}");
+                value.trunc()
+            }
+            None => detect_service_cidr(client).await?,
+        })
+        .pod_cidr(match &args.pod_cidr {
+            Some(value) => {
+                info!("Using pod CIDR: {value}");
+                value.trunc()
+            }
+            None => detect_pod_cidr(client).await?,
+        })
+        .router_ip({
+            let ip = match &args.router_ip {
+                Some(value) => value.to_owned(),
+                None => args.peer_cidr.hosts().next().unwrap().clone(),
+            };
+            info!("Using router IP: {ip}");
+            ip
         })
         .kube_dns(match &args.kube_dns {
             Some(value) => {
@@ -146,19 +122,17 @@ async fn prepare_release(
             }
             None => detect_cluster_domain(client).await?,
         })
-        .service_cidr(match &args.service_cidr {
-            Some(value) => {
-                info!("Using service CIDR: {value}");
-                value.clone()
-            }
-            None => detect_service_cidr(client).await?,
+        .server_private_key({
+            info!("Using generated private server key!");
+            generate_wireguard_private_key()
         })
-        .pod_cidr(match &args.pod_cidr {
-            Some(value) => {
-                info!("Using pod CIDR: {value}");
-                value.clone()
-            }
-            None => detect_pod_cidr(client).await?,
+        .agent_image_name({
+            info!("Using agent image: {}", args.agent_image_name);
+            args.agent_image_name.clone()
+        })
+        .tunnel_image_name({
+            info!("Using tunnel image: {}", args.tunnel_image_name);
+            args.tunnel_image_name.clone()
         })
         .service(match &args.service_type {
             ServiceType::None => ReleaseService::None,
@@ -178,4 +152,35 @@ async fn prepare_release(
     debug!("{release_info:#?}");
 
     Ok(release_info)
+}
+
+async fn deploy_tunnel(
+    release_info: &Release,
+    client: &Client,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let namespace = &release_info.namespace;
+    let configmap = release_info.generate_tunnel_configmap();
+    let deployment = release_info.generate_tunnel_deployment(&configmap);
+    let service = release_info.generate_tunnel_service(&deployment);
+
+    debug!("{configmap:#?}");
+    debug!("{deployment:#?}");
+    debug!("{service:#?}");
+
+    let patch_params = PatchParams {
+        dry_run,
+        field_manager: Some(FIELD_MANAGER.to_owned()),
+        ..Default::default()
+    };
+
+    create_namespace_if_not_exists(&client, &patch_params, namespace).await?;
+    create_resource(client, &deployment, &patch_params).await?;
+    create_resource(client, &configmap, &patch_params).await?;
+
+    if let Some(service) = service {
+        create_resource(client, &service, &patch_params).await?;
+    }
+
+    Ok(())
 }

@@ -1,7 +1,11 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use std::net::IpAddr;
 
-pub const DEAFULT_RELEASE_NAME: &str = "local-access";
+use clap::{Args, Parser, Subcommand, ValueEnum};
+use ipnet::IpNet;
+
 pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
+
+pub const DEFAULT_PEER_CIDR: &str = "10.11.11.0/24";
 
 pub const DEFAULT_TUNNEL_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-tunnel:latest";
 pub const DEFAULT_AGENT_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-agent:latest";
@@ -57,22 +61,22 @@ pub enum LogLevel {
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
 pub enum Commands {
-    /// install k8s-insider on the cluster
+    /// Install k8s-insider on the cluster
     #[command(alias = "i")]
     Install(InstallArgs),
-    /// uninstall k8s-insider from the cluster
+    /// Uninstall k8s-insider from the cluster
     #[command(alias = "u")]
     Uninstall(UninstallArgs),
-    /// connect to the cluster
+    /// Connect to the cluster
     #[command(alias = "c")]
     Connect(ConnectArgs),
-    /// disconnect from the cluster
+    /// Disconnect from the cluster
     #[command(alias = "d")]
     Disconnect,
-    /// get the WireGuard configuration file from the cluster
+    /// Get the WireGuard configuration file from the cluster
     #[command(alias = "g")]
     GetConf(GetConfArgs),
-    /// patch the DNS resolver to avoid loops when deploying on the local machine
+    /// Patch the DNS resolver to avoid loops when deploying on the local machine
     #[command(alias = "p")]
     PatchDns(PatchDnsArgs),
 }
@@ -92,69 +96,75 @@ pub enum ServiceType {
 
 #[derive(Debug, Args)]
 pub struct InstallArgs {
-    /// type of the public facing service that will be used to connect to the k8s-insider instance
+    /// Type of the public facing service that will be used to connect to the k8s-insider instance
     #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
     pub service_type: ServiceType,
-    /// manually sets the connection IP (valid for NodePort and ExternalIp service types)
+    /// Manually sets the connection IP (valid for NodePort and ExternalIp service types)
     ///
-    /// required for ExternalIp services,
-    /// when defined with NodePort service type it skips the autodetection of node IPs and
+    /// Required for ExternalIp services,
+    /// When defined with NodePort service type it skips the autodetection of node IPs and
     /// instructs clients to connect using the provided address.
     #[arg(long)]
     pub external_ip: Option<String>,
     /// DNS service IP (autodetected if unset)
     #[arg(long)]
     pub kube_dns: Option<String>,
-    /// cluster service CIDR (autodetected if unset)
+    /// Cluster service CIDR (autodetected if unset)
     #[arg(long)]
-    pub service_cidr: Option<String>,
-    /// cluster domain name assigned to services (autodetected if unset)
+    pub service_cidr: Option<IpNet>,
+    /// Cluster domain name assigned to services (autodetected if unset)
     #[arg(long)]
     pub service_domain: Option<String>,
-    /// cluster pod CIDR (autodetected if unset)
+    /// Cluster pod CIDR (autodetected if unset)
     #[arg(long)]
-    pub pod_cidr: Option<String>,
-    /// if set, no action will be taken on the cluster
+    pub pod_cidr: Option<IpNet>,
+    /// Peer CIDR subnet (users will be assigned IPs from that range)
+    #[arg(long, default_value = DEFAULT_PEER_CIDR)]
+    pub peer_cidr: IpNet,
+    /// Router's IP address, must be within peer CIDR range (defaults to the first non-broadcast IP from that range)
+    #[arg(long)]
+    pub router_ip: Option<IpAddr>,    
+    /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
-    /// push the insallation even if it already exists in the cluster
+    /// Push the insallation even if it already exists in the cluster
     #[arg(long)]
     pub force: bool,
-    /// substitutes the k8s-insider-agent container image if specified
+    /// Substitutes the k8s-insider-agent container image if specified
     #[arg(long, default_value = DEFAULT_AGENT_IMAGE)]
     pub agent_image_name: String,
-    /// substitutes the k8s-insider-tunnel container image if specified
+    /// Substitutes the k8s-insider-tunnel container image if specified
     #[arg(long, default_value = DEFAULT_TUNNEL_IMAGE)]
     pub tunnel_image_name: String,
 }
 
 #[derive(Debug, Args)]
 pub struct UninstallArgs {
-    /// try to remove the namespace afterwards
+    /// Try to remove the namespace afterwards
     #[arg(long)]
     pub delete_namespace: bool,
-    /// if set, no action will be taken on the cluster
+    /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
-    /// whether to omit patching the DNS resolver on connection
+    /// Whether or not to omit patching the DNS resolver on connection
     pub dont_patch_dns: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct GetConfArgs {
-    /// if set, the command will write the config to a file instead of stdout
+    /// If set, the command will write the config to a file instead of stdout
     #[arg(short = 'o', long)]
     pub output: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct PatchDnsArgs {
-    /// name of the interface to patch
-    pub interface_name: String,
-    /// cluster domain name assigned to services
-    pub services_domain: String,
+    /// Name of the interface to patch (autodetected if unset)
+    pub interface_name: Option<String>,
+    /// Cluster domain name assigned to services (autodetected if unset)
+    pub services_domain: Option<String>,
 }

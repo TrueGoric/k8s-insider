@@ -1,21 +1,27 @@
 use k8s_openapi::{
-    api::core::v1::{Service, ServicePort, ServiceSpec},
+    api::{
+        apps::v1::Deployment,
+        core::v1::{Service, ServicePort, ServiceSpec},
+    },
     apimachinery::pkg::util::intstr::IntOrString,
 };
+use kube::core::ObjectMeta;
 
 use crate::resources::{
     annotations::get_service_annotations,
-    release::{Release, ReleaseService}, labels::get_tunnel_labels,
+    labels::get_tunnel_labels,
+    release::{Release, ReleaseService},
 };
 
 const PORT_NUMBER: i32 = 31313;
 
 impl Release {
-    pub fn generate_service(&self, port_name: &str) -> Option<Service> {
+    pub fn generate_tunnel_service(&self, deployment: &Deployment) -> Option<Service> {
         if let ReleaseService::None = self.service {
             return None;
         }
 
+        let port_name = extract_port_name(deployment);
         let labels = get_tunnel_labels();
         let port = ServicePort {
             name: Some(port_name.to_owned()),
@@ -40,18 +46,45 @@ impl Release {
             }),
             ReleaseService::ExternalIp { ip } => todo!(),
         };
-        let annotations: Option<std::collections::BTreeMap<String, String>> =
-            match &self.service {
-                ReleaseService::NodePort { predefined_ips } => predefined_ips
-                    .as_ref()
-                    .and_then(|ips| Some(get_service_annotations(ips))),
-                _ => None,
-            };
+
+        let annotations: Option<std::collections::BTreeMap<String, String>> = match &self.service {
+            ReleaseService::NodePort { predefined_ips } => predefined_ips
+                .as_ref()
+                .and_then(|ips| Some(get_service_annotations(ips))),
+            _ => None,
+        };
+
+        let metadata = ObjectMeta {
+            annotations,
+            ..self.generate_tunnel_metadata()
+        };
 
         Some(Service {
-            metadata: self.generate_tunnel_metadata(),
+            metadata,
             spec,
             ..Default::default()
         })
     }
+}
+
+fn extract_port_name(deployment: &Deployment) -> &str {
+    deployment
+        .spec
+        .as_ref()
+        .unwrap()
+        .template
+        .spec
+        .as_ref()
+        .unwrap()
+        .containers
+        .first()
+        .unwrap()
+        .ports
+        .as_ref()
+        .unwrap()
+        .first()
+        .unwrap()
+        .name
+        .as_ref()
+        .unwrap() // ┌(˘⌣˘)ʃ
 }
