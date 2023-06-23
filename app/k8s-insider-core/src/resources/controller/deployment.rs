@@ -10,7 +10,7 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::labels::get_controller_labels;
+use crate::resources::{labels::get_controller_labels, ResourceGenerationError};
 
 use super::ControllerRelease;
 
@@ -19,14 +19,28 @@ impl ControllerRelease {
         &self,
         configmap: &ConfigMap,
         service_account: &ServiceAccount,
-    ) -> Deployment {
+    ) -> Result<Deployment, ResourceGenerationError> {
         let labels = get_controller_labels();
         let metadata = self.generate_default_metadata();
-        let metadata_name = metadata.name.as_ref().unwrap().to_owned();
-        let configmap_name = configmap.metadata.name.as_ref().unwrap().to_owned();
-        let service_account_name = service_account.metadata.name.as_ref().unwrap().to_owned();
+        let metadata_name = metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+        let configmap_name = configmap
+            .metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+        let service_account_name = service_account
+            .metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
 
-        Deployment {
+        Ok(Deployment {
             metadata,
             spec: Some(DeploymentSpec {
                 replicas: Some(1),
@@ -63,6 +77,6 @@ impl ControllerRelease {
                 ..Default::default()
             }),
             ..Default::default()
-        }
+        })
     }
 }

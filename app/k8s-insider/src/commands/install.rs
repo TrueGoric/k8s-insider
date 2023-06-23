@@ -137,7 +137,9 @@ async fn deploy_release(
         .context("Couldn't generate controller cluster role binding!")?;
     let router_clusterrole = release.generate_router_clusterrole();
     let configmap = release.generate_configmap();
-    let deployment = release.generate_deployment(&configmap, &serviceaccount);
+    let deployment = release
+        .generate_deployment(&configmap, &serviceaccount)
+        .context("Couldn't generate controller deployment!")?;
 
     debug!("{serviceaccount:#?}");
     debug!("{configmap:#?}");
