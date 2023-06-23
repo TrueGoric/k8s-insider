@@ -1,8 +1,18 @@
 use std::fmt::Debug;
 
-use anyhow::Context;
-use k8s_openapi::{Metadata, NamespaceResourceScope, serde::{Serialize, de::DeserializeOwned}, api::core::v1::Namespace};
-use kube::{Client, api::{PatchParams, Patch, ListParams, DeleteParams}, core::{ObjectMeta, PartialObjectMeta}, Resource, Api, config::{KubeConfigOptions, Kubeconfig}, Config};
+use anyhow::{anyhow, Context};
+use k8s_openapi::{
+    api::core::v1::Namespace,
+    apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
+    serde::{de::DeserializeOwned, Serialize},
+    Metadata, NamespaceResourceScope, ClusterResourceScope,
+};
+use kube::{
+    api::{DeleteParams, ListParams, Patch, PatchParams},
+    config::{KubeConfigOptions, Kubeconfig},
+    core::{ObjectMeta, PartialObjectMeta},
+    Api, Client, Config, Resource,
+};
 use log::{info, warn};
 
 use crate::helpers::pretty_type_name;
@@ -45,7 +55,7 @@ pub async fn create_namespace_if_not_exists(
 
     info!("Ensuring namespace '{}' is created...", name);
     namespace_api
-        .patch(&name, patch_params, &Patch::Apply(namespace))
+        .patch(name, patch_params, &Patch::Apply(namespace))
         .await?;
 
     Ok(())
@@ -68,7 +78,7 @@ pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + Debug>(
     api: &Api<T>,
 ) -> anyhow::Result<bool> {
     let matching_deployments = api
-        .list_metadata(&release_params)
+        .list_metadata(release_params)
         .await
         .context("Couldn't retrieve resources from the cluster!")?;
 
@@ -95,7 +105,10 @@ where
         + DeserializeOwned
         + Debug,
 {
-    info!("Creating the resource on the cluster...");
+    info!(
+        "Creating {} resource on the cluster...",
+        pretty_type_name::<T>()
+    );
 
     let namespace = resource.metadata().namespace.as_ref().unwrap();
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
@@ -103,7 +116,64 @@ where
     resource_api
         .patch(resource_name, patch_params, &Patch::Apply(resource))
         .await
-        .context("Unable to create the {}!")?;
+        .context(format!("Unable to create {} resource!", pretty_type_name::<T>()))?;
+
+    Ok(())
+}
+
+pub async fn create_cluster_resource<T>(
+    client: &Client,
+    resource: &T,
+    patch_params: &PatchParams,
+) -> anyhow::Result<()>
+where
+    T: Metadata<Ty = ObjectMeta>
+        + Resource<Scope = ClusterResourceScope, DynamicType = ()>
+        + Serialize
+        + Clone
+        + DeserializeOwned
+        + Debug,
+{
+    info!(
+        "Creating {} resource on the cluster...",
+        pretty_type_name::<T>()
+    );
+
+    let resource_api: Api<T> = Api::all(client.clone());
+    let resource_name = resource.metadata().name.as_ref().unwrap();
+    resource_api
+        .patch(resource_name, patch_params, &Patch::Apply(resource))
+        .await
+        .context(format!("Unable to create {} resource!", pretty_type_name::<T>()))?;
+
+    Ok(())
+}
+
+pub async fn create_crd(
+    client: &Client,
+    crd: &CustomResourceDefinition,
+    patch_params: &PatchParams,
+) -> anyhow::Result<()> {
+    let crd_name = crd
+        .metadata
+        .name
+        .as_ref()
+        .ok_or_else(|| anyhow!("CRD is missing a name!"))?;
+    let crd_apiversions = crd
+        .spec
+        .versions
+        .iter()
+        .map(|version| version.name.as_str())
+        .collect::<Vec<&str>>()
+        .join(", ");
+
+    info!("Creating {crd_name} ({crd_apiversions}) CRD...");
+
+    let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
+    crd_api
+        .patch(crd_name, patch_params, &Patch::Apply(crd))
+        .await
+        .context(format!("Unable to create {crd_name} ({crd_apiversions}) CRD!"))?;
 
     Ok(())
 }
@@ -120,7 +190,7 @@ pub async fn remove_resources<T: Clone + DeserializeOwned + Debug>(
                 "Removing '{name}' release {} from the cluster...",
                 resource_name
             );
-            api.delete(&name, &delete_params).await.context(format!(
+            api.delete(name, delete_params).await.context(format!(
                 "Couldn't delete a release {} from the cluster!",
                 resource_name
             ))?;

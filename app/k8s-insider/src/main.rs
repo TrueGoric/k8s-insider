@@ -1,7 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{connect::connect, install::install, uninstall::uninstall};
+use commands::{install::install, uninstall::uninstall};
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -26,10 +26,13 @@ async fn main() -> anyhow::Result<()> {
         Some(command) => match command {
             Commands::Install(args) => install(&cli.global_args, args, &client).await?,
             Commands::Uninstall(args) => uninstall(&cli.global_args, args, &client).await?,
-            Commands::Connect(args) => connect(&cli.global_args, args, &client).await?,
+            Commands::CreateNetwork(_) => todo!(),
+            Commands::DeleteNetwork => todo!(),
+            Commands::ListNetworks => todo!(),
+            Commands::Connect(_) => todo!(),
             Commands::Disconnect => todo!(),
-            Commands::GetConf(args) => todo!(),
-            Commands::PatchDns(args) => todo!(),
+            Commands::GetConf(_) => todo!(),
+            Commands::PatchDns(_) => todo!(),
         },
         None => (),
     }
@@ -43,10 +46,7 @@ fn configure_logging(global_args: &GlobalArgs) {
 
     logger
         .format_timestamp(None)
-        .format_module_path(match log_level {
-            LogLevel::Trace => true,
-            _ => false,
-        })
+        .format_module_path(matches!(log_level, LogLevel::Trace))
         .format_target(false)
         .format_level(false)
         .target(Target::Stderr);

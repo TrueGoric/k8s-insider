@@ -28,7 +28,7 @@ struct CniCidr {
 pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<IpNet> {
     let configmaps = get_cni_configmaps(client).await?;
 
-    for cni in configmaps {
+    if let Some(cni) = configmaps.first() {
         info!("Detected pod CIDR ({:?}): {}", cni.cni, cni.cidr);
         return Ok(cni.cidr);
     }
@@ -55,18 +55,16 @@ async fn get_cni_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>> {
                 .name
                 .as_ref()
                 .and_then(|name| match name.as_str() {
-                    CILIUM_CONFIGMAP_NAME => try_get_cilium_cidr(&configmap).and_then(|cidr| {
-                        Some(CniCidr {
-                            cni: Cni::Cilium,
-                            cidr,
-                        })
+                    CILIUM_CONFIGMAP_NAME => try_get_cilium_cidr(&configmap).map(|cidr| CniCidr {
+                        cni: Cni::Cilium,
+                        cidr,
                     }),
-                    FLANNEL_CONFIGMAP_NAME => try_get_flannel_cidr(&configmap).and_then(|cidr| {
-                        Some(CniCidr {
+                    FLANNEL_CONFIGMAP_NAME => {
+                        try_get_flannel_cidr(&configmap).map(|cidr| CniCidr {
                             cni: Cni::Flannel,
                             cidr,
                         })
-                    }),
+                    }
                     _ => None,
                 })
         })
@@ -92,9 +90,9 @@ fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<IpNet> {
         })
         .and_then(|cidr| {
             cidr.parse::<IpNet>()
-                .or_else(|err| {
+                .map_err(|err| {
                     debug!("{CILIUM_IPV4_CIDR_KEY} is not a valid CIDR: {err}!");
-                    Err(err)
+                    err
                 })
                 .ok()
         })
@@ -121,7 +119,7 @@ fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<IpNet> {
                     debug!("{FLANNEL_NET_CONF_KEY} is not a valid JSON! {err:?}");
                     None
                 },
-                |val| Some(val),
+                Some,
             )
         })
         .as_ref()
@@ -137,9 +135,9 @@ fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<IpNet> {
         })
         .and_then(|cidr| {
             cidr.parse::<IpNet>()
-                .or_else(|err| {
+                .map_err(|err| {
                     debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is not a valid CIDR: {err}");
-                    Err(err)
+                    err
                 })
                 .ok()
         })

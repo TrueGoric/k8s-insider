@@ -2,21 +2,29 @@ use k8s_openapi::{
     api::{
         apps::v1::{Deployment, DeploymentSpec},
         core::v1::{
-            Capabilities, Container, EnvFromSource, PodSpec, PodTemplateSpec, Secret,
-            SecretEnvSource, SecurityContext,
+            ConfigMap, ConfigMapEnvSource, Container, EnvFromSource, PodSpec, PodTemplateSpec,
+            ServiceAccount,
         },
     },
     apimachinery::pkg::apis::meta::v1::LabelSelector,
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::{labels::get_agent_labels, release::Release};
+use crate::resources::labels::get_controller_labels;
 
-impl Release {
-    pub fn generate_controller_deployment(&self, secret: &Secret) -> Deployment {
-        let labels = get_agent_labels();
-        let metadata = self.generate_tunnel_metadata();
+use super::ControllerRelease;
+
+impl ControllerRelease {
+    pub fn generate_deployment(
+        &self,
+        configmap: &ConfigMap,
+        service_account: &ServiceAccount,
+    ) -> Deployment {
+        let labels = get_controller_labels();
+        let metadata = self.generate_default_metadata();
         let metadata_name = metadata.name.as_ref().unwrap().to_owned();
+        let configmap_name = configmap.metadata.name.as_ref().unwrap().to_owned();
+        let service_account_name = service_account.metadata.name.as_ref().unwrap().to_owned();
 
         Deployment {
             metadata,
@@ -28,7 +36,7 @@ impl Release {
                 },
                 template: PodTemplateSpec {
                     metadata: Some(ObjectMeta {
-                        labels: Some(labels.to_owned()),
+                        labels: Some(labels),
                         ..Default::default()
                     }),
                     spec: Some(PodSpec {
@@ -36,27 +44,19 @@ impl Release {
                         automount_service_account_token: Some(true),
                         containers: vec![Container {
                             env_from: Some(vec![EnvFromSource {
-                                secret_ref: Some(SecretEnvSource {
-                                    name: Some(secret.metadata.name.as_ref().unwrap().to_owned()),
+                                config_map_ref: Some(ConfigMapEnvSource {
+                                    name: Some(configmap_name),
                                     optional: Some(false),
                                 }),
                                 ..Default::default()
                             }]),
-                            image: Some(self.agent_image_name.to_owned()),
+                            image: Some(self.controller_image_name.to_owned()),
                             image_pull_policy: Some("Always".to_owned()),
                             name: metadata_name,
                             // resources: todo!(), // this too
-                            security_context: Some(SecurityContext {
-                                allow_privilege_escalation: Some(true),
-                                capabilities: Some(Capabilities {
-                                    add: Some(vec!["NET_ADMIN".to_owned()]),
-                                    ..Default::default()
-                                }),
-                                privileged: Some(true),
-                                ..Default::default()
-                            }),
                             ..Default::default()
                         }],
+                        service_account_name: Some(service_account_name),
                         ..Default::default()
                     }),
                 },

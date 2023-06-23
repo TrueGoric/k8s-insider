@@ -4,5 +4,6 @@
         "./app/k8s-insider/Cargo.toml",
         "./app/k8s-insider-agent/Cargo.toml",
         "./app/k8s-insider-core/Cargo.toml",
-    ]
+    ],
+    "rust-analyzer.check.command": "clippy"
 }

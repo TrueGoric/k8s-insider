@@ -33,7 +33,7 @@ pub fn get_handshakes(interface: &str) -> Result<Vec<HandshakeInfo>, std::io::Er
             .iter()
             .map(|peer| HandshakeInfo {
                 public_key: peer.config.public_key.to_base64(),
-                last_handshake: peer.stats.last_handshake_time.map(|h| DateTime::from(h)),
+                last_handshake: peer.stats.last_handshake_time.map(DateTime::from),
             })
             .collect();
 

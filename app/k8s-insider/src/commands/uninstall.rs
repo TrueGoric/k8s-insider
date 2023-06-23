@@ -1,7 +1,7 @@
 use anyhow::Context;
 use k8s_insider_core::{
     kubernetes::operations::{remove_resources, try_remove_namespace},
-    resources::labels::get_tunnel_listparams,
+    resources::labels::get_router_listparams,
 };
 use k8s_openapi::api::{
     apps::v1::Deployment,
@@ -19,7 +19,7 @@ pub async fn uninstall(
 ) -> anyhow::Result<()> {
     info!("Uninstalling k8s-insider from '{}' namespace...", global_args.namespace);
 
-    let tunnel_params = get_tunnel_listparams();
+    let tunnel_params = get_router_listparams();
     let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
     let configmap_api: Api<ConfigMap> = Api::namespaced(client.clone(), &global_args.namespace);
     let service_api: Api<Service> = Api::namespaced(client.clone(), &global_args.namespace);
@@ -48,7 +48,7 @@ pub async fn uninstall(
 
     if args.delete_namespace {
         info!("Removing namespace '{}'...", global_args.namespace);
-        try_remove_namespace(&client, &delete_params, &global_args.namespace)
+        try_remove_namespace(client, &delete_params, &global_args.namespace)
             .await
             .context("Couldn't remove the namespace!")?;
     }

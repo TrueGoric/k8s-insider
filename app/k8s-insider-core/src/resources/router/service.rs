@@ -9,20 +9,21 @@ use kube::core::ObjectMeta;
 
 use crate::resources::{
     annotations::get_service_annotations,
-    labels::get_tunnel_labels,
-    release::{Release, ReleaseService},
+    labels::get_router_labels,
 };
+
+use super::{RouterRelease, RouterReleaseService};
 
 const PORT_NUMBER: i32 = 31313;
 
-impl Release {
-    pub fn generate_tunnel_service(&self, deployment: &Deployment) -> Option<Service> {
-        if let ReleaseService::None = self.service {
+impl RouterRelease {
+    pub fn generate_service(&self, deployment: &Deployment) -> Option<Service> {
+        if let RouterReleaseService::None = self.service {
             return None;
         }
 
         let port_name = extract_port_name(deployment);
-        let labels = get_tunnel_labels();
+        let labels = get_router_labels();
         let port = ServicePort {
             name: Some(port_name.to_owned()),
             port: PORT_NUMBER,
@@ -31,32 +32,31 @@ impl Release {
             ..Default::default()
         };
         let spec = match &self.service {
-            ReleaseService::None => None,
-            ReleaseService::NodePort { .. } => Some(ServiceSpec {
+            RouterReleaseService::None => None,
+            RouterReleaseService::NodePort { .. } => Some(ServiceSpec {
                 ports: Some(vec![port]),
-                selector: Some(labels.to_owned()),
+                selector: Some(labels),
                 type_: Some("NodePort".to_owned()),
                 ..Default::default()
             }),
-            ReleaseService::LoadBalancer => Some(ServiceSpec {
+            RouterReleaseService::LoadBalancer => Some(ServiceSpec {
                 ports: Some(vec![port]),
-                selector: Some(labels.to_owned()),
+                selector: Some(labels),
                 type_: Some("LoadBalancer".to_owned()),
                 ..Default::default()
             }),
-            ReleaseService::ExternalIp { ip } => todo!(),
+            RouterReleaseService::ExternalIp { ip: _ } => todo!(),
         };
 
         let annotations: Option<std::collections::BTreeMap<String, String>> = match &self.service {
-            ReleaseService::NodePort { predefined_ips } => predefined_ips
-                .as_ref()
-                .and_then(|ips| Some(get_service_annotations(ips))),
+            RouterReleaseService::NodePort { predefined_ips } => predefined_ips
+                .as_ref().map(|ips| get_service_annotations(ips)),
             _ => None,
         };
 
         let metadata = ObjectMeta {
             annotations,
-            ..self.generate_tunnel_metadata()
+            ..self.generate_router_metadata()
         };
 
         Some(Service {

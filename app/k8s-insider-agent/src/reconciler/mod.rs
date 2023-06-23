@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use k8s_insider_core::resources::crd::tunnel::{Tunnel, TunnelState, TunnelStatus};
+use k8s_insider_core::resources::crd::v1alpha1::tunnel::{Tunnel, TunnelState, TunnelStatus};
 use kube::{
     api::{Patch, PatchParams},
     runtime::controller::Action,
@@ -20,7 +20,7 @@ pub async fn reconcile_tunnel(
     context: Arc<ReconcilerContext>,
 ) -> Result<Action, ReconcilerError> {
     let tunnel_name = object.metadata.name.as_ref().unwrap();
-    let mut status = ensure_status(&tunnel_name, &object, &context).await?;
+    let mut status = ensure_status(tunnel_name, &object, &context).await?;
     let owner_ref = object.controller_owner_ref(&()).unwrap();
 
     Ok(Action::requeue(Duration::from_secs(RECONCILE_REQUEUE_SECS)))
@@ -40,7 +40,7 @@ async fn ensure_status(
         .tunnel_api
         .patch_status(tunnel_name, &PatchParams::default(), &Patch::Apply(&status))
         .await
-        .or_else(|err| Err(ReconcilerError::PatchError(err)))?;
+        .map_err(ReconcilerError::PatchError)?;
 
     Ok(status)
 }

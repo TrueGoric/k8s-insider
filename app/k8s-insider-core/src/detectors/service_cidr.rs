@@ -21,7 +21,7 @@ pub async fn detect_service_cidr(client: &Client) -> anyhow::Result<IpNet> {
     debug!("{service_post_response:?}");
 
     let service_cidr_regex: Regex =
-        Regex::new("The range of valid IPs is (?<cidr>[0-9a-f./:]+)").unwrap();
+        Regex::new("The range of valid IPs is (?P<cidr>[0-9a-f./:]+)").unwrap();
     let service_cidr = match service_post_response {
         Ok(_) => {
             panic!("Kubernetes accepted an invalid service definition - something is not right.")

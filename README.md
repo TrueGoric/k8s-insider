@@ -2,9 +2,10 @@
 A zero-config way to access you kubernetes cluster network
 
 ## What
-Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources.
+Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources. Powered by WireGuard and Rust.
 
 ## Features
+ - Multiple networks per cluster
  - Dynamic IP assignment
  - Automatic detection of service and pod CIDRs for:
    - Flannel (installed with Helm/CLI)
@@ -24,6 +25,7 @@ TODO
 ## Quickstart
 ```bash
 k8s-insider install
+k8s-insider create-network
 k8s-install connect
 ```
 

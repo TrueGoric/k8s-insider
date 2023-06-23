@@ -19,3 +19,5 @@ serde_json = "1.0.96"
 schemars = { version = "0.8.12", features = ["chrono"] }
 ipnet = { version = "2.7.2", features = ["schemars", "serde"] }
 wireguard-control = { git = "https://github.com/tonarino/innernet.git", tag = "v1.6.0", version = "1.6.0" }
+thiserror = "1.0.40"
+async-trait = "0.1.68"

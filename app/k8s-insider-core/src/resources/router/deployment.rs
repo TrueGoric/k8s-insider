@@ -11,16 +11,18 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::{labels::get_tunnel_labels, release::Release};
+use crate::resources::labels::get_router_labels;
+
+use super::RouterRelease;
 
 pub const EXPOSED_PORT: i32 = 55555;
 pub const EXPOSED_PORT_NAME: &str = "vpn";
 pub const EXPOSED_PORT_PROTOCOL: &str = "UDP";
 
-impl Release {
-    pub fn generate_tunnel_deployment(&self, configmap: &ConfigMap) -> Deployment {
-        let labels = get_tunnel_labels();
-        let metadata = self.generate_tunnel_metadata();
+impl RouterRelease {
+    pub fn generate_deployment(&self, configmap: &ConfigMap) -> Deployment {
+        let labels = get_router_labels();
+        let metadata = self.generate_router_metadata();
         let metadata_name = metadata.name.as_ref().unwrap().to_owned();
 
         let config_volume = Volume {
@@ -86,7 +88,7 @@ impl Release {
                 },
                 template: PodTemplateSpec {
                     metadata: Some(ObjectMeta {
-                        labels: Some(labels.to_owned()),
+                        labels: Some(labels),
                         ..Default::default()
                     }),
                     spec: Some(pod_spec),

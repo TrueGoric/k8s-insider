@@ -1,7 +1,16 @@
+use thiserror::Error;
+
 pub mod controller;
 pub mod annotations;
 pub mod crd;
 pub mod labels;
-pub mod release;
+pub mod router;
 pub mod templates;
-pub mod tunnel;
+
+#[derive(Debug, Error)]
+pub enum ResourceGenerationError {
+    #[error("Provided dependent resource is missing a name!")]
+    DependentMissingMetadataName,
+    #[error("Provided dependent resource is missing a namespace!")]
+    DependentMissingMetadataNamespace
+}

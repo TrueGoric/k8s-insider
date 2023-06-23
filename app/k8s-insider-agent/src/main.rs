@@ -1,11 +1,12 @@
 use std::{error::Error, process::exit, sync::Arc};
 
 use futures::StreamExt;
+use k8s_insider_core::resources::controller::ControllerRelease;
 use kube::{
     runtime::{watcher::Config, Controller},
     Api, Client,
 };
-use reconciler::{context::ReconcilerContext, reconcile_tunnel, reconcile_tunnel_error};
+use reconciler::{context::ReconcilerContext, reconcile_tunnel, reconcile_tunnel_error, error};
 
 mod reconciler;
 
@@ -13,6 +14,7 @@ mod reconciler;
 async fn main() -> Result<(), Box<dyn Error>> {
     configure_logger();
 
+    let release = get_release();
     let client = create_client().await;
 
     let context = ReconcilerContext {
@@ -42,6 +44,16 @@ async fn create_client() -> Client {
     }
 }
 
+fn get_release() -> ControllerRelease {
+    match ControllerRelease::from_env() {
+        Ok(release) => release,
+        Err(error) => {
+            log::error!("Couldn't retrieve release info! {error:?}");
+            exit(7)
+        },
+    }
+}
+
 fn configure_logger() {
     env_logger::builder()
         .default_format()
@@ -49,3 +61,4 @@ fn configure_logger() {
         .filter_level(log::LevelFilter::Info)
         .init()
 }
+

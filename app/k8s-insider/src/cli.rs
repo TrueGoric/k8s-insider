@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use ipnet::IpNet;
 
-pub const DEFAULT_NAMESPACE: &str = "k8s-insider";
+pub const DEFAULT_NAMESPACE: &str = "kube-insider";
 
 pub const DEFAULT_PEER_CIDR: &str = "10.11.11.0/24";
 
@@ -67,6 +67,12 @@ pub enum Commands {
     /// Uninstall k8s-insider from the cluster
     #[command(alias = "u")]
     Uninstall(UninstallArgs),
+    #[command(alias = "n", alias = "create")]
+    CreateNetwork(CreateNetworkArgs),
+    #[command(alias = "del", alias = "delete")]
+    DeleteNetwork,
+    #[command(alias = "l", alias = "list")]
+    ListNetworks,
     /// Connect to the cluster
     #[command(alias = "c")]
     Connect(ConnectArgs),
@@ -96,16 +102,6 @@ pub enum ServiceType {
 
 #[derive(Debug, Args)]
 pub struct InstallArgs {
-    /// Type of the public facing service that will be used to connect to the k8s-insider instance
-    #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
-    pub service_type: ServiceType,
-    /// Manually sets the connection IP (valid for NodePort and ExternalIp service types)
-    ///
-    /// Required for ExternalIp services,
-    /// When defined with NodePort service type it skips the autodetection of node IPs and
-    /// instructs clients to connect using the provided address.
-    #[arg(long)]
-    pub external_ip: Option<String>,
     /// DNS service IP (autodetected if unset)
     #[arg(long)]
     pub kube_dns: Option<String>,
@@ -118,24 +114,42 @@ pub struct InstallArgs {
     /// Cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<IpNet>,
+    /// If set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Force the insallation
+    #[arg(long)]
+    pub force: bool,
+    /// don't install CRDs (should you choose not to install them here make sure beforehand they are available on the cluster)
+    #[arg(long)]
+    pub no_crds: bool,
+    /// Substitutes the k8s-insider-agent container image if specified
+    #[arg(long, default_value = DEFAULT_AGENT_IMAGE)]
+    pub controller_image: String,
+    /// Substitutes the k8s-insider-tunnel container image if specified
+    #[arg(long, default_value = DEFAULT_TUNNEL_IMAGE)]
+    pub router_image: String,
+}
+
+#[derive(Debug, Args)]
+pub struct CreateNetworkArgs {
     /// Peer CIDR subnet (users will be assigned IPs from that range)
     #[arg(long, default_value = DEFAULT_PEER_CIDR)]
     pub peer_cidr: IpNet,
     /// Router's IP address, must be within peer CIDR range (defaults to the first non-broadcast IP from that range)
     #[arg(long)]
-    pub router_ip: Option<IpAddr>,    
-    /// If set, no action will be taken on the cluster
+    pub router_ip: Option<IpAddr>,
+    /// Type of the public facing service that will be used to connect to the k8s-insider instance
+    #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
+    pub service_type: ServiceType,
+    /// Manually sets the connection IP (valid for NodePort and ExternalIp service types)
+    ///
+    /// Required for ExternalIp services,
+    /// When defined with NodePort service type it skips the autodetection of node IPs and
+    /// instructs clients to connect using the provided address.
     #[arg(long)]
-    pub dry_run: bool,
-    /// Push the insallation even if it already exists in the cluster
-    #[arg(long)]
-    pub force: bool,
-    /// Substitutes the k8s-insider-agent container image if specified
-    #[arg(long, default_value = DEFAULT_AGENT_IMAGE)]
-    pub agent_image_name: String,
-    /// Substitutes the k8s-insider-tunnel container image if specified
-    #[arg(long, default_value = DEFAULT_TUNNEL_IMAGE)]
-    pub tunnel_image_name: String,
+    pub external_ip: Option<String>,
+    
 }
 
 #[derive(Debug, Args)]
