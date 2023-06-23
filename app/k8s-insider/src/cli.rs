@@ -117,7 +117,7 @@ pub struct InstallArgs {
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
-    /// Force the insallation
+    /// Force the installation
     #[arg(long)]
     pub force: bool,
     /// don't install CRDs (should you choose not to install them here make sure beforehand they are available on the cluster)
