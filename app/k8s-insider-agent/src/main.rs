@@ -6,7 +6,7 @@ use kube::{
     runtime::{watcher::Config, Controller},
     Api, Client,
 };
-use reconciler::{context::ReconcilerContext, reconcile_tunnel, reconcile_tunnel_error, error};
+use reconciler::{context::ReconcilerContext, reconcile_tunnel, reconcile_tunnel_error};
 
 mod reconciler;
 
