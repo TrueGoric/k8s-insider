@@ -31,6 +31,7 @@ spec:
                 type: string
               static_ip:
                 description: static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
+                format: ipv4
                 nullable: true
                 type: string
             required:
@@ -43,16 +44,23 @@ spec:
             properties:
               address:
                 description: dynamically assigned peer address
-                format: ip
+                format: ipv4
                 nullable: true
                 type: string
               allowed_ips:
-                description: routable ips for this tunnel
+                description: routable ip ranges for this tunnel
+                items:
+                  description: An IPv4 address with prefix length
+                  example: 0.0.0.0/0
+                  maxLength: 18
+                  pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
+                  title: IPv4 network
+                  type: string
                 nullable: true
-                type: string
+                type: array
               dns:
                 description: dns address
-                format: ip
+                format: ipv4
                 nullable: true
                 type: string
               endpoint:

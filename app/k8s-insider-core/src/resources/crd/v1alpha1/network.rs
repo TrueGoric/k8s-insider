@@ -1,4 +1,4 @@
-use ipnet::IpNet;
+use ipnet::{IpNet, Ipv4Net};
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub struct NetworkSpec {
     /// name of this network
     pub name: String,
     /// CIDR range for peers connecting to this network
-    pub peer_cidr: IpNet,
+    pub peer_cidr: Ipv4Net,
     /// whether to enable NAT or allow this network to interact directly with the cluster
     /// (depending on the implementation and cluster capabilities this might not have an effect)
     pub nat: Option<bool>,
