@@ -1,4 +1,6 @@
 .git
 .gitignore
 .github
+.vscode
 app/target
+crd
