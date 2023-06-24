@@ -12,8 +12,6 @@ use serde::{Deserialize, Serialize};
     status = "NetworkStatus"
 )]
 pub struct NetworkSpec {
-    /// name of this network
-    pub name: String,
     /// CIDR range for peers connecting to this network
     pub peer_cidr: Ipv4Net,
     /// whether to enable NAT or allow this network to interact directly with the cluster

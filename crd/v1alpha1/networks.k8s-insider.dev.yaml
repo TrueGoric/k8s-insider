@@ -20,9 +20,6 @@ spec:
         properties:
           spec:
             properties:
-              name:
-                description: name of this network
-                type: string
               nat:
                 description: whether to enable NAT or allow this network to interact directly with the cluster (depending on the implementation and cluster capabilities this might not have an effect)
                 nullable: true
@@ -35,7 +32,6 @@ spec:
                 title: IPv4 network
                 type: string
             required:
-            - name
             - peer_cidr
             type: object
           status:
