@@ -1,4 +1,4 @@
-use ipnet::{IpNet, Ipv4Net};
+use ipnet::Ipv4Net;
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -36,5 +36,5 @@ pub enum NetworkState {
     Creating,
     Created,
     ErrorSubnetConflict,
-    ErrorInsufficientPermissions
+    ErrorInsufficientPermissions,
 }
