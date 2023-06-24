@@ -16,8 +16,8 @@ k8s-insider-core = { path = "../k8s-insider-core" }
 kube = { workspace = true }
 k8s-openapi = { workspace = true }
 clap = { version = "4.3.2", features = ["derive"] }
-env_logger = "0.10.0"
-log = "0.4.18"
+env_logger = { workspace = true }
+log = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 anyhow = { workspace = true }
 ipnet = "2.7.2"
