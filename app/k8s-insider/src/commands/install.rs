@@ -8,7 +8,7 @@ use k8s_insider_core::{
     resources::{
         controller::{ControllerRelease, ControllerReleaseBuilder},
         crd::v1alpha1::create_v1alpha1_crds,
-        labels::get_router_listparams,
+        labels::get_controller_listparams,
     },
     FIELD_MANAGER,
 };
@@ -31,7 +31,7 @@ pub async fn install(
         global_args.namespace
     );
 
-    let release_params = get_router_listparams();
+    let release_params = get_controller_listparams();
 
     debug!("Checking if k8s-insider is already installed...");
     if check_if_release_exists(&release_params, &global_args.namespace, client).await? {
@@ -60,12 +60,12 @@ pub async fn install(
 }
 
 async fn check_if_release_exists(
-    tunnel_params: &ListParams,
+    release_params: &ListParams,
     namespace: &str,
     client: &Client,
 ) -> anyhow::Result<bool> {
     check_if_resource_exists::<Deployment>(
-        tunnel_params,
+        release_params,
         &Api::namespaced(client.clone(), namespace),
     )
     .await
