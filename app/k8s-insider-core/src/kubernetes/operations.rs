@@ -5,7 +5,7 @@ use k8s_openapi::{
     api::core::v1::Namespace,
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
     serde::{de::DeserializeOwned, Serialize},
-    Metadata, NamespaceResourceScope, ClusterResourceScope,
+    ClusterResourceScope, Metadata, NamespaceResourceScope,
 };
 use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams},
@@ -105,18 +105,22 @@ where
         + DeserializeOwned
         + Debug,
 {
+    let resource_name = resource.metadata().name.as_ref().unwrap();
+
     info!(
-        "Creating {} resource on the cluster...",
+        "Creating '{resource_name}' {} resource on the cluster...",
         pretty_type_name::<T>()
     );
 
     let namespace = resource.metadata().namespace.as_ref().unwrap();
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
-    let resource_name = resource.metadata().name.as_ref().unwrap();
     resource_api
         .patch(resource_name, patch_params, &Patch::Apply(resource))
         .await
-        .context(format!("Unable to create {} resource!", pretty_type_name::<T>()))?;
+        .context(format!(
+            "Unable to create '{resource_name}' {} resource!",
+            pretty_type_name::<T>()
+        ))?;
 
     Ok(())
 }
@@ -134,17 +138,21 @@ where
         + DeserializeOwned
         + Debug,
 {
+    let resource_name = resource.metadata().name.as_ref().unwrap();
+
     info!(
-        "Creating {} resource on the cluster...",
+        "Creating '{resource_name}' {} resource on the cluster...",
         pretty_type_name::<T>()
     );
 
     let resource_api: Api<T> = Api::all(client.clone());
-    let resource_name = resource.metadata().name.as_ref().unwrap();
     resource_api
         .patch(resource_name, patch_params, &Patch::Apply(resource))
         .await
-        .context(format!("Unable to create {} resource!", pretty_type_name::<T>()))?;
+        .context(format!(
+            "Unable to create '{resource_name}' {} resource!",
+            pretty_type_name::<T>()
+        ))?;
 
     Ok(())
 }
@@ -173,7 +181,9 @@ pub async fn create_crd(
     crd_api
         .patch(crd_name, patch_params, &Patch::Apply(crd))
         .await
-        .context(format!("Unable to create {crd_name} ({crd_apiversions}) CRD!"))?;
+        .context(format!(
+            "Unable to create {crd_name} ({crd_apiversions}) CRD!"
+        ))?;
 
     Ok(())
 }
