@@ -1,0 +1,77 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: networks.k8s-insider.dev
+spec:
+  group: k8s-insider.dev
+  names:
+    categories: []
+    kind: Network
+    plural: networks
+    shortNames: []
+    singular: network
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for NetworkSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              name:
+                description: name of this network
+                type: string
+              nat:
+                description: whether to enable NAT or allow this network to interact directly with the cluster (depending on the implementation and cluster capabilities this might not have an effect)
+                nullable: true
+                type: boolean
+              peer_cidr:
+                description: CIDR range for peers connecting to this network
+                example: 192.168.0.0/24
+                oneOf:
+                - description: An IPv4 address with prefix length
+                  example: 0.0.0.0/0
+                  maxLength: 18
+                  pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
+                  title: IPv4 network
+                  type: string
+                - description: An IPv6 address with prefix length
+                  example: ::/0
+                  maxLength: 43
+                  pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
+                  title: IPv6 network
+                  type: string
+                title: IP network
+            required:
+            - name
+            - peer_cidr
+            type: object
+          status:
+            nullable: true
+            properties:
+              server_public_key:
+                description: server public key
+                nullable: true
+                type: string
+              state:
+                description: network state
+                enum:
+                - Unknown
+                - Creating
+                - Created
+                - ErrorSubnetConflict
+                - ErrorInsufficientPermissions
+                type: string
+            required:
+            - state
+            type: object
+        required:
+        - spec
+        title: Network
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,45 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: connections.k8s-insider.dev
+spec:
+  group: k8s-insider.dev
+  names:
+    categories: []
+    kind: Connection
+    plural: connections
+    shortNames: []
+    singular: connection
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for ConnectionSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              peer_public_key:
+                description: peer public key
+                type: string
+            required:
+            - peer_public_key
+            type: object
+          status:
+            nullable: true
+            properties:
+              last_handshake:
+                description: last handshake
+                format: date-time
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: Connection
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
