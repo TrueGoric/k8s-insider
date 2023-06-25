@@ -1,12 +1,10 @@
 use std::net::IpAddr;
-
 use anyhow::anyhow;
 use derive_builder::Builder;
-use ipnet::IpNet;
 use kube::{api::PatchParams, core::ObjectMeta, Client};
 use log::debug;
 
-use crate::{kubernetes::operations::{create_namespace_if_not_exists, create_resource}, FIELD_MANAGER};
+use crate::{kubernetes::operations::{create_namespace_if_not_exists, create_resource}, FIELD_MANAGER, ippair::{IpAddrPair, IpNetPair, Contains}};
 
 use super::{controller::ControllerRelease, labels::get_router_labels};
 
@@ -18,23 +16,23 @@ pub mod service;
 #[derive(Debug, Builder)]
 pub struct RouterRelease {
     pub namespace: String,
-    pub kube_dns: Option<IpAddr>,
+    pub kube_dns: Option<IpAddrPair>,
     pub service_domain: Option<String>,
-    pub service_cidr: IpNet,
-    pub pod_cidr: IpNet,
+    pub service_cidr: IpNetPair,
+    pub pod_cidr: IpNetPair,
     pub agent_image_name: String,
     pub tunnel_image_name: String,
 
     pub server_private_key: String,
-    pub peer_cidr: IpNet,
-    pub router_ip: IpAddr,
+    pub peer_cidr: IpNetPair,
+    pub router_ip: IpAddrPair,
     pub service: RouterReleaseService,
 }
 
 #[derive(Debug, Clone)]
 pub enum RouterReleaseService {
     None,
-    NodePort { predefined_ips: Option<String> },
+    NodePort { predefined_ips: Option<Vec<IpAddr>> },
     LoadBalancer,
     ExternalIp { ip: String },
 }
@@ -49,6 +47,10 @@ impl RouterReleaseBuilder {
             .agent_image_name(controller_release.controller_image_name)
             .tunnel_image_name(controller_release.tunnel_image_name)
     }
+
+    // pub fn with_network_crd(&mut self, crd: &Network) -> &mut Self {
+    //     self.peer_cidr(crd.spec.peer_cidr.to_owned())
+    // }
 }
 
 impl RouterRelease {

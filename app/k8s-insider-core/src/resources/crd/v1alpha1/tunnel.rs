@@ -1,9 +1,8 @@
-use std::net::Ipv4Addr;
-
-use ipnet::Ipv4Net;
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::ippair::{IpAddrPair, IpNetPair};
 
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[kube(
@@ -19,7 +18,7 @@ pub struct TunnelSpec {
     /// tunnel's preshared key
     pub preshared_key: String,
     /// static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
-    pub static_ip: Option<Ipv4Addr>,
+    pub static_ip: Option<IpAddrPair>,
     /// if set to true this tunnel won't be automatically cleaned up after
     /// being unused for a preconfigured amount of time
     pub persistent: bool,
@@ -31,15 +30,15 @@ pub struct TunnelStatus {
     /// server public key
     pub server_public_key: Option<String>,
     /// dynamically assigned peer address
-    pub address: Option<Ipv4Addr>,
+    pub address: Option<IpAddrPair>,
     /// dns address
-    pub dns: Option<Ipv4Addr>,
+    pub dns: Option<IpAddrPair>,
     /// publicly available address
     pub endpoint: Option<String>,
     /// publicly available address
     pub endpoint_port: Option<u32>,
     /// routable ip ranges for this tunnel
-    pub allowed_ips: Option<Vec<Ipv4Net>>,
+    pub allowed_ips: Option<Vec<IpNetPair>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]

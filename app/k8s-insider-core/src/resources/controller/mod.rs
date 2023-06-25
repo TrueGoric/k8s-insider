@@ -1,10 +1,11 @@
-use std::{env::var, net::IpAddr};
-
+use std::env::var;
 use derive_builder::Builder;
-use ipnet::IpNet;
 use kube::core::ObjectMeta;
 
-use crate::FromEnvError;
+use crate::{
+    ippair::{IpAddrPair, IpNetPair},
+    FromEnvError,
+};
 
 use super::labels::get_controller_labels;
 
@@ -12,13 +13,13 @@ pub mod configmap;
 pub mod deployment;
 pub mod rbac;
 
-#[derive(Debug, Builder)]
+#[derive(Debug, Clone, Builder)]
 pub struct ControllerRelease {
     pub namespace: String,
-    pub kube_dns: Option<IpAddr>,
+    pub kube_dns: Option<IpAddrPair>,
     pub service_domain: Option<String>,
-    pub service_cidr: IpNet,
-    pub pod_cidr: IpNet,
+    pub service_cidr: IpNetPair,
+    pub pod_cidr: IpNetPair,
     pub controller_image_name: String,
     pub tunnel_image_name: String,
 }

@@ -1,8 +1,10 @@
+use ippair::IpPairError;
 use thiserror::Error;
 
 pub mod detectors;
 pub mod generators;
 pub mod helpers;
+pub mod ippair;
 pub mod kubernetes;
 pub mod tunnel_info;
 pub mod resources;
@@ -18,7 +20,7 @@ pub enum FromEnvError {
     #[error("Env var unavailable: {}", .0)]
     Var(std::env::VarError),
     #[error("IP address couldn't be parsed: {}", .0)]
-    IpAddrParse(std::net::AddrParseError),
+    IpAddrParse(IpPairError),
     #[error("IP CIDR couldn't be parsed: {}", .0)]
-    IpNetParse(ipnet::AddrParseError),
+    IpNetParse(IpPairError),
 }

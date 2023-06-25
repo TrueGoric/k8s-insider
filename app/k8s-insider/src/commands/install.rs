@@ -84,14 +84,14 @@ async fn prepare_release(
         .service_cidr(match &args.service_cidr {
             Some(value) => {
                 info!("Using service CIDR: {value}");
-                value.trunc()
+                value.trunc().into()
             }
             None => detect_service_cidr(client).await?,
         })
         .pod_cidr(match &args.pod_cidr {
             Some(value) => {
                 info!("Using pod CIDR: {value}");
-                value.trunc()
+                value.trunc().into()
             }
             None => detect_pod_cidr(client).await?,
         })

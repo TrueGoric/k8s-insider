@@ -1,7 +1,8 @@
-use ipnet::Ipv4Net;
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::ippair::IpNetPair;
 
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[kube(
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct NetworkSpec {
     /// CIDR range for peers connecting to this network
-    pub peer_cidr: Ipv4Net,
+    pub peer_cidr: IpNetPair,
     /// whether to enable NAT or allow this network to interact directly with the cluster
     /// (depending on the implementation and cluster capabilities this might not have an effect)
     pub nat: Option<bool>,

@@ -1,14 +1,16 @@
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
-use anyhow::{Context, anyhow};
+use anyhow::{anyhow, Context};
 use k8s_openapi::api::core::v1::Service;
-use kube::{Client, Api};
-use log::{warn, info};
+use kube::{Api, Client};
+use log::{info, warn};
+
+use crate::ippair::IpAddrPair;
 
 const KUBE_DNS_SERVICE_NAME: &str = "kube-dns";
 const KUBE_DNS_SERVICE_NAMESPACE: &str = "kube-system";
 
-pub async fn detect_dns_service(client: &Client) -> anyhow::Result<Option<IpAddr>> {
+pub async fn detect_dns_service(client: &Client) -> anyhow::Result<Option<IpAddrPair>> {
     let services_api: Api<Service> = Api::namespaced(client.clone(), KUBE_DNS_SERVICE_NAMESPACE);
     let dns_service = services_api
         .get_opt(KUBE_DNS_SERVICE_NAME)
@@ -29,7 +31,8 @@ pub async fn detect_dns_service(client: &Client) -> anyhow::Result<Option<IpAddr
         .ok_or(anyhow!(
             "Missing clusterIP for {KUBE_DNS_SERVICE_NAME} service!"
         ))?
-        .parse()?;
+        .parse::<Ipv4Addr>()?
+        .into();
 
     info!("Detected DNS service IP: {dns_service}");
 

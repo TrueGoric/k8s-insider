@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use ipnet::IpNet;
+use ipnet::Ipv4Net;
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{api::ListParams, Api, Client};
 use log::{debug, info};
+
+use crate::ippair::IpNetPair;
 
 const CILIUM_CONFIGMAP_NAME: &str = "cilium-config";
 const CILIUM_IPV4_CIDR_KEY: &str = "cluster-pool-ipv4-cidr";
@@ -21,11 +23,11 @@ enum Cni {
 
 #[derive(Debug)]
 struct CniCidr {
-    pub cidr: IpNet,
+    pub cidr: IpNetPair,
     pub cni: Cni,
 }
 
-pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<IpNet> {
+pub async fn detect_pod_cidr(client: &Client) -> anyhow::Result<IpNetPair> {
     let configmaps = get_cni_configmaps(client).await?;
 
     if let Some(cni) = configmaps.first() {
@@ -57,12 +59,12 @@ async fn get_cni_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>> {
                 .and_then(|name| match name.as_str() {
                     CILIUM_CONFIGMAP_NAME => try_get_cilium_cidr(&configmap).map(|cidr| CniCidr {
                         cni: Cni::Cilium,
-                        cidr,
+                        cidr: cidr.into(),
                     }),
                     FLANNEL_CONFIGMAP_NAME => {
                         try_get_flannel_cidr(&configmap).map(|cidr| CniCidr {
                             cni: Cni::Flannel,
-                            cidr,
+                            cidr: cidr.into(),
                         })
                     }
                     _ => None,
@@ -73,7 +75,7 @@ async fn get_cni_configmaps(client: &Client) -> anyhow::Result<Vec<CniCidr>> {
     Ok(configmaps)
 }
 
-fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<IpNet> {
+fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<Ipv4Net> {
     debug!("Found {CILIUM_CONFIGMAP_NAME} configmap!");
 
     configmap
@@ -89,7 +91,7 @@ fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<IpNet> {
             None
         })
         .and_then(|cidr| {
-            cidr.parse::<IpNet>()
+            cidr.parse::<Ipv4Net>()
                 .map_err(|err| {
                     debug!("{CILIUM_IPV4_CIDR_KEY} is not a valid CIDR: {err}!");
                     err
@@ -98,7 +100,7 @@ fn try_get_cilium_cidr(configmap: &ConfigMap) -> Option<IpNet> {
         })
 }
 
-fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<IpNet> {
+fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<Ipv4Net> {
     debug!("Found {FLANNEL_CONFIGMAP_NAME} configmap!");
 
     configmap
@@ -134,7 +136,7 @@ fn try_get_flannel_cidr(configmap: &ConfigMap) -> Option<IpNet> {
             None
         })
         .and_then(|cidr| {
-            cidr.parse::<IpNet>()
+            cidr.parse::<Ipv4Net>()
                 .map_err(|err| {
                     debug!("{FLANNEL_NETWORK_CONF_PROPERTY} is not a valid CIDR: {err}");
                     err
