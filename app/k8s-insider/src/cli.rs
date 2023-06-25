@@ -1,7 +1,7 @@
-use std::net::IpAddr;
+use std::net::Ipv4Addr;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use ipnet::IpNet;
+use ipnet::Ipv4Net;
 
 pub const DEFAULT_NAMESPACE: &str = "kube-insider";
 
@@ -107,13 +107,13 @@ pub struct InstallArgs {
     pub kube_dns: Option<String>,
     /// Cluster service CIDR (autodetected if unset)
     #[arg(long)]
-    pub service_cidr: Option<IpNet>,
+    pub service_cidr: Option<Ipv4Net>,
     /// Cluster domain name assigned to services (autodetected if unset)
     #[arg(long)]
     pub service_domain: Option<String>,
     /// Cluster pod CIDR (autodetected if unset)
     #[arg(long)]
-    pub pod_cidr: Option<IpNet>,
+    pub pod_cidr: Option<Ipv4Net>,
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
@@ -135,10 +135,10 @@ pub struct InstallArgs {
 pub struct CreateNetworkArgs {
     /// Peer CIDR subnet (users will be assigned IPs from that range)
     #[arg(long, default_value = DEFAULT_PEER_CIDR)]
-    pub peer_cidr: IpNet,
+    pub peer_cidr: Ipv4Net,
     /// Router's IP address, must be within peer CIDR range (defaults to the first non-broadcast IP from that range)
     #[arg(long)]
-    pub router_ip: Option<IpAddr>,
+    pub router_ip: Option<Ipv4Addr>,
     /// Type of the public facing service that will be used to connect to the k8s-insider instance
     #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
     pub service_type: ServiceType,
