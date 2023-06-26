@@ -20,122 +20,81 @@ spec:
         properties:
           spec:
             properties:
-              peer_public_key:
+              peerPublicKey:
                 description: peer public key
                 type: string
               persistent:
                 description: if set to true this tunnel won't be automatically cleaned up after being unused for a preconfigured amount of time
                 type: boolean
-              preshared_key:
+              presharedKey:
                 description: tunnel's preshared key
                 type: string
-              static_ip:
+              staticIp:
+                anyOf:
+                - required:
+                  - ipv4
+                - required:
+                  - ipv6
+                - required:
+                  - ipv4
+                  - ipv6
                 description: static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
                 nullable: true
-                oneOf:
-                - required:
-                  - Ipv4
-                - required:
-                  - Ipv6
-                - required:
-                  - Ipv4v6
                 properties:
-                  Ipv4:
+                  ipv4:
                     format: ipv4
                     type: string
-                  Ipv4v6:
-                    properties:
-                      ipv4:
-                        format: ipv4
-                        type: string
-                      ipv6:
-                        format: ipv6
-                        type: string
-                    required:
-                    - ipv4
-                    - ipv6
-                    type: object
-                  Ipv6:
+                  ipv6:
                     format: ipv6
                     type: string
                 type: object
             required:
-            - peer_public_key
+            - peerPublicKey
             - persistent
-            - preshared_key
+            - presharedKey
             type: object
           status:
             nullable: true
             properties:
               address:
+                anyOf:
+                - required:
+                  - ipv4
+                - required:
+                  - ipv6
+                - required:
+                  - ipv4
+                  - ipv6
                 description: dynamically assigned peer address
                 nullable: true
-                oneOf:
-                - required:
-                  - Ipv4
-                - required:
-                  - Ipv6
-                - required:
-                  - Ipv4v6
                 properties:
-                  Ipv4:
+                  ipv4:
                     format: ipv4
                     type: string
-                  Ipv4v6:
-                    properties:
-                      ipv4:
-                        format: ipv4
-                        type: string
-                      ipv6:
-                        format: ipv6
-                        type: string
-                    required:
-                    - ipv4
-                    - ipv6
-                    type: object
-                  Ipv6:
+                  ipv6:
                     format: ipv6
                     type: string
                 type: object
-              allowed_ips:
+              allowedIps:
                 description: routable ip ranges for this tunnel
                 items:
-                  oneOf:
+                  anyOf:
                   - required:
-                    - Ipv4
+                    - netv4
                   - required:
-                    - Ipv6
+                    - netv6
                   - required:
-                    - Ipv4v6
+                    - netv4
+                    - netv6
                   properties:
-                    Ipv4:
+                    netv4:
                       description: An IPv4 address with prefix length
                       example: 0.0.0.0/0
                       maxLength: 18
                       pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
                       title: IPv4 network
                       type: string
-                    Ipv4v6:
-                      properties:
-                        netv4:
-                          description: An IPv4 address with prefix length
-                          example: 0.0.0.0/0
-                          maxLength: 18
-                          pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
-                          title: IPv4 network
-                          type: string
-                        netv6:
-                          description: An IPv6 address with prefix length
-                          example: ::/0
-                          maxLength: 43
-                          pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
-                          title: IPv6 network
-                          type: string
-                      required:
-                      - netv4
-                      - netv6
-                      type: object
-                    Ipv6:
+                    netv6:
                       description: An IPv6 address with prefix length
                       example: ::/0
                       maxLength: 43
@@ -146,32 +105,21 @@ spec:
                 nullable: true
                 type: array
               dns:
+                anyOf:
+                - required:
+                  - ipv4
+                - required:
+                  - ipv6
+                - required:
+                  - ipv4
+                  - ipv6
                 description: dns address
                 nullable: true
-                oneOf:
-                - required:
-                  - Ipv4
-                - required:
-                  - Ipv6
-                - required:
-                  - Ipv4v6
                 properties:
-                  Ipv4:
+                  ipv4:
                     format: ipv4
                     type: string
-                  Ipv4v6:
-                    properties:
-                      ipv4:
-                        format: ipv4
-                        type: string
-                      ipv6:
-                        format: ipv6
-                        type: string
-                    required:
-                    - ipv4
-                    - ipv6
-                    type: object
-                  Ipv6:
+                  ipv6:
                     format: ipv6
                     type: string
                 type: object
@@ -179,13 +127,13 @@ spec:
                 description: publicly available address
                 nullable: true
                 type: string
-              endpoint_port:
+              endpointPort:
                 description: publicly available address
                 format: uint32
                 minimum: 0.0
                 nullable: true
                 type: integer
-              server_public_key:
+              serverPublicKey:
                 description: server public key
                 nullable: true
                 type: string

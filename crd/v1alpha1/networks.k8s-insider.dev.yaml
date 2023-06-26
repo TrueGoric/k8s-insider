@@ -21,47 +21,139 @@ spec:
           spec:
             properties:
               nat:
-                description: whether to enable NAT or allow this network to interact directly with the cluster (depending on the implementation and cluster capabilities this might not have an effect)
+                description: whether to enable NAT or allow this network to interact directly with the cluster (depending on the controller implementation and cluster capabilities this might not have an effect)
                 nullable: true
                 type: boolean
-              peer_cidr:
-                description: CIDR range for peers connecting to this network
+              networkService:
+                description: a service definition used to expose the network - if not defined the network won't be accessible
+                nullable: true
                 oneOf:
                 - required:
-                  - Ipv4
+                  - clusterIp
                 - required:
-                  - Ipv6
+                  - nodePort
                 - required:
-                  - Ipv4v6
+                  - loadBalancer
+                - required:
+                  - externalIp
                 properties:
-                  Ipv4:
+                  clusterIp:
+                    properties:
+                      ip:
+                        anyOf:
+                        - required:
+                          - ipv4
+                        - required:
+                          - ipv6
+                        - required:
+                          - ipv4
+                          - ipv6
+                        nullable: true
+                        properties:
+                          ipv4:
+                            format: ipv4
+                            type: string
+                          ipv6:
+                            format: ipv6
+                            type: string
+                        type: object
+                    type: object
+                  externalIp:
+                    properties:
+                      clusterIp:
+                        anyOf:
+                        - required:
+                          - ipv4
+                        - required:
+                          - ipv6
+                        - required:
+                          - ipv4
+                          - ipv6
+                        nullable: true
+                        properties:
+                          ipv4:
+                            format: ipv4
+                            type: string
+                          ipv6:
+                            format: ipv6
+                            type: string
+                        type: object
+                      ips:
+                        items:
+                          format: ip
+                          type: string
+                        type: array
+                    required:
+                    - ips
+                    type: object
+                  loadBalancer:
+                    properties:
+                      clusterIp:
+                        anyOf:
+                        - required:
+                          - ipv4
+                        - required:
+                          - ipv6
+                        - required:
+                          - ipv4
+                          - ipv6
+                        nullable: true
+                        properties:
+                          ipv4:
+                            format: ipv4
+                            type: string
+                          ipv6:
+                            format: ipv6
+                            type: string
+                        type: object
+                    type: object
+                  nodePort:
+                    properties:
+                      clusterIp:
+                        anyOf:
+                        - required:
+                          - ipv4
+                        - required:
+                          - ipv6
+                        - required:
+                          - ipv4
+                          - ipv6
+                        nullable: true
+                        properties:
+                          ipv4:
+                            format: ipv4
+                            type: string
+                          ipv6:
+                            format: ipv6
+                            type: string
+                        type: object
+                      predefinedIps:
+                        items:
+                          format: ip
+                          type: string
+                        nullable: true
+                        type: array
+                    type: object
+                type: object
+              peerCidr:
+                anyOf:
+                - required:
+                  - netv4
+                - required:
+                  - netv6
+                - required:
+                  - netv4
+                  - netv6
+                description: CIDR range for peers connecting to this network
+                properties:
+                  netv4:
                     description: An IPv4 address with prefix length
                     example: 0.0.0.0/0
                     maxLength: 18
                     pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
                     title: IPv4 network
                     type: string
-                  Ipv4v6:
-                    properties:
-                      netv4:
-                        description: An IPv4 address with prefix length
-                        example: 0.0.0.0/0
-                        maxLength: 18
-                        pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
-                        title: IPv4 network
-                        type: string
-                      netv6:
-                        description: An IPv6 address with prefix length
-                        example: ::/0
-                        maxLength: 43
-                        pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
-                        title: IPv6 network
-                        type: string
-                    required:
-                    - netv4
-                    - netv6
-                    type: object
-                  Ipv6:
+                  netv6:
                     description: An IPv6 address with prefix length
                     example: ::/0
                     maxLength: 43
@@ -70,12 +162,12 @@ spec:
                     type: string
                 type: object
             required:
-            - peer_cidr
+            - peerCidr
             type: object
           status:
             nullable: true
             properties:
-              server_public_key:
+              serverPublicKey:
                 description: server public key
                 nullable: true
                 type: string
@@ -85,6 +177,7 @@ spec:
                 - Unknown
                 - Creating
                 - Created
+                - ErrorCreatingService
                 - ErrorSubnetConflict
                 - ErrorInsufficientPermissions
                 type: string

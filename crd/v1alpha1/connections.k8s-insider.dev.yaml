@@ -20,16 +20,16 @@ spec:
         properties:
           spec:
             properties:
-              peer_public_key:
+              peerPublicKey:
                 description: peer public key
                 type: string
             required:
-            - peer_public_key
+            - peerPublicKey
             type: object
           status:
             nullable: true
             properties:
-              last_handshake:
+              lastHandshake:
                 description: last handshake
                 format: date-time
                 nullable: true

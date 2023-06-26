@@ -1,10 +1,13 @@
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
 
 use crate::ippair::{IpAddrPair, IpNetPair};
 
+#[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 #[kube(
     group = "k8s-insider.dev",
     version = "v1alpha1",
@@ -24,7 +27,9 @@ pub struct TunnelSpec {
     pub persistent: bool,
 }
 
+#[skip_serializing_none]
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct TunnelStatus {
     pub state: TunnelState,
     /// server public key
