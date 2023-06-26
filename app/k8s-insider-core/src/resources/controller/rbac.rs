@@ -106,6 +106,15 @@ impl ControllerRelease {
                 "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
+            ],
+            ..Default::default()
+        };
+
+        // RATIONALE: update network statuses to put in updates and managed info (public_keys, etc.)
+        let update_network_statuses: PolicyRule = PolicyRule {
+            api_groups: Some(vec![Network::group(&()).into()]),
+            resources: Some(vec![format!("{}/status", Network::plural(&()))]),
+            verbs: vec![
                 "update".to_owned(),
                 "patch".to_owned(),
             ],
@@ -123,6 +132,17 @@ impl ControllerRelease {
                 "update".to_owned(),
                 "patch".to_owned(),
                 "delete".to_owned(),
+            ],
+            ..Default::default()
+        };
+
+        // RATIONALE: update tunnel statuses to fill relevant data for config generation for peers
+        let update_tunnel_statuses = PolicyRule {
+            api_groups: Some(vec![Tunnel::group(&()).into()]),
+            resources: Some(vec![format!("{}/status", Tunnel::plural(&()))]),
+            verbs: vec![
+                "update".to_owned(),
+                "patch".to_owned(),
             ],
             ..Default::default()
         };
@@ -146,7 +166,9 @@ impl ControllerRelease {
                 create_read_services,
                 manage_deployments,
                 manage_networks,
+                update_network_statuses,
                 manage_tunnels,
+                update_tunnel_statuses,
                 read_connections,
             ]),
             ..Default::default()
