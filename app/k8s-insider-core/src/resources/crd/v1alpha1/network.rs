@@ -68,6 +68,7 @@ pub enum NetworkState {
     Unknown,
     Creating,
     Created,
+    UnknownError,
     ErrorCreatingService,
     ErrorSubnetConflict,
     ErrorInsufficientPermissions,
