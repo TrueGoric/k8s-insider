@@ -12,12 +12,12 @@ serde = "1.0.164"
 serde_yaml = "0.9.21"
 
 [dependencies]
-k8s-insider-core = { path = "../k8s-insider-core" }
-kube = { workspace = true }
-k8s-openapi = { workspace = true }
+anyhow = { workspace = true }
 clap = { version = "4.3.2", features = ["derive"] }
 env_logger = { workspace = true }
+ipnet = { workspace = true }
+k8s-insider-core = { path = "../k8s-insider-core" }
+k8s-openapi = { workspace = true }
+kube = { workspace = true }
 log = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
-anyhow = { workspace = true }
-ipnet = "2.7.2"
