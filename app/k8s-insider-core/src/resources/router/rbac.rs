@@ -5,6 +5,14 @@ use crate::{resources::ResourceGenerationError, ROUTER_CLUSTERROLE_NAME};
 use super::RouterRelease;
 
 impl RouterRelease {
+    pub fn generate_router_service_account(&self) -> ServiceAccount {
+        ServiceAccount {
+            metadata: self.generate_router_metadata(),
+            automount_service_account_token: Some(true),
+            ..Default::default()
+        }
+    }
+
     pub fn generate_router_role_binding(
         &self,
         account: &ServiceAccount,

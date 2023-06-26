@@ -2,16 +2,15 @@ use k8s_openapi::{
     api::{
         apps::v1::{Deployment, DeploymentSpec},
         core::v1::{
-            Capabilities, ConfigMap, ConfigMapEnvSource, ConfigMapVolumeSource, Container,
-            ContainerPort, EnvFromSource, PodSpec, PodTemplateSpec, SecurityContext, Volume,
-            VolumeMount,
+            Capabilities, Container, ContainerPort, EnvFromSource, PodSpec, PodTemplateSpec,
+            Secret, SecretEnvSource, SecurityContext, ServiceAccount,
         },
     },
     apimachinery::pkg::apis::meta::v1::LabelSelector,
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::labels::get_router_labels;
+use crate::resources::{labels::get_router_labels, ResourceGenerationError};
 
 use super::RouterRelease;
 
@@ -20,29 +19,38 @@ pub const EXPOSED_PORT_NAME: &str = "vpn";
 pub const EXPOSED_PORT_PROTOCOL: &str = "UDP";
 
 impl RouterRelease {
-    pub fn generate_deployment(&self, configmap: &ConfigMap) -> Deployment {
+    pub fn generate_deployment(
+        &self,
+        secret: &Secret,
+        service_account: &ServiceAccount,
+    ) -> Result<Deployment, ResourceGenerationError> {
         let labels = get_router_labels();
         let metadata = self.generate_router_metadata();
-        let metadata_name = metadata.name.as_ref().unwrap().to_owned();
-
-        let config_volume = Volume {
-            name: "config".to_owned(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: configmap.metadata.name.to_owned(),
-                optional: Some(false),
-                default_mode: Some(0o644),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        let metadata_name = metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+        let secret_name = secret
+            .metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+        let service_account_name = service_account
+            .metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
 
         let pod_spec = PodSpec {
             // affinity: todo!(), // this should probably be introduced at some point
-            automount_service_account_token: Some(false),
+            automount_service_account_token: Some(true),
             containers: vec![Container {
                 env_from: Some(vec![EnvFromSource {
-                    config_map_ref: Some(ConfigMapEnvSource {
-                        name: Some(configmap.metadata.name.as_ref().unwrap().to_owned()),
+                    secret_ref: Some(SecretEnvSource {
+                        name: Some(secret_name),
                         optional: Some(false),
                     }),
                     ..Default::default()
@@ -66,19 +74,13 @@ impl RouterRelease {
                     privileged: Some(true),
                     ..Default::default()
                 }),
-                volume_mounts: Some(vec![VolumeMount {
-                    name: config_volume.name.to_owned(),
-                    read_only: Some(true),
-                    mount_path: "/config".to_owned(),
-                    ..Default::default()
-                }]),
                 ..Default::default()
             }],
-            volumes: Some(vec![config_volume]),
+            service_account_name: Some(service_account_name),
             ..Default::default()
         };
 
-        Deployment {
+        Ok(Deployment {
             metadata,
             spec: Some(DeploymentSpec {
                 replicas: Some(1),
@@ -96,6 +98,6 @@ impl RouterRelease {
                 ..Default::default()
             }),
             ..Default::default()
-        }
+        })
     }
 }
