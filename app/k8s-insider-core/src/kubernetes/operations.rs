@@ -10,12 +10,14 @@ use k8s_openapi::{
 use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
-    core::ObjectMeta,
+    core::{object::HasStatus, ObjectMeta},
     Api, Client, Config, Resource,
 };
 use log::{debug, info, warn};
 
 use crate::helpers::pretty_type_name;
+
+use super::FromStatus;
 
 pub async fn create_local_client(
     config_path: &Option<String>,
@@ -37,6 +39,35 @@ pub async fn create_local_client(
     let client = Client::try_from(config)?;
 
     Ok(client)
+}
+
+pub async fn try_get_resource<T>(
+    client: &Client,
+    resource_name: &str,
+    namespace: &str,
+) -> Result<Option<T>, kube::Error>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+
+    info!("Fetching '{resource_name}' {resource_type_name} from the cluster...",);
+
+    let response = Api::namespaced(client.clone(), namespace)
+        .get(resource_name)
+        .await;
+
+    match response {
+        Ok(resource) => Ok(Some(resource)),
+        Err(error) => match &error {
+            kube::Error::Api(api_error) => match api_error.code {
+                404 => Ok(None),
+                _ => Err(error),
+            },
+            _ => Err(error),
+        },
+    }
 }
 
 pub async fn create_namespace_if_not_exists(
@@ -120,6 +151,48 @@ where
         .await?;
 
     Ok(())
+}
+
+pub async fn apply_resource_status<T, S>(
+    client: &Client,
+    status: S,
+    resource_name: &str,
+    namespace: &str,
+    patch_params: &PatchParams,
+) -> Result<S, kube::Error>
+where
+    S: Serialize,
+    T: HasStatus<Status = S>
+        + Default
+        + Resource<Scope = NamespaceResourceScope>
+        + Serialize
+        + Clone
+        + DeserializeOwned
+        + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+
+    info!("Applying status for '{resource_name}' {resource_type_name}...",);
+
+    debug!(
+        "{}",
+        serde_json::to_string_pretty(&status)
+            .unwrap_or(format!("Couldn't serialize '{resource_name}'"))
+    );
+
+    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+    let mut status_container = T::from_status(status);
+
+    resource_api
+        .patch_status(
+            resource_name,
+            patch_params,
+            &Patch::Apply(&status_container),
+        )
+        .await?;
+
+    Ok(status_container.status_mut().take().unwrap())
 }
 
 pub async fn apply_cluster_resource<T>(

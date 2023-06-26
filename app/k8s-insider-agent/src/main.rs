@@ -1,35 +1,41 @@
-use std::{error::Error, process::exit, sync::Arc};
+use std::{error::Error, process::exit};
 
-use futures::StreamExt;
-use k8s_insider_core::resources::controller::ControllerRelease;
-use kube::{
-    runtime::{watcher::Config, Controller},
-    Api, Client,
-};
-use reconciler::{context::ReconcilerContext, reconcile_tunnel, reconcile_tunnel_error};
+use controller::main_controller;
+use kube::Client;
+use log::{info, error};
 
-mod reconciler;
+mod controller;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {
     configure_logger();
 
-    let release = get_release();
     let client = create_client().await;
-
-    let context = ReconcilerContext {
-        tunnel_api: Api::namespaced(client.clone(), client.default_namespace()),
-        pod_api: Api::namespaced(client.clone(), client.default_namespace()),
-        service_api: Api::namespaced(client.clone(), client.default_namespace()),
+    let args = std::env::args().collect::<Vec<String>>();
+    let mode = match args.get(1) {
+        Some(val) => val.as_str(),
+        None => {
+            error!("Missing deployment mode (should be controller or router)!");
+            exit(1)
+        }
     };
 
-    Controller::new(context.tunnel_api.clone(), Config::default())
-        .owns(context.pod_api.clone(), Config::default())
-        .owns(context.service_api.clone(), Config::default())
-        .shutdown_on_signal()
-        .run(reconcile_tunnel, reconcile_tunnel_error, Arc::new(context))
-        .for_each(|_| futures::future::ready(()))
-        .await;
+    match mode {
+        "controller" => {
+            info!("Starting agent in controller mode...");
+            main_controller(client).await
+        }
+        "router" => {
+            info!("Starting agent in router mode...");
+            todo!()
+        }
+        _ => {
+            error!("Unsupported deployment mode!");
+            exit(1)
+        }
+    };
+
+    info!("Exiting...");
 
     Ok(())
 }
@@ -38,19 +44,9 @@ async fn create_client() -> Client {
     match Client::try_default().await {
         Ok(client) => client,
         Err(error) => {
-            log::error!("Couldn't create client! {error:?}");
+            error!("Couldn't create the client! {error:?}");
             exit(6)
         }
-    }
-}
-
-fn get_release() -> ControllerRelease {
-    match ControllerRelease::from_env() {
-        Ok(release) => release,
-        Err(error) => {
-            log::error!("Couldn't retrieve release info! {error:?}");
-            exit(7)
-        },
     }
 }
 
@@ -61,4 +57,3 @@ fn configure_logger() {
         .filter_level(log::LevelFilter::Info)
         .init()
 }
-

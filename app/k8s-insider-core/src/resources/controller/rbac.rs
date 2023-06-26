@@ -77,6 +77,7 @@ impl ControllerRelease {
             verbs: vec![
                 "create".to_owned(),
                 "patch".to_owned(),
+                "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
             ],

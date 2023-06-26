@@ -1,9 +1,10 @@
 use std::net::IpAddr;
 
-use anyhow::anyhow;
 use derive_builder::Builder;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::core::ObjectMeta;
+use thiserror::Error;
+use wireguard_control::InvalidKey;
 
 use crate::ippair::{Contains, IpAddrPair, IpNetPair};
 
@@ -18,6 +19,8 @@ pub mod deployment;
 pub mod rbac;
 pub mod secret;
 pub mod service;
+
+const PLACEHOLDER_PRIVATE_KEY: &str = "=//=I_AM_INVALID=//=";
 
 #[derive(Debug, Builder)]
 pub struct RouterRelease {
@@ -54,6 +57,14 @@ pub enum RouterReleaseService {
         cluster_ip: Option<IpAddrPair>,
         ips: Vec<IpAddr>,
     },
+}
+
+#[derive(Debug, Error)]
+pub enum RouterReleaseValidationError {
+    #[error("Router IP is not part of the peer network CIDR!")]
+    RouterIpOutOfBounds,
+    #[error("Invalid server private key!")]
+    ServerPrivateKeyInvalid,
 }
 
 impl RouterReleaseBuilder {
@@ -94,22 +105,47 @@ impl RouterReleaseBuilder {
                     .map(|service| service.clone().into()),
             ))
     }
+
+    pub fn with_placeholder_server_private_key(&mut self) -> &mut Self {
+        self.server_private_key(PLACEHOLDER_PRIVATE_KEY.to_owned())
+    }
 }
 
 impl RouterRelease {
-    pub fn validated(self) -> anyhow::Result<Self> {
+    pub fn validated(self) -> Result<Self, RouterReleaseValidationError> {
         if !self.peer_cidr.contains(&self.router_ip) {
-            return Err(anyhow!("Router IP is not part of the peer network CIDR!"));
+            return Err(RouterReleaseValidationError::RouterIpOutOfBounds);
+        }
+
+        if wireguard_control::Key::from_base64(&self.server_private_key).is_err() {
+            return Err(RouterReleaseValidationError::ServerPrivateKeyInvalid);
         }
 
         Ok(self)
     }
 
+    pub fn get_name(&self) -> String {
+        format!("k8s-insider-router-{}", self.name)
+    }
+
+    pub fn get_namespace(&self) -> String {
+        self.namespace.to_owned()
+    }
+
+    /// This function is safe to unwrap() if the object was successfully validated
+    pub fn get_server_public_key(&self) -> Result<String, InvalidKey> {
+        Ok(
+            wireguard_control::Key::from_base64(&self.server_private_key)?
+                .get_public()
+                .to_base64(),
+        )
+    }
+
     pub fn generate_router_metadata(&self) -> ObjectMeta {
         ObjectMeta {
             labels: Some(get_router_labels()),
-            namespace: Some(self.namespace.to_owned()),
-            name: Some(format!("k8s-insider-router-{}", self.name)),
+            namespace: Some(self.get_namespace()),
+            name: Some(self.get_name()),
             owner_references: Some(vec![self.owner.to_owned()]),
             ..Default::default()
         }
