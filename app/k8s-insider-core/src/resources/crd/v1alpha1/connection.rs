@@ -4,14 +4,15 @@ use schemars::JsonSchema;
 use serde::{Serialize, Deserialize};
 use serde_with::skip_serializing_none;
 
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[kube(
     group = "k8s-insider.dev",
     version = "v1alpha1",
     kind = "Connection",
     namespaced,
-    status = "ConnectionStatus"
+    status = "ConnectionStatus",
+    derive = "Default"
 )]
 pub struct ConnectionSpec {
     /// peer public key

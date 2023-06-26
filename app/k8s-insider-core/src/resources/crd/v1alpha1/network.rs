@@ -8,14 +8,15 @@ use serde_with::skip_serializing_none;
 use crate::ippair::{IpAddrPair, IpNetPair};
 
 #[skip_serializing_none]
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(CustomResource, Deserialize, Serialize, Default, Clone, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[kube(
     group = "k8s-insider.dev",
     version = "v1alpha1",
     kind = "Network",
     namespaced,
-    status = "NetworkStatus"
+    status = "NetworkStatus",
+    derive = "Default"
 )]
 pub struct NetworkSpec {
     /// CIDR range for peers connecting to this network

@@ -27,6 +27,12 @@ pub enum IpAddrPair {
     Ipv4v6 { ipv4: Ipv4Addr, ipv6: Ipv6Addr },
 }
 
+impl Default for IpAddrPair {
+    fn default() -> Self {
+        Self::Ipv4 { ipv4: Ipv4Addr::from(0) } // consistent with Ipv4Net default
+    }
+}
+
 impl Display for IpAddrPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -164,6 +170,13 @@ impl Contains<IpAddrPair> for IpNetPair {
         }
     }
 }
+
+impl Default for IpNetPair {
+    fn default() -> Self {
+        Self::Ipv4 { netv4: Ipv4Net::default() }
+    }
+}
+
 
 impl Display for IpNetPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

@@ -6,14 +6,15 @@ use serde_with::skip_serializing_none;
 use crate::ippair::{IpAddrPair, IpNetPair};
 
 #[skip_serializing_none]
-#[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[kube(
     group = "k8s-insider.dev",
     version = "v1alpha1",
     kind = "Tunnel",
     namespaced,
-    status = "TunnelStatus"
+    status = "TunnelStatus",
+    derive = "Default"
 )]
 pub struct TunnelSpec {
     /// peer public key
