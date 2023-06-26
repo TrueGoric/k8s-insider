@@ -10,6 +10,8 @@ pub const DEFAULT_PEER_CIDR: &str = "10.11.11.0/24";
 pub const DEFAULT_ROUTER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-router:latest";
 pub const DEFAULT_CONTROLLER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-controller:latest";
 
+pub const DEFAULT_NETWORK_NAME: &str = "default";
+
 #[derive(Debug, Parser)]
 #[command(version, about)]
 pub struct Cli {
@@ -67,37 +69,27 @@ pub enum Commands {
     /// Uninstall k8s-insider from the cluster
     #[command(alias = "u")]
     Uninstall(UninstallArgs),
+    /// Create a new VPN network on the cluster
     #[command(alias = "n", alias = "create")]
     CreateNetwork(CreateNetworkArgs),
+    /// Remove a VPN network from the cluster
     #[command(alias = "del", alias = "delete")]
     DeleteNetwork,
+    /// List cluster VPN networks
     #[command(alias = "l", alias = "list")]
     ListNetworks,
-    /// Connect to the cluster
+    /// Connect to a network
     #[command(alias = "c")]
     Connect(ConnectArgs),
-    /// Disconnect from the cluster
+    /// Disconnect from the network
     #[command(alias = "d")]
     Disconnect,
-    /// Get the WireGuard configuration file from the cluster
+    /// Get the WireGuard configuration file for a network
     #[command(alias = "g")]
     GetConf(GetConfArgs),
     /// Patch the DNS resolver to avoid loops when deploying on the local machine
     #[command(alias = "p")]
     PatchDns(PatchDnsArgs),
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-#[value()]
-pub enum ServiceType {
-    #[value(name = "None")]
-    None,
-    #[value(name = "NodePort")]
-    NodePort,
-    #[value(name = "LoadBalancer")]
-    LoadBalancer,
-    #[value(name = "ExternalIp")]
-    ExternalIp,
 }
 
 #[derive(Debug, Args)]
@@ -114,12 +106,6 @@ pub struct InstallArgs {
     /// Cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<Ipv4Net>,
-    /// If set, no action will be taken on the cluster
-    #[arg(long)]
-    pub dry_run: bool,
-    /// Force the installation
-    #[arg(long)]
-    pub force: bool,
     /// don't install CRDs (should you choose not to install them here make sure beforehand they are available on the cluster)
     #[arg(long)]
     pub no_crds: bool,
@@ -129,26 +115,53 @@ pub struct InstallArgs {
     /// Substitutes the k8s-insider-router container image if specified
     #[arg(long, default_value = DEFAULT_ROUTER_IMAGE)]
     pub router_image: String,
+    /// If set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Force the installation
+    #[arg(long)]
+    pub force: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct CreateNetworkArgs {
+    /// Name of the network to create
+    #[arg(default_value = DEFAULT_NETWORK_NAME)]
+    pub name: String,
     /// Peer CIDR subnet (users will be assigned IPs from that range)
     #[arg(long, default_value = DEFAULT_PEER_CIDR)]
     pub peer_cidr: Ipv4Net,
-    /// Router's IP address, must be within peer CIDR range (defaults to the first non-broadcast IP from that range)
-    #[arg(long)]
-    pub router_ip: Option<Ipv4Addr>,
-    /// Type of the public facing service that will be used to connect to the k8s-insider instance
+    /// Type of the service that will be used to connect to the k8s-insider instance
     #[arg(long, value_enum, default_value_t = ServiceType::NodePort)]
     pub service_type: ServiceType,
-    /// Manually sets the connection IP (valid for NodePort and ExternalIp service types)
+    /// Manually sets the connection IPs (valid for NodePort and ExternalIp service types)
     ///
     /// Required for ExternalIp services,
     /// When defined with NodePort service type it skips the autodetection of node IPs and
-    /// instructs clients to connect using the provided address.
+    /// instructs clients to connect using the provided addresses.
     #[arg(long)]
-    pub external_ip: Option<String>,
+    pub external_ip: Option<Vec<Ipv4Addr>>,
+    /// Sets up a static cluster IP for the service
+    #[arg(long)]
+    pub cluster_ip: Option<Ipv4Addr>,
+    /// If set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+#[value()]
+pub enum ServiceType {
+    #[value(name = "None")]
+    None,
+    #[value(name = "ClusterIp")]
+    ClusterIp,
+    #[value(name = "NodePort")]
+    NodePort,
+    #[value(name = "LoadBalancer")]
+    LoadBalancer,
+    #[value(name = "ExternalIp")]
+    ExternalIp,
 }
 
 #[derive(Debug, Args)]
@@ -156,6 +169,9 @@ pub struct UninstallArgs {
     /// Try to remove the namespace afterwards
     #[arg(long)]
     pub delete_namespace: bool,
+    /// don't remove CRDs
+    #[arg(long)]
+    pub leave_crds: bool,    
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,

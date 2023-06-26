@@ -5,15 +5,15 @@ use k8s_openapi::{
     api::core::v1::Namespace,
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
     serde::{de::DeserializeOwned, Serialize},
-    ClusterResourceScope, Metadata, NamespaceResourceScope,
+    ClusterResourceScope, NamespaceResourceScope,
 };
 use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
-    core::{ObjectMeta, PartialObjectMeta},
+    core::ObjectMeta,
     Api, Client, Config, Resource,
 };
-use log::{info, warn};
+use log::{debug, info, warn};
 
 use crate::helpers::pretty_type_name;
 
@@ -43,7 +43,7 @@ pub async fn create_namespace_if_not_exists(
     client: &Client,
     patch_params: &PatchParams,
     name: &str,
-) -> anyhow::Result<()> {
+) -> Result<(), kube::Error> {
     let namespace_api: Api<Namespace> = Api::all(client.clone());
     let namespace = Namespace {
         metadata: ObjectMeta {
@@ -96,31 +96,28 @@ pub async fn create_resource<T>(
     client: &Client,
     resource: &T,
     patch_params: &PatchParams,
-) -> anyhow::Result<()>
+) -> Result<(), kube::Error>
 where
-    T: Metadata<Ty = ObjectMeta>
-        + Resource<Scope = NamespaceResourceScope, DynamicType = ()>
-        + Serialize
-        + Clone
-        + DeserializeOwned
-        + Debug,
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
 {
-    let resource_name = resource.metadata().name.as_ref().unwrap();
+    let resource_type_name = pretty_type_name::<T>();
+    let resource_name = resource.meta().name.as_ref().unwrap();
 
-    info!(
-        "Creating '{resource_name}' {} resource on the cluster...",
-        pretty_type_name::<T>()
+    info!("Creating '{resource_name}' {resource_type_name} resource on the cluster...",);
+
+    debug!(
+        "{}",
+        serde_json::to_string_pretty(&resource)
+            .unwrap_or(format!("Couldn't serialize '{resource_name}'"))
     );
 
-    let namespace = resource.metadata().namespace.as_ref().unwrap();
+    let namespace = resource.meta().namespace.as_ref().unwrap();
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+
     resource_api
         .patch(resource_name, patch_params, &Patch::Apply(resource))
-        .await
-        .context(format!(
-            "Unable to create '{resource_name}' {} resource!",
-            pretty_type_name::<T>()
-        ))?;
+        .await?;
 
     Ok(())
 }
@@ -131,27 +128,20 @@ pub async fn create_cluster_resource<T>(
     patch_params: &PatchParams,
 ) -> anyhow::Result<()>
 where
-    T: Metadata<Ty = ObjectMeta>
-        + Resource<Scope = ClusterResourceScope, DynamicType = ()>
-        + Serialize
-        + Clone
-        + DeserializeOwned
-        + Debug,
+    T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
 {
-    let resource_name = resource.metadata().name.as_ref().unwrap();
+    let resource_type_name = pretty_type_name::<T>();
+    let resource_name = resource.meta().name.as_ref().unwrap();
 
-    info!(
-        "Creating '{resource_name}' {} resource on the cluster...",
-        pretty_type_name::<T>()
-    );
+    info!("Creating '{resource_name}' {resource_type_name} resource on the cluster...",);
 
     let resource_api: Api<T> = Api::all(client.clone());
     resource_api
         .patch(resource_name, patch_params, &Patch::Apply(resource))
         .await
         .context(format!(
-            "Unable to create '{resource_name}' {} resource!",
-            pretty_type_name::<T>()
+            "Unable to create '{resource_name}' {resource_type_name} resource!"
         ))?;
 
     Ok(())
@@ -188,26 +178,133 @@ pub async fn create_crd(
     Ok(())
 }
 
-pub async fn remove_resources<T: Clone + DeserializeOwned + Debug>(
-    resources: &Vec<PartialObjectMeta<T>>,
+pub async fn remove_matching_resources<T>(
+    client: &Client,
+    list_params: &ListParams,
     delete_params: &DeleteParams,
-    api: &Api<T>,
-) -> anyhow::Result<()> {
-    let resource_name = pretty_type_name::<T>();
-    for service in resources {
-        if let Some(name) = &service.metadata.name {
-            info!(
-                "Removing '{name}' release {} from the cluster...",
-                resource_name
-            );
-            api.delete(name, delete_params).await.context(format!(
-                "Couldn't delete a release {} from the cluster!",
-                resource_name
+) -> anyhow::Result<()>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+    let api: Api<T> = Api::all(client.clone());
+
+    let resources = api.list_metadata(list_params).await.context(format!(
+        "Couldn't retrieve {resource_type_name} from the cluster!"
+    ))?;
+
+    for resource in resources {
+        let name = &resource
+            .metadata
+            .name
+            .as_ref()
+            .ok_or_else(|| anyhow!("Cluster returned a nameless {}!", resource_type_name))? // this shouldn't happen
+            .as_str();
+        let namespace = &resource
+            .metadata
+            .namespace
+            .as_ref()
+            .ok_or_else(|| anyhow!("Namespaced resource is missing a namespace!"))? // this shouldn't happen
+            .as_str();
+
+        info!("Removing '{name}' {resource_type_name} from the cluster...");
+
+        let namespaced_api: Api<T> = Api::namespaced(client.clone(), namespace);
+
+        namespaced_api
+            .delete(name, delete_params)
+            .await
+            .context(format!(
+                "Couldn't delete '{name}' {resource_type_name} (namespace: {namespace}) from the cluster!"
             ))?;
-        } else {
-            warn!("Cluster returned a nameless {}!", resource_name); // this shouldn't happen
-        }
     }
 
     Ok(())
+}
+
+pub async fn remove_matching_cluster_resources<T>(
+    client: &Client,
+    list_params: &ListParams,
+    delete_params: &DeleteParams,
+) -> anyhow::Result<()>
+where
+    T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+    let api: Api<T> = Api::all(client.clone());
+
+    let resources = api.list_metadata(list_params).await.context(format!(
+        "Couldn't retrieve {resource_type_name} from the cluster!"
+    ))?;
+
+    for resource in resources {
+        let name = &resource
+            .metadata
+            .name
+            .as_ref()
+            .ok_or_else(|| anyhow!("Cluster returned a nameless {}!", resource_type_name))? // this shouldn't happen
+            .as_str();
+
+        info!("Removing '{name}' {resource_type_name} from the cluster...");
+
+        api.delete(name, delete_params).await.context(format!(
+            "Couldn't delete '{resource_type_name}' from the cluster!"
+        ))?;
+    }
+
+    Ok(())
+}
+
+pub async fn remove_cluster_resource<T>(
+    client: &Client,
+    resource_name: &str,
+    delete_params: &DeleteParams,
+) -> anyhow::Result<()>
+where
+    T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+    let resource_api: Api<T> = Api::all(client.clone());
+
+    info!("Removing '{resource_name}' {resource_type_name} from the cluster...",);
+
+    resource_api
+        .delete(resource_name, delete_params)
+        .await
+        .context(format!("Couldn't delete {resource_name} from the cluster!"))?;
+
+    Ok(())
+}
+
+pub async fn try_remove_cluster_resource<T>(
+    client: &Client,
+    resource_name: &str,
+    delete_params: &DeleteParams,
+) -> anyhow::Result<()>
+where
+    T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+    let resource_api: Api<T> = Api::all(client.clone());
+
+    info!("Removing '{resource_name}' {resource_type_name} from the cluster...",);
+
+    let delete_result = resource_api.delete(resource_name, delete_params).await;
+
+    match delete_result {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            if let kube::Error::Api(api_err) = &err {
+                if api_err.code == 404 {
+                    return Ok(());
+                }
+            }
+
+            Err(err.into())
+        }
+    }
 }

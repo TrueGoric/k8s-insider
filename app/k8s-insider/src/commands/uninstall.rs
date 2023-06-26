@@ -1,57 +1,66 @@
 use anyhow::Context;
 use k8s_insider_core::{
-    kubernetes::operations::{remove_resources, try_remove_namespace},
-    resources::labels::get_router_listparams,
+    kubernetes::operations::{
+        remove_matching_resources, try_remove_cluster_resource, try_remove_namespace,
+    },
+    resources::{crd::v1alpha1::remove_v1alpha1_crds, labels::get_controller_listparams},
+    CONTROLLER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME,
 };
 use k8s_openapi::api::{
     apps::v1::Deployment,
-    core::v1::{ConfigMap, Service},
+    core::v1::{ConfigMap, ServiceAccount},
+    rbac::v1::{ClusterRole, ClusterRoleBinding},
 };
-use kube::{api::DeleteParams, Api, Client};
+use kube::{api::DeleteParams, Client};
 use log::info;
 
 use crate::cli::{GlobalArgs, UninstallArgs};
 
 pub async fn uninstall(
-    global_args: &GlobalArgs,
-    args: &UninstallArgs,
-    client: &Client,
+    global_args: GlobalArgs,
+    args: UninstallArgs,
+    client: Client,
 ) -> anyhow::Result<()> {
-    info!("Uninstalling k8s-insider from '{}' namespace...", global_args.namespace);
+    info!(
+        "Uninstalling k8s-insider from '{}' namespace...",
+        global_args.namespace
+    );
 
-    let tunnel_params = get_router_listparams();
-    let deployment_api: Api<Deployment> = Api::namespaced(client.clone(), &global_args.namespace);
-    let configmap_api: Api<ConfigMap> = Api::namespaced(client.clone(), &global_args.namespace);
-    let service_api: Api<Service> = Api::namespaced(client.clone(), &global_args.namespace);
+    let list_params = get_controller_listparams();
+    let mut del_params = DeleteParams::default();
 
-    let deployments = deployment_api
-        .list_metadata(&tunnel_params)
-        .await
-        .context("Couldn't retrieve release deployments from the cluster!")?;
-    let configmaps = configmap_api
-        .list_metadata(&tunnel_params)
-        .await
-        .context("Couldn't retrieve configmaps from the cluster!")?;
-    let services = service_api
-        .list_metadata(&tunnel_params)
-        .await
-        .context("Couldn't retrieve release services from the cluster!")?;
-
-    let delete_params = DeleteParams {
-        dry_run: args.dry_run,
-        ..Default::default()
+    if args.dry_run {
+        del_params = del_params.dry_run();
     };
 
-    remove_resources(&deployments.items, &delete_params, &deployment_api).await?;
-    remove_resources(&configmaps.items, &delete_params, &configmap_api).await?;
-    remove_resources(&services.items, &delete_params, &service_api).await?;
+    remove_matching_resources::<Deployment>(&client, &list_params, &del_params).await?;
+    remove_matching_resources::<ConfigMap>(&client, &list_params, &del_params).await?;
+    remove_matching_resources::<ServiceAccount>(&client, &list_params, &del_params).await?;
+
+    try_remove_cluster_resource::<ClusterRole>(&client, CONTROLLER_CLUSTERROLE_NAME, &del_params)
+        .await?;
+    try_remove_cluster_resource::<ClusterRole>(&client, ROUTER_CLUSTERROLE_NAME, &del_params)
+        .await?;
+    try_remove_cluster_resource::<ClusterRoleBinding>(
+        &client,
+        CONTROLLER_CLUSTERROLE_NAME,
+        &del_params,
+    )
+    .await?;
+
+    if !args.leave_crds {
+        info!("Removing v1alpha1 CRDs...");
+        remove_v1alpha1_crds(&client, args.dry_run).await?;
+    }
 
     if args.delete_namespace {
         info!("Removing namespace '{}'...", global_args.namespace);
-        try_remove_namespace(client, &delete_params, &global_args.namespace)
+        try_remove_namespace(&client, &del_params, &global_args.namespace)
             .await
             .context("Couldn't remove the namespace!")?;
     }
+
+    info!("Successfully removed k8s-insider!");
 
     Ok(())
 }

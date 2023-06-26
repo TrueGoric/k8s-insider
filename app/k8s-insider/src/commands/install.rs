@@ -6,8 +6,7 @@ use k8s_insider_core::{
         create_resource,
     },
     resources::{
-        controller::{ControllerRelease, ControllerReleaseBuilder},
-        crd::v1alpha1::create_v1alpha1_crds,
+        controller::ControllerRelease, crd::v1alpha1::create_v1alpha1_crds,
         labels::get_controller_listparams,
     },
     FIELD_MANAGER,
@@ -22,19 +21,21 @@ use log::{debug, info, warn};
 use crate::cli::{GlobalArgs, InstallArgs};
 
 pub async fn install(
-    global_args: &GlobalArgs,
-    args: &InstallArgs,
-    client: &Client,
+    global_args: GlobalArgs,
+    args: InstallArgs,
+    client: Client,
 ) -> anyhow::Result<()> {
     info!(
         "Installing k8s-insider into '{}' namespace...",
         global_args.namespace
     );
-
+    
+    let no_crds = args.no_crds;
+    let dry_run = args.dry_run;
     let release_params = get_controller_listparams();
 
     debug!("Checking if k8s-insider is already installed...");
-    if check_if_release_exists(&release_params, &global_args.namespace, client).await? {
+    if check_if_release_exists(&release_params, &global_args.namespace, &client).await? {
         if args.force {
             warn!(
                 "k8s-insider is already installed in the namespace '{}', force deploying...",
@@ -49,10 +50,16 @@ pub async fn install(
     }
 
     debug!("Preparing release...");
-    let release_info = prepare_release(global_args, args, client).await?;
+    let release_info = prepare_release(global_args.namespace, args, &client).await?;
 
-    create_v1alpha1_crds(client, args.dry_run).await?;
-    deploy_release(&release_info, client, args.dry_run).await?;
+    if no_crds {
+        info!("Skipping CRD deployment...");
+    }
+    else {
+        create_v1alpha1_crds(&client, dry_run).await?;
+    }
+
+    deploy_release(release_info, &client, dry_run).await?;
 
     info!("Successfully deployed k8s-insider!");
 
@@ -72,52 +79,52 @@ async fn check_if_release_exists(
 }
 
 async fn prepare_release(
-    global_args: &GlobalArgs,
-    args: &InstallArgs,
+    namespace: String,
+    args: InstallArgs,
     client: &Client,
 ) -> anyhow::Result<ControllerRelease> {
-    let release_info = ControllerReleaseBuilder::default()
-        .namespace({
-            info!("Using release namespace: {}", global_args.namespace);
-            global_args.namespace.clone()
-        })
-        .service_cidr(match &args.service_cidr {
+    let release_info = ControllerRelease {
+        namespace: {
+            info!("Using release namespace: {}", namespace);
+            namespace
+        },
+        service_cidr: match &args.service_cidr {
             Some(value) => {
                 info!("Using service CIDR: {value}");
                 value.trunc().into()
             }
             None => detect_service_cidr(client).await?,
-        })
-        .pod_cidr(match &args.pod_cidr {
+        },
+        pod_cidr: match &args.pod_cidr {
             Some(value) => {
                 info!("Using pod CIDR: {value}");
                 value.trunc().into()
             }
             None => detect_pod_cidr(client).await?,
-        })
-        .kube_dns(match &args.kube_dns {
+        },
+        kube_dns: match &args.kube_dns {
             Some(value) => {
                 info!("Using DNS service IP: {value}");
                 Some(value.parse()?)
             }
             None => detect_dns_service(client).await?,
-        })
-        .service_domain(match &args.service_domain {
+        },
+        service_domain: match &args.service_domain {
             Some(value) => {
                 info!("Using cluster domain: {value}");
                 Some(value.clone())
             }
             None => detect_cluster_domain(client).await?,
-        })
-        .controller_image_name({
+        },
+        controller_image_name: {
             info!("Using controller image: {}", args.controller_image);
             args.controller_image.clone()
-        })
-        .tunnel_image_name({
+        },
+        router_image_name: {
             info!("Using router image: {}", args.router_image);
             args.router_image.clone()
-        })
-        .build()?;
+        },
+    };
 
     debug!("{release_info:#?}");
 
@@ -125,7 +132,7 @@ async fn prepare_release(
 }
 
 async fn deploy_release(
-    release: &ControllerRelease,
+    release: ControllerRelease,
     client: &Client,
     dry_run: bool,
 ) -> anyhow::Result<()> {
@@ -140,16 +147,12 @@ async fn deploy_release(
     let deployment = release
         .generate_deployment(&configmap, &serviceaccount)
         .context("Couldn't generate controller deployment!")?;
+    
+    let mut patch_params = PatchParams::apply(FIELD_MANAGER);
 
-    debug!("{serviceaccount:#?}");
-    debug!("{configmap:#?}");
-    debug!("{deployment:#?}");
-
-    let patch_params = PatchParams {
-        dry_run,
-        field_manager: Some(FIELD_MANAGER.to_owned()),
-        ..Default::default()
-    };
+    if dry_run {
+        patch_params = patch_params.dry_run();
+    }
 
     create_namespace_if_not_exists(client, &patch_params, namespace).await?;
     create_resource(client, &serviceaccount, &patch_params).await?;

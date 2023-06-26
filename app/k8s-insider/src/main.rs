@@ -1,7 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{install::install, uninstall::uninstall};
+use commands::{create_network::create_network, install::install, uninstall::uninstall};
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -22,19 +22,18 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("Couldn't initialize k8s API client!")?;
 
-    match &cli.command {
-        Some(command) => match command {
-            Commands::Install(args) => install(&cli.global_args, args, &client).await?,
-            Commands::Uninstall(args) => uninstall(&cli.global_args, args, &client).await?,
-            Commands::CreateNetwork(_) => todo!(),
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Install(args) => install(cli.global_args, args, client).await?,
+            Commands::Uninstall(args) => uninstall(cli.global_args, args, client).await?,
+            Commands::CreateNetwork(args) => create_network(cli.global_args, args, client).await?,
             Commands::DeleteNetwork => todo!(),
             Commands::ListNetworks => todo!(),
             Commands::Connect(_) => todo!(),
             Commands::Disconnect => todo!(),
             Commands::GetConf(_) => todo!(),
             Commands::PatchDns(_) => todo!(),
-        },
-        None => (),
+        }
     }
 
     Ok(())
