@@ -109,7 +109,7 @@ impl RouterRelease {
         ObjectMeta {
             labels: Some(get_router_labels()),
             namespace: Some(self.namespace.to_owned()),
-            name: Some(self.name.to_owned()),
+            name: Some(format!("k8s-insider-router-{}", self.name)),
             owner_references: Some(vec![self.owner.to_owned()]),
             ..Default::default()
         }
