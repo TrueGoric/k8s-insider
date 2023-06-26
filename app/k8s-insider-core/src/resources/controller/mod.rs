@@ -1,5 +1,4 @@
 use std::env::var;
-use derive_builder::Builder;
 use kube::core::ObjectMeta;
 
 use crate::{
@@ -13,7 +12,7 @@ pub mod configmap;
 pub mod deployment;
 pub mod rbac;
 
-#[derive(Debug, Clone, Builder)]
+#[derive(Debug, Clone)]
 pub struct ControllerRelease {
     pub namespace: String,
     pub kube_dns: Option<IpAddrPair>,
@@ -21,7 +20,7 @@ pub struct ControllerRelease {
     pub service_cidr: IpNetPair,
     pub pod_cidr: IpNetPair,
     pub controller_image_name: String,
-    pub tunnel_image_name: String,
+    pub router_image_name: String,
 }
 
 impl ControllerRelease {
@@ -41,9 +40,9 @@ impl ControllerRelease {
                 .map_err(FromEnvError::Var)?
                 .parse()
                 .map_err(FromEnvError::IpNetParse)?,
-            controller_image_name: var("KUBE_INSIDER_AGENT_IMAGE_NAME")
+            controller_image_name: var("KUBE_INSIDER_CONTROLLER_IMAGE_NAME")
                 .map_err(FromEnvError::Var)?,
-            tunnel_image_name: var("KUBE_INSIDER_TUNNEL_IMAGE_NAME").map_err(FromEnvError::Var)?,
+            router_image_name: var("KUBE_INSIDER_ROUTER_IMAGE_NAME").map_err(FromEnvError::Var)?,
         })
     }
 

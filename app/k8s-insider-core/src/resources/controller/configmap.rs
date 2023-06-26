@@ -20,12 +20,12 @@ impl ControllerRelease {
                 self.pod_cidr.to_string(),
             ),
             (
-                "KUBE_INSIDER_AGENT_IMAGE_NAME".to_owned(),
+                "KUBE_INSIDER_CONTROLLER_IMAGE_NAME".to_owned(),
                 self.controller_image_name.to_string(),
             ),
             (
-                "KUBE_INSIDER_TUNNEL_IMAGE_NAME".to_owned(),
-                self.tunnel_image_name.to_string(),
+                "KUBE_INSIDER_ROUTER_IMAGE_NAME".to_owned(),
+                self.router_image_name.to_string(),
             ),
         ]);
 
