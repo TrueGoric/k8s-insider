@@ -2,8 +2,8 @@ use anyhow::{anyhow, Context};
 use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
     kubernetes::operations::{
-        check_if_resource_exists, create_cluster_resource, create_namespace_if_not_exists,
-        create_resource,
+        check_if_resource_exists, apply_cluster_resource, create_namespace_if_not_exists,
+        apply_resource,
     },
     resources::{
         controller::ControllerRelease, crd::v1alpha1::create_v1alpha1_crds,
@@ -155,12 +155,12 @@ async fn deploy_release(
     }
 
     create_namespace_if_not_exists(client, &patch_params, namespace).await?;
-    create_resource(client, &serviceaccount, &patch_params).await?;
-    create_cluster_resource(client, &controller_clusterrole, &patch_params).await?;
-    create_cluster_resource(client, &controller_clusterrole_binding, &patch_params).await?;
-    create_cluster_resource(client, &router_clusterrole, &patch_params).await?;
-    create_resource(client, &deployment, &patch_params).await?;
-    create_resource(client, &configmap, &patch_params).await?;
+    apply_resource(client, &serviceaccount, &patch_params).await?;
+    apply_cluster_resource(client, &controller_clusterrole, &patch_params).await?;
+    apply_cluster_resource(client, &controller_clusterrole_binding, &patch_params).await?;
+    apply_cluster_resource(client, &router_clusterrole, &patch_params).await?;
+    apply_resource(client, &deployment, &patch_params).await?;
+    apply_resource(client, &configmap, &patch_params).await?;
 
     Ok(())
 }

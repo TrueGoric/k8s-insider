@@ -5,7 +5,7 @@ use kube::{
 };
 
 use crate::{
-    kubernetes::operations::{create_crd, try_remove_cluster_resource},
+    kubernetes::operations::{apply_crd, try_remove_cluster_resource},
     resources::crd::v1alpha1::{connection::Connection, network::Network, tunnel::Tunnel},
     FIELD_MANAGER,
 };
@@ -25,9 +25,9 @@ pub async fn create_v1alpha1_crds(client: &Client, dry_run: bool) -> anyhow::Res
         ..Default::default()
     };
 
-    create_crd(client, &network_spec, &patch_params).await?;
-    create_crd(client, &tunnel_spec, &patch_params).await?;
-    create_crd(client, &connection_spec, &patch_params).await?;
+    apply_crd(client, &network_spec, &patch_params).await?;
+    apply_crd(client, &tunnel_spec, &patch_params).await?;
+    apply_crd(client, &connection_spec, &patch_params).await?;
 
     Ok(())
 }

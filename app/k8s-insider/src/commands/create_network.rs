@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 use anyhow::anyhow;
-use k8s_insider_core::{resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec}, kubernetes::operations::create_resource, FIELD_MANAGER};
+use k8s_insider_core::{resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec}, kubernetes::operations::apply_resource, FIELD_MANAGER};
 use kube::{core::ObjectMeta, Client, api::PatchParams};
 use log::{info, debug};
 
@@ -27,7 +27,7 @@ pub async fn create_network(
 
     debug!("{network_crd:#?}");
 
-    create_resource(&client, &network_crd, &patch_params).await?;
+    apply_resource(&client, &network_crd, &patch_params).await?;
 
     info!("Network successfully created!");
 

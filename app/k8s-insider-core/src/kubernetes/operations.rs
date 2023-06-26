@@ -92,7 +92,7 @@ pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + Debug>(
     }
 }
 
-pub async fn create_resource<T>(
+pub async fn apply_resource<T>(
     client: &Client,
     resource: &T,
     patch_params: &PatchParams,
@@ -122,7 +122,7 @@ where
     Ok(())
 }
 
-pub async fn create_cluster_resource<T>(
+pub async fn apply_cluster_resource<T>(
     client: &Client,
     resource: &T,
     patch_params: &PatchParams,
@@ -147,7 +147,7 @@ where
     Ok(())
 }
 
-pub async fn create_crd(
+pub async fn apply_crd(
     client: &Client,
     crd: &CustomResourceDefinition,
     patch_params: &PatchParams,
