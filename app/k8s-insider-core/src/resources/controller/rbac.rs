@@ -35,40 +35,55 @@ impl ControllerRelease {
         // RATIONALE: bind k8s-insider-router role to routers to allow them to manage router-specific resources
         let bind_router_cluster_role = PolicyRule {
             api_groups: Some(vec!["rbac.authorization.k8s.io".to_owned()]),
-            resources: Some(vec!["clusterrole".to_owned()]),
+            resources: Some(vec!["clusterroles".to_owned()]),
             resource_names: Some(vec![ROUTER_CLUSTERROLE_NAME.to_owned()]),
             verbs: vec!["bind".to_owned()],
             ..Default::default()
         };
 
-        // RATIONALE: create serviceaccounts to create router accounts,
+        // RATIONALE: create/patch serviceaccounts to create router accounts,
         //            watch/list to watch serviceaccounts owned by networks/routers
         let create_list_serviceaccounts = PolicyRule {
             api_groups: Some(vec!["".to_owned()]),
             resources: Some(vec!["serviceaccounts".to_owned()]),
-            verbs: vec!["create".to_owned(), "watch".to_owned(), "list".to_owned()],
+            verbs: vec![
+                "create".to_owned(),
+                "patch".to_owned(),
+                "watch".to_owned(),
+                "list".to_owned(),
+            ],
             ..Default::default()
         };
 
-        // RATIONALE: create rolebindings to attach 'k8s-insider-router' role to router accounts,
+        // RATIONALE: create/patch rolebindings to attach 'k8s-insider-router' role to router accounts,
         //            watch/list to watch rolebindings owned by networks/routers
         let create_list_rolebindings = PolicyRule {
             api_groups: Some(vec!["rbac.authorization.k8s.io".to_owned()]),
             resources: Some(vec!["rolebindings".to_owned()]),
-            verbs: vec!["create".to_owned(), "watch".to_owned(), "list".to_owned()],
+            verbs: vec![
+                "create".to_owned(),
+                "patch".to_owned(),
+                "watch".to_owned(),
+                "list".to_owned(),
+            ],
             ..Default::default()
         };
 
-        // RATIONALE: create secrets for networks,
+        // RATIONALE: create/patch secrets for networks,
         //            watch/list to watch secrets owned by networks/routers
         let create_list_secrets = PolicyRule {
             api_groups: Some(vec!["".to_owned()]),
             resources: Some(vec!["secrets".to_owned()]),
-            verbs: vec!["create".to_owned(), "watch".to_owned(), "list".to_owned()],
+            verbs: vec![
+                "create".to_owned(),
+                "patch".to_owned(),
+                "watch".to_owned(),
+                "list".to_owned(),
+            ],
             ..Default::default()
         };
 
-        // RATIONALE: create services for networks,
+        // RATIONALE: create/patch services for networks,
         //            watch/list to watch for network changes,
         //            get to acquire info for tunnels
         let create_read_services = PolicyRule {
@@ -76,6 +91,7 @@ impl ControllerRelease {
             resources: Some(vec!["services".to_owned()]),
             verbs: vec![
                 "create".to_owned(),
+                "patch".to_owned(),
                 "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
@@ -88,11 +104,12 @@ impl ControllerRelease {
             api_groups: Some(vec!["apps".to_owned()]),
             resources: Some(vec!["deployments".to_owned()]),
             verbs: vec![
+                "create".to_owned(),
+                "update".to_owned(),
+                "patch".to_owned(),
                 "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
-                "update".to_owned(),
-                "patch".to_owned(),
             ],
             ..Default::default()
         };
@@ -102,11 +119,7 @@ impl ControllerRelease {
         let manage_networks = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
             resources: Some(vec![Network::plural(&()).into()]),
-            verbs: vec![
-                "get".to_owned(),
-                "watch".to_owned(),
-                "list".to_owned(),
-            ],
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
             ..Default::default()
         };
 
@@ -114,10 +127,7 @@ impl ControllerRelease {
         let update_network_statuses: PolicyRule = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
             resources: Some(vec![format!("{}/status", Network::plural(&()))]),
-            verbs: vec![
-                "update".to_owned(),
-                "patch".to_owned(),
-            ],
+            verbs: vec!["update".to_owned(), "patch".to_owned()],
             ..Default::default()
         };
 
@@ -129,8 +139,6 @@ impl ControllerRelease {
                 "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
-                "update".to_owned(),
-                "patch".to_owned(),
                 "delete".to_owned(),
             ],
             ..Default::default()
@@ -140,10 +148,7 @@ impl ControllerRelease {
         let update_tunnel_statuses = PolicyRule {
             api_groups: Some(vec![Tunnel::group(&()).into()]),
             resources: Some(vec![format!("{}/status", Tunnel::plural(&()))]),
-            verbs: vec![
-                "update".to_owned(),
-                "patch".to_owned(),
-            ],
+            verbs: vec!["update".to_owned(), "patch".to_owned()],
             ..Default::default()
         };
 
@@ -218,7 +223,7 @@ impl ControllerRelease {
         let get_network = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
             resources: Some(vec![Network::plural(&()).into()]),
-            verbs: vec!["get".to_owned()],
+            verbs: vec!["get".to_owned(), "watch".to_owned()],
             ..Default::default()
         };
 
@@ -246,9 +251,22 @@ impl ControllerRelease {
             ..Default::default()
         };
 
+        // RATIONALE: manage connections to share connection state
+        let manage_connection_status = PolicyRule {
+            api_groups: Some(vec![Connection::group(&()).into()]),
+            resources: Some(vec![format!("{}/status", Connection::plural(&()))]),
+            verbs: vec!["update".to_owned(), "patch".to_owned()],
+            ..Default::default()
+        };
+
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(ROUTER_CLUSTERROLE_NAME),
-            rules: Some(vec![get_network, read_tunnels, manage_connections]),
+            rules: Some(vec![
+                get_network,
+                read_tunnels,
+                manage_connections,
+                manage_connection_status,
+            ]),
             ..Default::default()
         }
     }
