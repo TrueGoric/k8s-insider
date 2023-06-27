@@ -65,9 +65,8 @@ pub struct NetworkStatus {
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 pub enum NetworkState {
     #[default]
-    Unknown,
-    Creating,
     Created,
+    Deployed,
     UnknownError,
     ErrorCreatingService,
     ErrorSubnetConflict,

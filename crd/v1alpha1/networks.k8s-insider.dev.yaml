@@ -174,9 +174,8 @@ spec:
               state:
                 description: network state
                 enum:
-                - Unknown
-                - Creating
                 - Created
+                - Deployed
                 - UnknownError
                 - ErrorCreatingService
                 - ErrorSubnetConflict
