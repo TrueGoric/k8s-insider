@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use futures::StreamExt;
 use k8s_insider_core::resources::crd::v1alpha1::network::Network;
-use k8s_openapi::api::{core::v1::{Secret, Service, ServiceAccount}, apps::v1::Deployment, rbac::v1::RoleBinding};
+use k8s_openapi::api::{
+    apps::v1::Deployment,
+    core::v1::{Secret, Service, ServiceAccount},
+    rbac::v1::RoleBinding,
+};
 use kube::runtime::{watcher::Config, Controller};
 use log::{info, warn};
 
@@ -19,13 +23,12 @@ pub async fn start_network_controller(context: &Arc<ReconcilerContext>) {
         .owns(context.global_api::<Deployment>(), watcher_config.clone())
         .owns(context.global_api::<Service>(), watcher_config.clone())
         .owns(context.global_api::<RoleBinding>(), watcher_config.clone())
-        .owns(context.global_api::<ServiceAccount>(), watcher_config.clone())
-        .shutdown_on_signal()
-        .run(
-            reconcile_network,
-            reconcile_network_error,
-            context.clone(),
+        .owns(
+            context.global_api::<ServiceAccount>(),
+            watcher_config.clone(),
         )
+        .shutdown_on_signal()
+        .run(reconcile_network, reconcile_network_error, context.clone())
         .for_each(|tunnel| async move {
             match tunnel {
                 Ok(o) => info!("Reconciled network {:?}", o),

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context};
 use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
+    helpers::ApplyConditional,
     kubernetes::operations::{
         check_if_resource_exists, apply_cluster_resource, create_namespace_if_not_exists,
         apply_resource,
@@ -9,7 +10,6 @@ use k8s_insider_core::{
         controller::ControllerRelease, crd::v1alpha1::create_v1alpha1_crds,
         labels::get_controller_listparams,
     },
-    FIELD_MANAGER,
 };
 use k8s_openapi::api::apps::v1::Deployment;
 use kube::{
@@ -18,7 +18,7 @@ use kube::{
 };
 use log::{debug, info, warn};
 
-use crate::cli::{GlobalArgs, InstallArgs};
+use crate::{cli::{GlobalArgs, InstallArgs}, CLI_FIELD_MANAGER};
 
 pub async fn install(
     global_args: GlobalArgs,
@@ -51,15 +51,17 @@ pub async fn install(
 
     debug!("Preparing release...");
     let release_info = prepare_release(global_args.namespace, args, &client).await?;
+    let apply_params = PatchParams::apply(CLI_FIELD_MANAGER)
+        .and_if(dry_run, |s| s.dry_run());
 
     if no_crds {
         info!("Skipping CRD deployment...");
     }
     else {
-        create_v1alpha1_crds(&client, dry_run).await?;
+        create_v1alpha1_crds(&client, &apply_params).await?;
     }
 
-    deploy_release(release_info, &client, dry_run).await?;
+    deploy_release(release_info, &client, &apply_params).await?;
 
     info!("Successfully deployed k8s-insider!");
 
@@ -134,7 +136,7 @@ async fn prepare_release(
 async fn deploy_release(
     release: ControllerRelease,
     client: &Client,
-    dry_run: bool,
+    apply_params: &PatchParams
 ) -> anyhow::Result<()> {
     let namespace = &release.namespace;
     let serviceaccount = release.generate_controller_service_account();
@@ -148,19 +150,13 @@ async fn deploy_release(
         .generate_deployment(&configmap, &serviceaccount)
         .context("Couldn't generate controller deployment!")?;
     
-    let mut patch_params = PatchParams::apply(FIELD_MANAGER);
-
-    if dry_run {
-        patch_params = patch_params.dry_run();
-    }
-
-    create_namespace_if_not_exists(client, &patch_params, namespace).await?;
-    apply_resource(client, &serviceaccount, &patch_params).await?;
-    apply_cluster_resource(client, &controller_clusterrole, &patch_params).await?;
-    apply_cluster_resource(client, &controller_clusterrole_binding, &patch_params).await?;
-    apply_cluster_resource(client, &router_clusterrole, &patch_params).await?;
-    apply_resource(client, &deployment, &patch_params).await?;
-    apply_resource(client, &configmap, &patch_params).await?;
+    create_namespace_if_not_exists(client, apply_params, namespace).await?;
+    apply_resource(client, &serviceaccount, apply_params).await?;
+    apply_cluster_resource(client, &controller_clusterrole, apply_params).await?;
+    apply_cluster_resource(client, &controller_clusterrole_binding, apply_params).await?;
+    apply_cluster_resource(client, &router_clusterrole, apply_params).await?;
+    apply_resource(client, &deployment, apply_params).await?;
+    apply_resource(client, &configmap, apply_params).await?;
 
     Ok(())
 }

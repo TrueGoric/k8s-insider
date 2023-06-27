@@ -7,27 +7,23 @@ use kube::{
 use crate::{
     kubernetes::operations::{apply_crd, try_remove_cluster_resource},
     resources::crd::v1alpha1::{connection::Connection, network::Network, tunnel::Tunnel},
-    FIELD_MANAGER,
 };
 
 pub mod connection;
 pub mod network;
 pub mod tunnel;
 
-pub async fn create_v1alpha1_crds(client: &Client, dry_run: bool) -> anyhow::Result<()> {
+pub async fn create_v1alpha1_crds(
+    client: &Client,
+    apply_params: &PatchParams,
+) -> anyhow::Result<()> {
     let network_spec = Network::crd();
     let tunnel_spec = Tunnel::crd();
     let connection_spec = Connection::crd();
 
-    let patch_params = PatchParams {
-        field_manager: Some(FIELD_MANAGER.to_owned()),
-        dry_run,
-        ..Default::default()
-    };
-
-    apply_crd(client, &network_spec, &patch_params).await?;
-    apply_crd(client, &tunnel_spec, &patch_params).await?;
-    apply_crd(client, &connection_spec, &patch_params).await?;
+    apply_crd(client, &network_spec, apply_params).await?;
+    apply_crd(client, &tunnel_spec, apply_params).await?;
+    apply_crd(client, &connection_spec, apply_params).await?;
 
     Ok(())
 }

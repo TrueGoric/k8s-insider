@@ -12,6 +12,8 @@ mod cli;
 mod commands;
 mod operations;
 
+pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();

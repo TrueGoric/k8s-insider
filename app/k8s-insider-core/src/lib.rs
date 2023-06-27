@@ -10,7 +10,6 @@ pub mod tunnel_info;
 pub mod resources;
 
 pub const RESOURCE_GROUP: &str = "k8s-insider.dev";
-pub const FIELD_MANAGER: &str = "k8s-insider";
 
 pub const CONTROLLER_CLUSTERROLE_NAME: &str = "k8s-insider-controller";
 pub const ROUTER_CLUSTERROLE_NAME: &str = "k8s-insider-router";

@@ -1,11 +1,11 @@
 use std::net::IpAddr;
 
 use anyhow::anyhow;
-use k8s_insider_core::{resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec}, kubernetes::operations::apply_resource, FIELD_MANAGER};
+use k8s_insider_core::{resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec}, kubernetes::operations::apply_resource, helpers::ApplyConditional};
 use kube::{core::ObjectMeta, Client, api::PatchParams};
 use log::{info, debug};
 
-use crate::cli::{CreateNetworkArgs, GlobalArgs, ServiceType};
+use crate::{cli::{CreateNetworkArgs, GlobalArgs, ServiceType}, CLI_FIELD_MANAGER};
 
 pub async fn create_network(
     global_args: GlobalArgs,
@@ -13,21 +13,18 @@ pub async fn create_network(
     client: Client,
 ) -> anyhow::Result<()> {
     info!(
-        "Creating '{}' network into '{}' namespace...",
+        "Creating '{}' network in '{}' namespace...",
         args.name, global_args.namespace
     );
 
     let dry_run = args.dry_run;
     let network_crd = create_network_crd(global_args.namespace, args)?;
-    let mut patch_params = PatchParams::apply(FIELD_MANAGER);
-
-    if dry_run {
-        patch_params = patch_params.dry_run();
-    }
+    let apply_params = PatchParams::apply(CLI_FIELD_MANAGER)
+        .and_if(dry_run, PatchParams::dry_run);
 
     debug!("{network_crd:#?}");
 
-    apply_resource(&client, &network_crd, &patch_params).await?;
+    apply_resource(&client, &network_crd, &apply_params).await?;
 
     info!("Network successfully created!");
 

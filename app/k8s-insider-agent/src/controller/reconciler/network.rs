@@ -10,7 +10,6 @@ use k8s_insider_core::{
             RouterReleaseValidationError,
         },
     },
-    FIELD_MANAGER,
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
@@ -68,7 +67,7 @@ async fn try_reconcile(
 ) -> Result<(), ReconcilerError> {
     let mut release = build_release(object, context)?;
 
-    ensure_status(object, context).await?;
+    ensure_status(object);
     ensure_server_private_key(&mut release, context).await?;
 
     let release = release
@@ -80,7 +79,7 @@ async fn try_reconcile(
         context,
         object.require_name()?,
         object.require_namespace()?,
-        NetworkState::Created,
+        NetworkState::Deployed,
         Some(release.get_server_public_key().unwrap()),
     )
     .await?;
@@ -88,29 +87,14 @@ async fn try_reconcile(
     Ok(())
 }
 
-async fn ensure_status(
-    object: &Network,
-    context: &ReconcilerContext,
-) -> Result<NetworkStatus, ReconcilerError> {
-    Ok(match &object.status {
+fn ensure_status(object: &Network) -> NetworkStatus {
+    match &object.status {
         Some(status) => status.to_owned(),
-        None => {
-            let status = NetworkStatus {
-                state: NetworkState::Creating,
-                ..Default::default()
-            };
-
-            apply_resource_status::<Network, NetworkStatus>(
-                &context.client,
-                status,
-                object.require_name()?,
-                object.require_namespace()?,
-                &PatchParams::apply(CONTROLLER_FIELD_MANAGER),
-            )
-            .await
-            .map_err(ReconcilerError::KubeApiError)?
-        }
-    })
+        None => NetworkStatus {
+            state: NetworkState::Created,
+            ..Default::default()
+        },
+    }
 }
 
 fn build_release(
@@ -171,7 +155,7 @@ async fn apply_release(
         .generate_deployment(&secret, &service_account)
         .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
     let service = release.generate_service(&deployment);
-    let patch_params = PatchParams::apply(FIELD_MANAGER);
+    let patch_params = PatchParams::apply(CONTROLLER_FIELD_MANAGER);
 
     apply_resource(&context.client, &service_account, &patch_params)
         .await
