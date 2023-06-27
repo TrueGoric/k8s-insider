@@ -74,7 +74,7 @@ pub enum Commands {
     CreateNetwork(CreateNetworkArgs),
     /// Remove a VPN network from the cluster
     #[command(alias = "del", alias = "delete")]
-    DeleteNetwork,
+    DeleteNetwork(DeleteNetworkArgs),
     /// List cluster VPN networks
     #[command(alias = "l", alias = "list")]
     ListNetworks,
@@ -144,6 +144,16 @@ pub struct CreateNetworkArgs {
     /// Sets up a static cluster IP for the service
     #[arg(long)]
     pub cluster_ip: Option<Ipv4Addr>,
+    /// If set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct DeleteNetworkArgs {
+    /// Name of the network to remove
+    #[arg(default_value = DEFAULT_NETWORK_NAME)]
+    pub name: String,
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,

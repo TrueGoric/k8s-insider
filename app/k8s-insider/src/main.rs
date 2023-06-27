@@ -1,7 +1,7 @@
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{create_network::create_network, install::install, uninstall::uninstall};
+use commands::{create_network::create_network, install::install, uninstall::uninstall, delete_network::delete_network, list_networks::list_networks};
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -29,8 +29,8 @@ async fn main() -> anyhow::Result<()> {
             Commands::Install(args) => install(cli.global_args, args, client).await?,
             Commands::Uninstall(args) => uninstall(cli.global_args, args, client).await?,
             Commands::CreateNetwork(args) => create_network(cli.global_args, args, client).await?,
-            Commands::DeleteNetwork => todo!(),
-            Commands::ListNetworks => todo!(),
+            Commands::DeleteNetwork(args) => delete_network(cli.global_args, args, client).await?,
+            Commands::ListNetworks => list_networks(cli.global_args, client).await?,
             Commands::Connect(_) => todo!(),
             Commands::Disconnect => todo!(),
             Commands::GetConf(_) => todo!(),

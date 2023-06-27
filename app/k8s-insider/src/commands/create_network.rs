@@ -16,11 +16,10 @@ pub async fn create_network(
         "Creating '{}' network in '{}' namespace...",
         args.name, global_args.namespace
     );
-
-    let dry_run = args.dry_run;
-    let network_crd = create_network_crd(global_args.namespace, args)?;
+    
     let apply_params = PatchParams::apply(CLI_FIELD_MANAGER)
-        .and_if(dry_run, PatchParams::dry_run);
+        .and_if(args.dry_run, PatchParams::dry_run);
+    let network_crd = create_network_crd(global_args.namespace, args)?;
 
     debug!("{network_crd:#?}");
 

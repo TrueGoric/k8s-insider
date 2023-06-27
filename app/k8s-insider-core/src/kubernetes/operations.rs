@@ -70,6 +70,22 @@ where
     }
 }
 
+pub async fn list_resources<T>(
+    client: &Client,
+    namespace: &str,
+    list_params: &ListParams
+) -> Result<Vec<T>, kube::Error>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let response = Api::namespaced(client.clone(), namespace)
+        .list(list_params)
+        .await?;
+
+    Ok(response.items)
+}
+
 pub async fn create_namespace_if_not_exists(
     client: &Client,
     patch_params: &PatchParams,
@@ -135,7 +151,7 @@ where
     let resource_type_name = pretty_type_name::<T>();
     let resource_name = resource.meta().name.as_ref().unwrap();
 
-    info!("Creating '{resource_name}' {resource_type_name} resource on the cluster...",);
+    info!("Applying '{resource_name}' {resource_type_name} resource on the cluster...",);
 
     debug!(
         "{}",
@@ -175,12 +191,6 @@ where
 
     info!("Applying status for '{resource_name}' {resource_type_name}...",);
 
-    debug!(
-        "{}",
-        serde_json::to_string_pretty(&status)
-            .unwrap_or(format!("Couldn't serialize '{resource_name}'"))
-    );
-
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
     let mut status_container = T::from_status(status);
 
@@ -207,7 +217,7 @@ where
     let resource_type_name = pretty_type_name::<T>();
     let resource_name = resource.meta().name.as_ref().unwrap();
 
-    info!("Creating '{resource_name}' {resource_type_name} resource on the cluster...",);
+    info!("Applying '{resource_name}' {resource_type_name} resource on the cluster...",);
 
     let resource_api: Api<T> = Api::all(client.clone());
     resource_api
@@ -238,7 +248,7 @@ pub async fn apply_crd(
         .collect::<Vec<&str>>()
         .join(", ");
 
-    info!("Creating {crd_name} ({crd_apiversions}) CRD...");
+    info!("Applying {crd_name} ({crd_apiversions}) CRD...");
 
     let crd_api: Api<CustomResourceDefinition> = Api::all(client.clone());
     crd_api
@@ -313,7 +323,7 @@ where
     ))?;
 
     for resource in resources {
-        let name = &resource
+        let name: &&str = &resource
             .metadata
             .name
             .as_ref()
@@ -356,24 +366,57 @@ pub async fn try_remove_cluster_resource<T>(
     client: &Client,
     resource_name: &str,
     delete_params: &DeleteParams,
-) -> anyhow::Result<()>
+) -> anyhow::Result<bool>
 where
     T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
     <T as Resource>::DynamicType: Default,
 {
-    let resource_type_name = pretty_type_name::<T>();
     let resource_api: Api<T> = Api::all(client.clone());
 
-    info!("Removing '{resource_name}' {resource_type_name} from the cluster...",);
+    info!(
+        "Removing '{resource_name}' {} from the cluster...",
+        pretty_type_name::<T>()
+    );
+
+    try_remove(&resource_api, resource_name, delete_params).await
+}
+
+pub async fn try_remove_resource<T>(
+    client: &Client,
+    resource_name: &str,
+    namespace: &str,
+    delete_params: &DeleteParams,
+) -> anyhow::Result<bool>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+
+    try_remove(&resource_api, resource_name, delete_params).await
+}
+
+async fn try_remove<T>(
+    resource_api: &Api<T>,
+    resource_name: &str,
+    delete_params: &DeleteParams,
+) -> anyhow::Result<bool>
+where
+    T: Serialize + Clone + DeserializeOwned + Debug,
+{
+    info!(
+        "Removing '{resource_name}' {} from the cluster...",
+        pretty_type_name::<T>()
+    );
 
     let delete_result = resource_api.delete(resource_name, delete_params).await;
 
     match delete_result {
-        Ok(_) => Ok(()),
+        Ok(_) => Ok(true),
         Err(err) => {
             if let kube::Error::Api(api_err) = &err {
                 if api_err.code == 404 {
-                    return Ok(());
+                    return Ok(false);
                 }
             }
 
