@@ -67,7 +67,6 @@ async fn try_reconcile(
 ) -> Result<(), ReconcilerError> {
     let mut release = build_release(object, context)?;
 
-    ensure_status(object);
     ensure_server_private_key(&mut release, context).await?;
 
     let release = release
@@ -85,16 +84,6 @@ async fn try_reconcile(
     .await?;
 
     Ok(())
-}
-
-fn ensure_status(object: &Network) -> NetworkStatus {
-    match &object.status {
-        Some(status) => status.to_owned(),
-        None => NetworkStatus {
-            state: NetworkState::Created,
-            ..Default::default()
-        },
-    }
 }
 
 fn build_release(
