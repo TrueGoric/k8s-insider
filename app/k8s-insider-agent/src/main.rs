@@ -2,7 +2,7 @@ use std::{error::Error, process::exit};
 
 use controller::main_controller;
 use kube::Client;
-use log::{info, error};
+use log::{info, error, LevelFilter};
 
 mod controller;
 
@@ -54,6 +54,7 @@ fn configure_logger() {
     env_logger::builder()
         .default_format()
         .format_module_path(false)
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(LevelFilter::Info)
+        .filter(Some("k8s_insider_core::kubernetes::operations"), LevelFilter::Warn)
         .init()
 }
