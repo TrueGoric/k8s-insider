@@ -14,7 +14,7 @@ env:
   REPOSITORY: ${{ github.repository_owner }}
   # github.repository as <account>/<repo>
   CONTROLLER_IMAGE_NAME: k8s-insider-controller
-  TUNNEL_IMAGE_NAME: k8s-insider-tunnel
+  ROUTER_IMAGE_NAME: k8s-insider-router
 
 jobs:
   controller:
@@ -91,7 +91,7 @@ jobs:
         run: echo "${{ steps.meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
   
   dockerfile:
-    name: Build and publish k8s-insider-tunnel image
+    name: Build and publish k8s-insider-router image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -132,7 +132,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
-          images: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ env.TUNNEL_IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ env.ROUTER_IMAGE_NAME }}
           tags: |
             type=semver,pattern={{version}}
 
@@ -143,7 +143,7 @@ jobs:
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
-          file: ./Dockerfile.tunnel
+          file: ./Dockerfile.router
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
