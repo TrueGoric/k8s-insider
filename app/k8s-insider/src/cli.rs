@@ -64,31 +64,31 @@ pub enum LogLevel {
 #[command(arg_required_else_help = true)]
 pub enum Commands {
     /// Install k8s-insider on the cluster
-    #[command(alias = "i")]
+    #[command()]
     Install(InstallArgs),
     /// Uninstall k8s-insider from the cluster
-    #[command(alias = "u")]
+    #[command()]
     Uninstall(UninstallArgs),
-    /// Create a new VPN network on the cluster
-    #[command(alias = "n", alias = "create")]
-    CreateNetwork(CreateNetworkArgs),
-    /// Remove a VPN network from the cluster
-    #[command(alias = "del", alias = "delete")]
-    DeleteNetwork(DeleteNetworkArgs),
-    /// List cluster VPN networks
-    #[command(alias = "l", alias = "list")]
-    ListNetworks,
+    /// Create a new network/tunnel on the cluster
+    #[command()]
+    Create(CreateCommand),
+    /// Remove a network/tunnel from the cluster
+    #[command(alias ="del")]
+    Delete(DeleteCommand),
+    /// List networks/tunnels
+    #[command()]
+    List(ListCommand),
     /// Connect to a network
-    #[command(alias = "c")]
+    #[command()]
     Connect(ConnectArgs),
     /// Disconnect from the network
-    #[command(alias = "d")]
+    #[command()]
     Disconnect,
     /// Get the WireGuard configuration file for a network
-    #[command(alias = "g")]
+    #[command()]
     GetConf(GetConfArgs),
     /// Patch the DNS resolver to avoid loops when deploying on the local machine
-    #[command(alias = "p")]
+    #[command()]
     PatchDns(PatchDnsArgs),
 }
 
@@ -106,7 +106,7 @@ pub struct InstallArgs {
     /// Cluster pod CIDR (autodetected if unset)
     #[arg(long)]
     pub pod_cidr: Option<Ipv4Net>,
-    /// don't install CRDs (should you choose not to install them here make sure beforehand they are available on the cluster)
+    /// Don't install CRDs (should you choose not to install them here make sure beforehand they are available on the cluster)
     #[arg(long)]
     pub no_crds: bool,
     /// Substitutes the k8s-insider-controller container image if specified
@@ -121,6 +121,37 @@ pub struct InstallArgs {
     /// Force the installation
     #[arg(long)]
     pub force: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct UninstallArgs {
+    /// Try to remove the namespace afterwards
+    #[arg(long)]
+    pub delete_namespace: bool,
+    /// don't remove CRDs
+    #[arg(long)]
+    pub leave_crds: bool,    
+    /// If set, no action will be taken on the cluster
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+
+#[derive(Debug, Args)]
+pub struct CreateCommand {
+    #[command(subcommand)]
+    pub subcommand: CreateSubcommands
+}
+
+#[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
+pub enum CreateSubcommands {
+    /// Create a new VPN network on the cluster
+    #[command(alias = "n")]
+    Network(CreateNetworkArgs),
+    /// Create a new tunnel for a network (i.e. if you want to connect on another device)
+    #[command(alias = "t")]
+    Tunnel,
 }
 
 #[derive(Debug, Args)]
@@ -149,16 +180,6 @@ pub struct CreateNetworkArgs {
     pub dry_run: bool,
 }
 
-#[derive(Debug, Args)]
-pub struct DeleteNetworkArgs {
-    /// Name of the network to remove
-    #[arg(default_value = DEFAULT_NETWORK_NAME)]
-    pub name: String,
-    /// If set, no action will be taken on the cluster
-    #[arg(long)]
-    pub dry_run: bool,
-}
-
 #[derive(Debug, Clone, ValueEnum)]
 #[value()]
 pub enum ServiceType {
@@ -175,16 +196,47 @@ pub enum ServiceType {
 }
 
 #[derive(Debug, Args)]
-pub struct UninstallArgs {
-    /// Try to remove the namespace afterwards
-    #[arg(long)]
-    pub delete_namespace: bool,
-    /// don't remove CRDs
-    #[arg(long)]
-    pub leave_crds: bool,    
+pub struct DeleteCommand {
+    #[command(subcommand)]
+    pub subcommand: DeleteSubcommands
+}
+
+#[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
+pub enum DeleteSubcommands {
+    /// Remove a VPN network from the cluster
+    #[command(alias = "n")]
+    Network(DeleteNetworkArgs),
+    /// Manually remove a tunnel
+    #[command(alias = "t")]
+    Tunnel,
+}
+
+#[derive(Debug, Args)]
+pub struct DeleteNetworkArgs {
+    /// Name of the network to remove
+    #[arg()]
+    pub name: String,
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct ListCommand {
+    #[command(subcommand)]
+    pub subcommand: ListSubcommands
+}
+
+#[derive(Debug, Subcommand)]
+#[command(arg_required_else_help = true)]
+pub enum ListSubcommands {
+    /// List cluster VPN networks
+    #[command(alias = "n")]
+    Network,
+    /// List network tunnels
+    #[command(alias = "t")]
+    Tunnel,
 }
 
 #[derive(Debug, Args)]

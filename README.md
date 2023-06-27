@@ -25,7 +25,7 @@ TODO
 ## Quickstart
 ```bash
 k8s-insider install
-k8s-insider create-network
+k8s-insider create network
 k8s-install connect
 ```
 

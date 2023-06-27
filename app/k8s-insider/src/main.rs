@@ -1,7 +1,10 @@
 use anyhow::Context;
 use clap::Parser;
-use cli::{Commands, GlobalArgs, LogLevel};
-use commands::{create_network::create_network, install::install, uninstall::uninstall, delete_network::delete_network, list_networks::list_networks};
+use cli::{Commands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel};
+use commands::{
+    create_network::create_network, delete_network::delete_network, install::install,
+    list_networks::list_networks, uninstall::uninstall,
+};
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -28,9 +31,22 @@ async fn main() -> anyhow::Result<()> {
         match command {
             Commands::Install(args) => install(cli.global_args, args, client).await?,
             Commands::Uninstall(args) => uninstall(cli.global_args, args, client).await?,
-            Commands::CreateNetwork(args) => create_network(cli.global_args, args, client).await?,
-            Commands::DeleteNetwork(args) => delete_network(cli.global_args, args, client).await?,
-            Commands::ListNetworks => list_networks(cli.global_args, client).await?,
+            Commands::Create(create_sub) => match create_sub.subcommand {
+                CreateSubcommands::Network(args) => {
+                    create_network(cli.global_args, args, client).await?
+                }
+                CreateSubcommands::Tunnel => todo!(),
+            },
+            Commands::Delete(delete_sub) => match delete_sub.subcommand {
+                DeleteSubcommands::Network(args) => {
+                    delete_network(cli.global_args, args, client).await?
+                }
+                DeleteSubcommands::Tunnel => todo!(),
+            },
+            Commands::List(list_sub) => match list_sub.subcommand {
+                ListSubcommands::Network => list_networks(cli.global_args, client).await?,
+                ListSubcommands::Tunnel => todo!(),
+            },
             Commands::Connect(_) => todo!(),
             Commands::Disconnect => todo!(),
             Commands::GetConf(_) => todo!(),
