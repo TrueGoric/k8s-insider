@@ -50,10 +50,6 @@ where
     T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
     <T as Resource>::DynamicType: Default,
 {
-    let resource_type_name = pretty_type_name::<T>();
-
-    info!("Fetching '{resource_name}' {resource_type_name} from the cluster...",);
-
     let response = Api::namespaced(client.clone(), namespace)
         .get(resource_name)
         .await;
@@ -73,7 +69,7 @@ where
 pub async fn list_resources<T>(
     client: &Client,
     namespace: &str,
-    list_params: &ListParams
+    list_params: &ListParams,
 ) -> Result<Vec<T>, kube::Error>
 where
     T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,

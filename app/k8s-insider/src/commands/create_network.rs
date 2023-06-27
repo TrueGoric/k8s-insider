@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use anyhow::anyhow;
 use k8s_insider_core::{
     helpers::ApplyConditional,
-    kubernetes::operations::apply_resource,
+    kubernetes::operations::{apply_resource, try_get_resource},
     resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec},
 };
 use kube::{api::PatchParams, core::ObjectMeta, Client};
@@ -24,6 +24,25 @@ pub async fn create_network(
         args.name, global_args.namespace
     );
 
+    let existing_network =
+        try_get_resource::<Network>(&client, &args.name, &global_args.namespace).await?;
+
+    if existing_network.is_some() {
+        if args.force {
+            info!(
+                "Network '{}' already exists! Force applying changes...",
+                args.name
+            );
+        } else {
+            info!(
+                "Network '{}' already exists! Use --force to force apply changes...",
+                args.name
+            );
+
+            return Ok(());
+        }
+    }
+
     let apply_params =
         PatchParams::apply(CLI_FIELD_MANAGER).and_if(args.dry_run, PatchParams::dry_run);
     let network_crd = create_network_crd(global_args.namespace, args)?;
@@ -32,7 +51,12 @@ pub async fn create_network(
 
     apply_resource(&client, &network_crd, &apply_params).await?;
 
-    info!("Network successfully created!");
+    if existing_network.is_some() {
+        info!("Network successfully updated!");
+    }
+    else {
+        info!("Network successfully created!");
+    }
 
     Ok(())
 }

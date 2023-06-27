@@ -178,6 +178,9 @@ pub struct CreateNetworkArgs {
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,
+    /// Apply changes to the network if it already exists
+    #[arg(long)]
+    pub force: bool,    
 }
 
 #[derive(Debug, Clone, ValueEnum)]
