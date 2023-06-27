@@ -1,11 +1,18 @@
 use std::net::IpAddr;
 
 use anyhow::anyhow;
-use k8s_insider_core::{resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec}, kubernetes::operations::apply_resource, helpers::ApplyConditional};
-use kube::{core::ObjectMeta, Client, api::PatchParams};
-use log::{info, debug};
+use k8s_insider_core::{
+    helpers::ApplyConditional,
+    kubernetes::operations::apply_resource,
+    resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec},
+};
+use kube::{api::PatchParams, core::ObjectMeta, Client};
+use log::{debug, info};
 
-use crate::{cli::{CreateNetworkArgs, GlobalArgs, ServiceType}, CLI_FIELD_MANAGER};
+use crate::{
+    cli::{CreateNetworkArgs, GlobalArgs, ServiceType},
+    CLI_FIELD_MANAGER,
+};
 
 pub async fn create_network(
     global_args: GlobalArgs,
@@ -16,9 +23,9 @@ pub async fn create_network(
         "Creating '{}' network in '{}' namespace...",
         args.name, global_args.namespace
     );
-    
-    let apply_params = PatchParams::apply(CLI_FIELD_MANAGER)
-        .and_if(args.dry_run, PatchParams::dry_run);
+
+    let apply_params =
+        PatchParams::apply(CLI_FIELD_MANAGER).and_if(args.dry_run, PatchParams::dry_run);
     let network_crd = create_network_crd(global_args.namespace, args)?;
 
     debug!("{network_crd:#?}");
