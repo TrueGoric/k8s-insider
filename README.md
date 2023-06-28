@@ -12,7 +12,7 @@ Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for
    - Cilium (installed with Helm/CLI)
  - DNS resolution for pods and services
 
-## Upcoming features
+## Planned features
  - NAT-free routing
  - IPv6 support
 
