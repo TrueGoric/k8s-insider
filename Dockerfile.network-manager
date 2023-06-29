@@ -1,23 +1,16 @@
 ARG ALPINE_VERSION=3.18.0
 
-FROM alpine:${ALPINE_VERSION} as router
+FROM alpine:${ALPINE_VERSION} as controller
 
 ARG S6_OVERLAY_VERSION=3.1.5.0
-RUN apk add --no-cache \
-        bash \
-        iproute2 \
-        nftables \
-        tcpdump \
-        wireguard-tools
+RUN apk add --no-cache bash
 
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
 RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-x86_64.tar.xz /tmp
 RUN tar -C / -Jxpf /tmp/s6-overlay-x86_64.tar.xz
 
-COPY /images/router /
+COPY /images/network-manager /
 COPY --from=app-build /out/k8s-insider-agent /opt/k8s-insider-agent
-
-EXPOSE 55555/udp
 
 ENTRYPOINT [ "/init" ]
