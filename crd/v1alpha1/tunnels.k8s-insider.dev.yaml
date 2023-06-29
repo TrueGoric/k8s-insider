@@ -20,6 +20,9 @@ spec:
         properties:
           spec:
             properties:
+              network:
+                description: network this tunnel is attached to
+                type: string
               peerPublicKey:
                 description: peer public key
                 type: string
@@ -49,6 +52,7 @@ spec:
                     type: string
                 type: object
             required:
+            - network
             - peerPublicKey
             - persistent
             - presharedKey
@@ -139,11 +143,11 @@ spec:
                 type: string
               state:
                 enum:
-                - Unknown
-                - Creating
                 - Created
+                - Configured
                 - Connected
                 - Closed
+                - ErrorUnknownNetwork
                 - ErrorCreatingTunnel
                 - ErrorIpAlreadyInUse
                 - ErrorIpOutOfRange

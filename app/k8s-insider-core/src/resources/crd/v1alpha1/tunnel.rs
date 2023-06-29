@@ -17,6 +17,8 @@ use crate::ippair::{IpAddrPair, IpNetPair};
     derive = "Default"
 )]
 pub struct TunnelSpec {
+    /// network this tunnel is attached to
+    pub network: String,
     /// peer public key
     pub peer_public_key: String,
     /// tunnel's preshared key
@@ -50,11 +52,11 @@ pub struct TunnelStatus {
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 pub enum TunnelState {
     #[default]
-    Unknown,
-    Creating,
     Created,
+    Configured,
     Connected,
     Closed,
+    ErrorUnknownNetwork,
     ErrorCreatingTunnel,
     ErrorIpAlreadyInUse,
     ErrorIpOutOfRange,
