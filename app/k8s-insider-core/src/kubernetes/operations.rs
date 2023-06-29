@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::{anyhow, Context};
+use futures::Stream;
 use k8s_openapi::{
     api::core::v1::Namespace,
     apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition,
@@ -11,6 +12,7 @@ use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::{object::HasStatus, ObjectMeta},
+    runtime::watcher::{self, watch_object},
     Api, Client, Config, Resource,
 };
 use log::{debug, info, warn};
@@ -39,6 +41,20 @@ pub async fn create_local_client(
     let client = Client::try_from(config)?;
 
     Ok(client)
+}
+
+pub fn watch_resource<T>(
+    client: &Client,
+    resource_name: &str,
+    namespace: &str,
+) -> impl Stream<Item = Result<Option<T>, watcher::Error>>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Clone + DeserializeOwned + Debug + Send + 'static,
+    <T as Resource>::DynamicType: Default,
+{
+    let api: Api<T> = Api::namespaced(client.clone(), namespace);
+
+    watch_object(api, resource_name)
 }
 
 pub async fn try_get_resource<T>(

@@ -14,9 +14,8 @@ pub const CONTROLLER_FIELD_MANAGER: &str = "k8s-insider-controller";
 
 pub async fn main_controller(client: Client) {
     let reconciler_context = Arc::new(get_reconciler_context(client));
-    let network_controller = start_network_controller(&reconciler_context);
 
-    network_controller.await;
+    start_network_controller(&reconciler_context).await;
 }
 
 fn get_reconciler_context(client: Client) -> ReconcilerContext {

@@ -1,5 +1,5 @@
 use k8s_insider_core::{
-    helpers::ApplyConditional, kubernetes::operations::try_remove_resource,
+    helpers::AndIf, kubernetes::operations::try_remove_resource,
     resources::crd::v1alpha1::network::Network,
 };
 use kube::{api::DeleteParams, Client};

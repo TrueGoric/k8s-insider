@@ -21,3 +21,4 @@ serde_yaml = { workspace = true }
 serde_with = "3.0.0"
 thiserror = "1.0.40"
 wireguard-control = { git = "https://github.com/tonarino/innernet.git", tag = "v1.6.0", version = "1.6.0" }
+futures = { workspace = true }

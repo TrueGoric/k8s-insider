@@ -1,10 +1,8 @@
-use std::env::var;
 use kube::core::ObjectMeta;
+use std::env::var;
+use thiserror::Error;
 
-use crate::{
-    ippair::{IpAddrPair, IpNetPair},
-    FromEnvError,
-};
+use crate::ippair::{IpAddrPair, IpNetPair, IpPairError};
 
 use super::labels::get_controller_labels;
 
@@ -21,6 +19,16 @@ pub struct ControllerRelease {
     pub pod_cidr: IpNetPair,
     pub controller_image_name: String,
     pub router_image_name: String,
+}
+
+#[derive(Debug, Error)]
+pub enum FromEnvError {
+    #[error("Env var unavailable: {}", .0)]
+    Var(std::env::VarError),
+    #[error("IP address couldn't be parsed: {}", .0)]
+    IpAddrParse(IpPairError),
+    #[error("IP CIDR couldn't be parsed: {}", .0)]
+    IpNetParse(IpPairError),
 }
 
 impl ControllerRelease {

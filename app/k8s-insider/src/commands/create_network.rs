@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use anyhow::anyhow;
 use k8s_insider_core::{
-    helpers::ApplyConditional,
+    helpers::AndIf,
     kubernetes::operations::{apply_resource, try_get_resource},
     resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec},
 };

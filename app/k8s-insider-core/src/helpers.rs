@@ -11,32 +11,39 @@ pub fn pretty_type_name<'a, T>() -> &'a str {
     type_name::<T>().split("::").last().unwrap()
 }
 
-pub trait ApplyConditional<F: FnOnce(Self) -> Self>
-where Self: Sized {
-    fn and_if(self, condition: bool, func: F) -> Self;
+pub trait AndIf<F> {
+    fn and_if(self, condition: bool, then: F) -> Self;
 }
 
-impl<T, F: FnOnce(Self) -> Self> ApplyConditional<F> for T {
-    fn and_if(self, condition: bool, func: F) -> Self {
+pub trait AndIfSome<F, FC> {
+    fn and_if_some(self, closure: FC, then: F) -> Self;
+}
+
+impl<T, F> AndIf<F> for T
+where
+    F: FnOnce(Self) -> Self,
+{
+    fn and_if(self, condition: bool, then: F) -> Self {
         let mut obj = self;
         if condition {
-            obj = func(obj);
+            obj = then(obj);
         }
 
         obj
     }
 }
 
-pub trait ApplyConditionalMut<F: FnOnce(&mut Self) -> &mut Self> {
-    fn with_condition(&mut self, condition: bool, func: F) -> &mut Self;
-}
-
-impl<T, F: FnOnce(&mut Self) -> &mut Self> ApplyConditionalMut<F> for T {
-    fn with_condition(&mut self, condition: bool, func: F) -> &mut Self {
-        if condition {
-            func(self);
+impl<T, TC, F, FC> AndIfSome<F, FC> for T
+where
+    F: FnOnce(Self, TC) -> Self,
+    FC: FnOnce() -> Option<TC>
+{
+    fn and_if_some(self, closure: FC, then: F) -> Self {
+        let mut obj = self;
+        if let Some(result) = closure() {
+            obj = then(obj, result);
         }
 
-        self
+        obj
     }
 }

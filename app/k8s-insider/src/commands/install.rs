@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
-    helpers::ApplyConditional,
+    helpers::AndIf,
     kubernetes::operations::{
         check_if_resource_exists, apply_cluster_resource, create_namespace_if_not_exists,
         apply_resource,

@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
 use k8s_insider_core::{
-    generators::wireguard::generate_wireguard_private_key,
     kubernetes::operations::{apply_resource, apply_resource_status, try_get_resource},
     resources::{
         crd::v1alpha1::network::{Network, NetworkState, NetworkStatus},
@@ -10,6 +9,7 @@ use k8s_insider_core::{
             RouterReleaseValidationError,
         },
     },
+    wireguard::keys::{Keys, PrivateKey},
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
@@ -79,7 +79,7 @@ async fn try_reconcile(
         object.require_name()?,
         object.require_namespace()?,
         NetworkState::Deployed,
-        Some(release.get_server_public_key().unwrap()),
+        Some(release.server_keys.unwrap().get_public_key().to_base64()),
     )
     .await?;
 
@@ -91,7 +91,7 @@ fn build_release(
     context: &ReconcilerContext,
 ) -> Result<RouterRelease, ReconcilerError> {
     RouterReleaseBuilder::default()
-        .with_placeholder_server_private_key()
+        .without_server_keys()
         .with_controller(&context.release)
         .with_network_crd(object)
         .map_err(ReconcilerError::RouterReleaseBuilderResourceError)?
@@ -111,22 +111,22 @@ async fn ensure_server_private_key(
         .map_err(ReconcilerError::KubeApiError)?;
 
     let private_key = match secret {
-        Some(secret) => {
-            let bytes = secret
+        Some(secret) => <Keys as From<PrivateKey>>::from(
+            secret
                 .data
                 .as_ref()
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
+                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone().into()))?
                 .get(SERVER_PRIVATE_KEY_SECRET)
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?;
-
-            std::str::from_utf8(&bytes.0)
-                .map_err(|_| ReconcilerError::InvalidObjectData(name))?
-                .to_owned()
-        }
-        None => generate_wireguard_private_key(),
+                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone().into()))?
+                .0
+                .as_slice()
+                .try_into()
+                .map_err(|_| ReconcilerError::InvalidObjectData(name.into()))?,
+        ),
+        None => Keys::generate_new_pair(),
     };
 
-    release.server_private_key = private_key;
+    release.server_keys = Some(private_key);
 
     Ok(())
 }
@@ -135,7 +135,9 @@ async fn apply_release(
     context: &ReconcilerContext,
     release: &RouterRelease,
 ) -> Result<(), ReconcilerError> {
-    let secret = release.generate_secret();
+    let secret = release
+        .generate_secret()
+        .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
     let service_account = release.generate_router_service_account();
     let role_binding = release
         .generate_router_role_binding(&service_account)
@@ -197,9 +199,7 @@ fn get_error_state(error: &ReconcilerError) -> NetworkState {
     match error {
         ReconcilerError::RouterReleaseResourceValidationError(err) => match err {
             RouterReleaseValidationError::RouterIpOutOfBounds => NetworkState::ErrorSubnetConflict,
-            RouterReleaseValidationError::ServerPrivateKeyInvalid => {
-                NetworkState::ErrorCreatingService
-            }
+            RouterReleaseValidationError::MissingKeys => NetworkState::ErrorCreatingService,
         },
         ReconcilerError::KubeApiError(err) => match err {
             kube::Error::Auth(_) => NetworkState::ErrorInsufficientPermissions,

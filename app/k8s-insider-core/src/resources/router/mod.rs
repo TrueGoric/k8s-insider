@@ -4,9 +4,13 @@ use derive_builder::Builder;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::core::ObjectMeta;
 use thiserror::Error;
-use wireguard_control::InvalidKey;
+use wireguard_control::{InvalidKey, Key};
 
-use crate::ippair::{Contains, IpAddrPair, IpNetPair};
+use crate::{
+    helpers::AndIfSome,
+    ippair::{Contains, IpAddrPair, IpNetPair},
+    wireguard::keys::{Keys, PublicKey},
+};
 
 use super::{
     controller::ControllerRelease,
@@ -20,8 +24,6 @@ pub mod rbac;
 pub mod secret;
 pub mod service;
 
-const PLACEHOLDER_PRIVATE_KEY: &str = "=//=I_AM_INVALID=//=";
-
 #[derive(Debug, Builder)]
 pub struct RouterRelease {
     pub name: String,
@@ -33,7 +35,7 @@ pub struct RouterRelease {
     pub agent_image_name: String,
     pub tunnel_image_name: String,
 
-    pub server_private_key: String,
+    pub server_keys: Option<Keys>,
     pub peer_cidr: IpNetPair,
     pub router_ip: IpAddrPair,
     pub service: Option<RouterReleaseService>,
@@ -64,7 +66,7 @@ pub enum RouterReleaseValidationError {
     #[error("Router IP is not part of the peer network CIDR!")]
     RouterIpOutOfBounds,
     #[error("Invalid server private key!")]
-    ServerPrivateKeyInvalid,
+    MissingKeys,
 }
 
 impl RouterReleaseBuilder {
@@ -81,6 +83,16 @@ impl RouterReleaseBuilder {
         &mut self,
         crd: &Network,
     ) -> Result<&mut Self, ResourceGenerationError> {
+        let server_public_key = crd
+            .status
+            .as_ref()
+            .and_then(|status| status.server_public_key.as_ref())
+            .map(|key| Ok(PublicKey::from(Key::from_base64(key)?)))
+            .transpose() // I love that I can do this
+            .map_err(|_: InvalidKey| {
+                ResourceGenerationError::DependentInvalidData("server_public_key".into())
+            })?;
+
         Ok(self
             .name(
                 crd.metadata
@@ -103,11 +115,17 @@ impl RouterReleaseBuilder {
                     .network_service
                     .as_ref()
                     .map(|service| service.clone().into()),
+            )
+            .and_if_some(
+                || server_public_key,
+                |builder, server_public_key| {
+                    builder.server_keys(Some(Keys::Public(server_public_key)))
+                },
             ))
     }
 
-    pub fn with_placeholder_server_private_key(&mut self) -> &mut Self {
-        self.server_private_key(PLACEHOLDER_PRIVATE_KEY.to_owned())
+    pub fn without_server_keys(&mut self) -> &mut Self {
+        self.server_keys(None)
     }
 }
 
@@ -117,8 +135,8 @@ impl RouterRelease {
             return Err(RouterReleaseValidationError::RouterIpOutOfBounds);
         }
 
-        if wireguard_control::Key::from_base64(&self.server_private_key).is_err() {
-            return Err(RouterReleaseValidationError::ServerPrivateKeyInvalid);
+        if self.server_keys.is_none() {
+            return Err(RouterReleaseValidationError::MissingKeys);
         }
 
         Ok(self)
@@ -130,15 +148,6 @@ impl RouterRelease {
 
     pub fn get_namespace(&self) -> String {
         self.namespace.to_owned()
-    }
-
-    /// This function is safe to unwrap() if the object was successfully validated
-    pub fn get_server_public_key(&self) -> Result<String, InvalidKey> {
-        Ok(
-            wireguard_control::Key::from_base64(&self.server_private_key)?
-                .get_public()
-                .to_base64(),
-        )
     }
 
     pub fn generate_router_metadata(&self) -> ObjectMeta {

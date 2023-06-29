@@ -5,6 +5,7 @@ use kube::Client;
 use log::{info, error, LevelFilter};
 
 mod controller;
+mod helpers;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {
