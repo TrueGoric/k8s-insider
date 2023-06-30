@@ -9,7 +9,7 @@ use wireguard_control::{InvalidKey, Key};
 use crate::{
     helpers::AndIfSome,
     ippair::{Contains, IpAddrPair, IpNetPair},
-    wireguard::keys::{Keys, PublicKey},
+    wireguard::keys::{Keys, WgKey},
 };
 
 use super::{
@@ -87,7 +87,7 @@ impl RouterReleaseBuilder {
             .status
             .as_ref()
             .and_then(|status| status.server_public_key.as_ref())
-            .map(|key| Ok(PublicKey::from(Key::from_base64(key)?)))
+            .map(|key| Ok(WgKey::from(Key::from_base64(key)?)))
             .transpose() // I love that I can do this
             .map_err(|_: InvalidKey| {
                 ResourceGenerationError::DependentInvalidData("server_public_key".into())

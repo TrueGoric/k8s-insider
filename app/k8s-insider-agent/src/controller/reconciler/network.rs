@@ -9,7 +9,7 @@ use k8s_insider_core::{
             RouterReleaseValidationError,
         },
     },
-    wireguard::keys::{Keys, PrivateKey},
+    wireguard::keys::Keys,
 };
 use k8s_openapi::api::core::v1::Secret;
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
@@ -111,7 +111,7 @@ async fn ensure_server_private_key(
         .map_err(ReconcilerError::KubeApiError)?;
 
     let private_key = match secret {
-        Some(secret) => <Keys as From<PrivateKey>>::from(
+        Some(secret) => Keys::from_private_key(
             secret
                 .data
                 .as_ref()

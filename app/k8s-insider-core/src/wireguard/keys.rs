@@ -1,112 +1,91 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    hash::{Hash, Hasher},
+    ops::{Deref, DerefMut},
+};
 
 pub use wireguard_control::{InvalidKey, Key, KeyPair};
 
-#[derive(Debug, Clone)]
-pub struct PublicKey(Key);
+pub struct InvalidWgKey;
 
 #[derive(Debug, Clone)]
-pub struct PrivateKey(Key);
+pub struct WgKey(wireguard_control::Key);
 
-impl Deref for PrivateKey {
-    type Target = Key;
+impl Deref for WgKey {
+    type Target = wireguard_control::Key;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for PrivateKey {
+impl DerefMut for WgKey {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl Deref for PublicKey {
-    type Target = Key;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
+impl Hash for WgKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0 .0.hash(state)
     }
 }
 
-impl DerefMut for PublicKey {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl From<Key> for PrivateKey {
+impl From<Key> for WgKey {
     fn from(value: Key) -> Self {
         Self(value)
     }
 }
 
-impl From<Key> for PublicKey {
-    fn from(value: Key) -> Self {
-        Self(value)
-    }
-}
-
-impl TryFrom<&[u8]> for PrivateKey {
-    type Error = InvalidKey;
+impl TryFrom<&[u8]> for WgKey {
+    type Error = InvalidWgKey;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Key(value.try_into().map_err(|_| InvalidKey)?).into())
+        Ok(Key(value.try_into().map_err(|_| InvalidWgKey)?).into())
     }
 }
 
-impl TryFrom<Vec<u8>> for PublicKey {
-    type Error = InvalidKey;
+impl TryFrom<Vec<u8>> for WgKey {
+    type Error = InvalidWgKey;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Key(value.try_into().map_err(|_| InvalidKey)?).into())
+        Ok(Key(value.try_into().map_err(|_| InvalidWgKey)?).into())
     }
 }
-
 
 #[derive(Debug, Clone)]
 pub enum Keys {
-    Pair(PrivateKey, PublicKey),
-    Public(PublicKey),
+    Pair {
+        private: WgKey,
+        public: WgKey
+    },
+    Public(WgKey),
 }
 
 impl Keys {
     pub fn generate_new_pair() -> Self {
         let key_pair = KeyPair::generate();
-        Self::Pair(key_pair.public.into(), key_pair.private.into())
+        Self::Pair { private:  key_pair.private.into(), public: key_pair.public.into() }
     }
 
-    pub fn get_private_key(&self) -> Option<&PrivateKey> {
+    pub fn from_private_key(key: WgKey) -> Self {
+        Self::Pair { public: key.get_public().into(), private: key }
+    }
+
+    pub fn from_public_key(key: WgKey) -> Self {
+        Self::Public(key)
+    }
+
+    pub fn get_private_key(&self) -> Option<&WgKey> {
         match self {
-            Self::Pair(private, _) => Some(private),
+            Self::Pair { private, .. } => Some(private),
             Self::Public(_) => None,
         }
     }
 
-    pub fn get_public_key(&self) -> &PublicKey {
+    pub fn get_public_key(&self) -> &WgKey {
         match self {
-            Self::Pair(_, public) => public,
+            Self::Pair { public, .. } => public,
             Self::Public(public) => public,
         }
-    }
-}
-
-impl From<PrivateKey> for Keys {
-    fn from(value: PrivateKey) -> Self {
-        let key_pair = KeyPair::from_private(value.0);
-        Self::Pair(key_pair.private.into(), key_pair.public.into())
-    }
-}
-
-impl From<PublicKey> for Keys {
-    fn from(value: PublicKey) -> Self {
-        Self::Public(value)
-    }
-}
-
-impl From<KeyPair> for Keys {
-    fn from(value: KeyPair) -> Self {
-        Self::Pair(value.public.into(), value.private.into())
     }
 }
