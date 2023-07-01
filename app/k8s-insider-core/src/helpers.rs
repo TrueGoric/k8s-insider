@@ -47,3 +47,17 @@ where
         obj
     }
 }
+
+pub trait Invert<TInverted> {
+    fn invert(self) -> TInverted;
+}
+
+// chaotic evil impl
+impl<T, E> Invert<Result<E, T>> for Result<T, E> {
+    fn invert(self) -> Result<E, T> {
+        match self {
+            Ok(ok) => Err(ok),
+            Err(err) => Ok(err),
+        }
+    }
+}

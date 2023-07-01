@@ -5,7 +5,7 @@ use k8s_openapi::api::core::v1::Service;
 use kube::{Api, Client};
 use log::{info, warn};
 
-use crate::ippair::IpAddrPair;
+use crate::ip::addrpair::IpAddrPair;
 
 const KUBE_DNS_SERVICE_NAME: &str = "kube-dns";
 const KUBE_DNS_SERVICE_NAMESPACE: &str = "kube-system";

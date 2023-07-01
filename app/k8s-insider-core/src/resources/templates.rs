@@ -1,4 +1,4 @@
-use crate::ippair::IpAddrPair;
+use crate::ip::addrpair::IpAddrPair;
 
 pub fn server_interface_template(ip: &IpAddrPair, port: u32, private_key: &str) -> String {
     format!(

@@ -4,7 +4,7 @@ use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::ippair::{IpAddrPair, IpNetPair};
+use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair};
 
 #[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]

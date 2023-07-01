@@ -8,7 +8,7 @@ use wireguard_control::{InvalidKey, Key};
 
 use crate::{
     helpers::AndIfSome,
-    ippair::{Contains, IpAddrPair, IpNetPair},
+    ip::{addrpair::IpAddrPair, netpair::IpNetPair, Contains},
     wireguard::keys::{Keys, WgKey},
 };
 

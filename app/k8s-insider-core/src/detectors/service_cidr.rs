@@ -5,7 +5,7 @@ use kube::{api::PostParams, core::ObjectMeta, Api, Client};
 use log::{debug, info};
 use regex::Regex;
 
-use crate::{helpers::get_secs_since_unix_epoch, ippair::IpNetPair};
+use crate::{helpers::get_secs_since_unix_epoch, ip::netpair::IpNetPair};
 
 const DEFAULT_NAMESPACE: &str = "default";
 

@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::ippair::{IpAddrPair, IpNetPair};
+use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair};
 
 #[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]

@@ -6,7 +6,7 @@ use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{api::ListParams, Api, Client};
 use log::{debug, info};
 
-use crate::ippair::IpNetPair;
+use crate::ip::netpair::IpNetPair;
 
 const CILIUM_CONFIGMAP_NAME: &str = "cilium-config";
 const CILIUM_IPV4_CIDR_KEY: &str = "cluster-pool-ipv4-cidr";

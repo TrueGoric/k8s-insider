@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::ippair::{IpAddrPair, IpNetPair};
+use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair};
 
 #[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Default, Clone, Debug, JsonSchema)]
@@ -34,7 +34,7 @@ pub struct NetworkSpec {
 pub enum NetworkService {
     #[serde(rename_all = "camelCase")]
     ClusterIp {
-        ip: Option<IpAddrPair>,
+        ip: Option<IpAddrPair>
     },
     #[serde(rename_all = "camelCase")]
     NodePort {
@@ -43,7 +43,7 @@ pub enum NetworkService {
     },
     #[serde(rename_all = "camelCase")]
     LoadBalancer {
-        cluster_ip: Option<IpAddrPair>,
+        cluster_ip: Option<IpAddrPair>
     },
     #[serde(rename_all = "camelCase")]
     ExternalIp {

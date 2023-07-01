@@ -2,7 +2,7 @@ use kube::core::ObjectMeta;
 use std::env::var;
 use thiserror::Error;
 
-use crate::ippair::{IpAddrPair, IpNetPair, IpPairError};
+use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair, IpPairError};
 
 use super::labels::get_controller_labels;
 

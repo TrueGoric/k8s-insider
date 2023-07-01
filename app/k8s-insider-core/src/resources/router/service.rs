@@ -10,7 +10,7 @@ use k8s_openapi::{
 use kube::core::ObjectMeta;
 
 use crate::{
-    ippair::IpAddrPair,
+    ip::addrpair::IpAddrPair,
     resources::{annotations::get_service_annotations, labels::get_router_labels},
 };
 
