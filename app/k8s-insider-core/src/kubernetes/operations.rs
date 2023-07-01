@@ -378,7 +378,7 @@ pub async fn try_remove_cluster_resource<T>(
     client: &Client,
     resource_name: &str,
     delete_params: &DeleteParams,
-) -> anyhow::Result<bool>
+) -> Result<bool, kube::Error>
 where
     T: Resource<Scope = ClusterResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
     <T as Resource>::DynamicType: Default,
@@ -398,7 +398,7 @@ pub async fn try_remove_resource<T>(
     resource_name: &str,
     namespace: &str,
     delete_params: &DeleteParams,
-) -> anyhow::Result<bool>
+) -> Result<bool, kube::Error>
 where
     T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
     <T as Resource>::DynamicType: Default,
@@ -412,7 +412,7 @@ async fn try_remove<T>(
     resource_api: &Api<T>,
     resource_name: &str,
     delete_params: &DeleteParams,
-) -> anyhow::Result<bool>
+) -> Result<bool, kube::Error>
 where
     T: Serialize + Clone + DeserializeOwned + Debug,
 {
@@ -432,7 +432,7 @@ where
                 }
             }
 
-            Err(err.into())
+            Err(err)
         }
     }
 }
