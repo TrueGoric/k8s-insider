@@ -7,8 +7,14 @@ pub use wireguard_control::{InvalidKey, Key, KeyPair};
 
 pub struct InvalidWgKey;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WgKey(wireguard_control::Key);
+
+impl WgKey {
+    pub fn from_base64(key: &str) -> Result<Self, InvalidWgKey> {
+        Ok(WgKey(Key::from_base64(key).map_err(|_| InvalidWgKey)?))
+    }
+}
 
 impl Deref for WgKey {
     type Target = wireguard_control::Key;
