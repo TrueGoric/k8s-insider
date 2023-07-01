@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use k8s_insider_core::helpers::pretty_type_name;
 use kube::{
     runtime::{
@@ -9,11 +11,13 @@ use kube::{
 };
 use log::{error, info, warn};
 
-use crate::controller::reconciler::error::ReconcilerError;
-
-pub fn handle_reconciliation_result<T: Resource>(
-    result: Result<(ObjectRef<T>, Action), ControllerError<ReconcilerError, WatcherError>>,
-) -> impl std::future::Future<Output = ()> {
+pub fn handle_reconciliation_result<T, E>(
+    result: Result<(ObjectRef<T>, Action), ControllerError<E, WatcherError>>,
+) -> impl std::future::Future<Output = ()>
+where
+    T: Resource,
+    E: Debug,
+{
     let resource_name = pretty_type_name::<T>();
 
     match result {
