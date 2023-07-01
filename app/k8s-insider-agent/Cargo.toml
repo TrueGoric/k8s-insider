@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 futures = "0.3.28"
+ipnet = { workspace = true }
 k8s-insider-core = { path = "../k8s-insider-core" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true, features = ["runtime"] }

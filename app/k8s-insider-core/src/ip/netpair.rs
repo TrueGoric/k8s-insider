@@ -15,6 +15,22 @@ pub enum IpNetPair {
 }
 
 impl IpNetPair {
+    pub fn try_get_ipv4(&self) -> Option<Ipv4Net> {
+        match self {
+            IpNetPair::Ipv4 { netv4 } => Some(*netv4),
+            IpNetPair::Ipv4v6 { netv4, .. } => Some(*netv4),
+            _ => None
+        }
+    }
+
+    pub fn try_get_ipv6(&self) -> Option<Ipv6Net> {
+        match self {
+            IpNetPair::Ipv6 { netv6 } => Some(*netv6),
+            IpNetPair::Ipv4v6 { netv6, .. } => Some(*netv6),
+            _ => None
+        }
+    }
+
     pub fn trunc(&self) -> Self {
         match self {
             Self::Ipv4 { netv4 } => Self::Ipv4 { netv4: netv4.trunc() },
