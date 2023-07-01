@@ -11,7 +11,7 @@ use kube::runtime::{watcher::Config, Controller};
 use log::info;
 
 use crate::{
-    controller::reconciler::{network::{reconcile_network, reconcile_network_error}, error::ReconcilerError},
+    controller::reconciler::network::{reconcile_network, reconcile_network_error},
     helpers::handle_reconciliation_result,
 };
 
@@ -32,7 +32,7 @@ pub async fn start_network_controller(context: &Arc<ReconcilerContext>) {
         )
         .shutdown_on_signal()
         .run(reconcile_network, reconcile_network_error, context.clone())
-        .for_each(handle_reconciliation_result::<Network, ReconcilerError>);
+        .for_each(handle_reconciliation_result::<_, _>);
 
     info!("Network controller created!");
 
