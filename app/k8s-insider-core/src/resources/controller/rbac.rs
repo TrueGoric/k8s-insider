@@ -9,7 +9,7 @@ use crate::{
         crd::v1alpha1::{connection::Connection, network::Network, tunnel::Tunnel},
         ResourceGenerationError,
     },
-    CONTROLLER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME, NETWORK_MANAGER_CLUSTERROLE_NAME,
+    CONTROLLER_CLUSTERROLE_NAME, NETWORK_MANAGER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME,
 };
 
 use super::ControllerRelease;
@@ -29,7 +29,10 @@ impl ControllerRelease {
         let bind_router_cluster_role = PolicyRule {
             api_groups: Some(vec!["rbac.authorization.k8s.io".to_owned()]),
             resources: Some(vec!["clusterroles".to_owned()]),
-            resource_names: Some(vec![ROUTER_CLUSTERROLE_NAME.to_owned(), NETWORK_MANAGER_CLUSTERROLE_NAME.to_owned()]),
+            resource_names: Some(vec![
+                ROUTER_CLUSTERROLE_NAME.to_owned(),
+                NETWORK_MANAGER_CLUSTERROLE_NAME.to_owned(),
+            ]),
             verbs: vec!["bind".to_owned()],
             ..Default::default()
         };
@@ -188,14 +191,13 @@ impl ControllerRelease {
             ..Default::default()
         };
 
-        // RATIONALE: get network to acquire information about the current network to manage
-        let get_network = PolicyRule {
+        // RATIONALE: read network to acquire information about the current network to manage
+        let read_network = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
             resources: Some(vec![Network::plural(&()).into()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned()],
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
             ..Default::default()
         };
-
 
         // RATIONALE: manage tunnels to, well, manage tunnels (monitor state, delete when expired)
         let manage_tunnels = PolicyRule {
@@ -230,7 +232,7 @@ impl ControllerRelease {
             metadata: self.generate_clusterwide_metadata(NETWORK_MANAGER_CLUSTERROLE_NAME),
             rules: Some(vec![
                 read_nodes,
-                get_network,
+                read_network,
                 manage_tunnels,
                 update_tunnel_statuses,
                 read_connections,
