@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use k8s_insider_core::{
+    helpers::RequireMetadata,
     kubernetes::operations::{apply_resource, apply_resource_status, try_get_resource},
     resources::{
         crd::v1alpha1::network::{Network, NetworkState, NetworkStatus},
@@ -14,9 +15,9 @@ use k8s_insider_core::{
 use k8s_openapi::api::core::v1::Secret;
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
 
-use crate::controller::CONTROLLER_FIELD_MANAGER;
+use crate::{controller::CONTROLLER_FIELD_MANAGER, error::ReconcilerError};
 
-use super::{context::ReconcilerContext, error::ReconcilerError, RequireMetadata};
+use super::context::ReconcilerContext;
 
 const SUCCESS_REQUEUE_SECS: u64 = 60 * 5;
 
@@ -36,8 +37,8 @@ pub async fn reconcile_network(
 
             let _ = apply_status(
                 &context,
-                object.require_name()?,
-                object.require_namespace()?,
+                object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
+                object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
                 state,
                 None,
             )
@@ -65,21 +66,18 @@ async fn try_reconcile(
     object: &Network,
     context: &ReconcilerContext,
 ) -> Result<(), ReconcilerError> {
-    let mut release = build_release(object, context)?;
-
-    ensure_server_private_key(&mut release, context).await?;
-
-    let release = release
+    let private_key = ensure_server_private_key(object, context).await?;
+    let release = build_release(private_key, object, context)?
         .validated()
         .map_err(ReconcilerError::RouterReleaseResourceValidationError)?;
 
     apply_release(context, &release).await?;
     apply_status(
         context,
-        object.require_name()?,
-        object.require_namespace()?,
+        object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
+        object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
         NetworkState::Deployed,
-        Some(release.server_keys.unwrap().get_public_key().to_base64()),
+        Some(release.server_keys.get_public_key().to_base64()),
     )
     .await?;
 
@@ -87,11 +85,12 @@ async fn try_reconcile(
 }
 
 fn build_release(
+    private_key: Keys,
     object: &Network,
     context: &ReconcilerContext,
 ) -> Result<RouterRelease, ReconcilerError> {
     RouterReleaseBuilder::default()
-        .without_server_keys()
+        .server_keys(private_key)
         .with_controller(&context.release)
         .with_network_crd(object)
         .map_err(ReconcilerError::RouterReleaseBuilderResourceError)?
@@ -101,12 +100,14 @@ fn build_release(
 }
 
 async fn ensure_server_private_key(
-    release: &mut RouterRelease,
+    crd: &Network,
     context: &ReconcilerContext,
-) -> Result<(), ReconcilerError> {
-    let name = release.get_name();
-    let namespace = release.get_namespace();
-    let secret = try_get_resource::<Secret>(&context.client, &name, &namespace)
+) -> Result<Keys, ReconcilerError> {
+    let name = crd
+        .require_name_or(ReconcilerError::MissingObjectMetadata)?
+        .to_owned();
+    let namespace = crd.require_namespace_or(ReconcilerError::MissingObjectMetadata)?;
+    let secret = try_get_resource::<Secret>(&context.client, &name, namespace)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
 
@@ -115,9 +116,9 @@ async fn ensure_server_private_key(
             secret
                 .data
                 .as_ref()
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone().into()))?
+                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
                 .get(SERVER_PRIVATE_KEY_SECRET)
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone().into()))?
+                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
                 .0
                 .as_slice()
                 .try_into()
@@ -126,14 +127,25 @@ async fn ensure_server_private_key(
         None => Keys::generate_new_pair(),
     };
 
-    release.server_keys = Some(private_key);
-
-    Ok(())
+    Ok(private_key)
 }
 
 async fn apply_release(
     context: &ReconcilerContext,
     release: &RouterRelease,
+) -> Result<(), ReconcilerError> {
+    let patch_params = PatchParams::apply(CONTROLLER_FIELD_MANAGER);
+
+    apply_network_manager(context, release, &patch_params).await?;
+    apply_router(context, release, &patch_params).await?;
+
+    Ok(())
+}
+
+async fn apply_router(
+    context: &ReconcilerContext,
+    release: &RouterRelease,
+    patch_params: &PatchParams,
 ) -> Result<(), ReconcilerError> {
     let secret = release
         .generate_secret()
@@ -143,29 +155,54 @@ async fn apply_release(
         .generate_router_role_binding(&service_account)
         .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
     let deployment = release
-        .generate_deployment(&secret, &service_account)
+        .generate_router_deployment(&secret, &service_account)
         .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
     let service = release.generate_service(&deployment);
-    let patch_params = PatchParams::apply(CONTROLLER_FIELD_MANAGER);
 
-    apply_resource(&context.client, &service_account, &patch_params)
+    apply_resource(&context.client, &service_account, patch_params)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
-    apply_resource(&context.client, &role_binding, &patch_params)
+    apply_resource(&context.client, &role_binding, patch_params)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
-    apply_resource(&context.client, &secret, &patch_params)
+    apply_resource(&context.client, &secret, patch_params)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
-    apply_resource(&context.client, &deployment, &patch_params)
+    apply_resource(&context.client, &deployment, patch_params)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
 
     if let Some(service) = service {
-        apply_resource(&context.client, &service, &patch_params)
+        apply_resource(&context.client, &service, patch_params)
             .await
             .map_err(ReconcilerError::KubeApiError)?;
     }
+
+    Ok(())
+}
+
+async fn apply_network_manager(
+    context: &ReconcilerContext,
+    release: &RouterRelease,
+    patch_params: &PatchParams,
+) -> Result<(), ReconcilerError> {
+    let service_account = release.generate_network_manager_service_account();
+    let role_binding = release
+        .generate_network_manager_role_binding(&service_account)
+        .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
+    let deployment = release
+        .generate_network_manager_deployment(&service_account)
+        .map_err(ReconcilerError::RouterReleaseResourceGenerationError)?;
+
+    apply_resource(&context.client, &service_account, patch_params)
+        .await
+        .map_err(ReconcilerError::KubeApiError)?;
+    apply_resource(&context.client, &role_binding, patch_params)
+        .await
+        .map_err(ReconcilerError::KubeApiError)?;
+    apply_resource(&context.client, &deployment, patch_params)
+        .await
+        .map_err(ReconcilerError::KubeApiError)?;
 
     Ok(())
 }
