@@ -385,11 +385,6 @@ where
 {
     let resource_api: Api<T> = Api::all(client.clone());
 
-    info!(
-        "Removing '{resource_name}' {} from the cluster...",
-        pretty_type_name::<T>()
-    );
-
     try_remove(&resource_api, resource_name, delete_params).await
 }
 
