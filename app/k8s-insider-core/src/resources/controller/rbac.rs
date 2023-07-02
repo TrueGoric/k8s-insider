@@ -246,7 +246,7 @@ impl ControllerRelease {
         let get_network = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
             resources: Some(vec![Network::plural(&()).into()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned()],
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
             ..Default::default()
         };
 
