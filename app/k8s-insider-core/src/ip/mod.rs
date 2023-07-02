@@ -5,6 +5,7 @@ use thiserror::Error;
 
 pub mod addrpair;
 pub mod netpair;
+pub mod schema;
 
 #[derive(Debug, Error)]
 pub enum IpPairError {

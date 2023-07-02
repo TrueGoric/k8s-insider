@@ -41,7 +41,7 @@ spec:
                 - required:
                   - ipv4
                   - ipv6
-                description: static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
+                description: static IP of choice, the tunnel will fail to be created if it's unavailable or out of range the allocations are made on a first-come-first-served basis,
                 nullable: true
                 properties:
                   ipv4:
@@ -82,29 +82,36 @@ spec:
               allowedIps:
                 description: routable ip ranges for this tunnel
                 items:
-                  anyOf:
+                  oneOf:
                   - required:
-                    - netv4
+                    - V4
                   - required:
-                    - netv6
-                  - required:
-                    - netv4
-                    - netv6
+                    - V6
                   properties:
-                    netv4:
-                      description: An IPv4 address with prefix length
-                      example: 0.0.0.0/0
-                      maxLength: 18
-                      pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
-                      title: IPv4 network
-                      type: string
-                    netv6:
-                      description: An IPv6 address with prefix length
-                      example: ::/0
-                      maxLength: 43
-                      pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
-                      title: IPv6 network
-                      type: string
+                    V4:
+                      properties:
+                        ipv4:
+                          description: An IPv4 address with prefix length
+                          example: 0.0.0.0/0
+                          maxLength: 18
+                          pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
+                          title: IPv4 network
+                          type: string
+                      required:
+                      - ipv4
+                      type: object
+                    V6:
+                      properties:
+                        ipv6:
+                          description: An IPv6 address with prefix length
+                          example: ::/0
+                          maxLength: 43
+                          pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
+                          title: IPv6 network
+                          type: string
+                      required:
+                      - ipv6
+                      type: object
                   type: object
                 nullable: true
                 type: array

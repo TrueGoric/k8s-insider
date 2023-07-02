@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair};
+use crate::ip::{addrpair::IpAddrPair, schema::IpNetFit};
 
 #[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
@@ -24,6 +24,7 @@ pub struct TunnelSpec {
     /// tunnel's preshared key
     pub preshared_key: String,
     /// static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
+    /// the allocations are made on a first-come-first-served basis,
     pub static_ip: Option<IpAddrPair>,
     /// if set to true this tunnel won't be automatically cleaned up after
     /// being unused for a preconfigured amount of time
@@ -46,7 +47,7 @@ pub struct TunnelStatus {
     /// publicly available address
     pub endpoint_port: Option<u32>,
     /// routable ip ranges for this tunnel
-    pub allowed_ips: Option<Vec<IpNetPair>>,
+    pub allowed_ips: Option<Vec<IpNetFit>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
