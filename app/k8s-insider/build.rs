@@ -16,8 +16,7 @@ fn main() {
 
 fn export_v1alpha1_crds(path: &Path) {
     use k8s_insider_core::resources::crd::v1alpha1::{
-        addressallocation::AddressAllocation, connection::Connection, network::Network,
-        tunnel::Tunnel,
+        connection::Connection, network::Network, tunnel::Tunnel,
     };
 
     let version_path = path.join(Path::new("v1alpha1"));
@@ -26,10 +25,6 @@ fn export_v1alpha1_crds(path: &Path) {
     write_serialized(
         &Network::crd(),
         &get_crd_path(&version_path, Network::crd_name()),
-    );
-    write_serialized(
-        &AddressAllocation::crd(),
-        &get_crd_path(&version_path, AddressAllocation::crd_name()),
     );
     write_serialized(
         &Tunnel::crd(),
