@@ -10,7 +10,10 @@ use k8s_openapi::{
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::{labels::get_controller_labels, ResourceGenerationError};
+use crate::{
+    helpers::RequireMetadata,
+    resources::{labels::get_controller_labels, ResourceGenerationError},
+};
 
 use super::ControllerRelease;
 
@@ -28,16 +31,10 @@ impl ControllerRelease {
             .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
         let configmap_name = configmap
-            .metadata
-            .name
-            .as_ref()
-            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .require_name_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
         let service_account_name = service_account
-            .metadata
-            .name
-            .as_ref()
-            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .require_name_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
 
         Ok(Deployment {
@@ -65,7 +62,7 @@ impl ControllerRelease {
                                 ..Default::default()
                             }]),
                             image: Some(self.controller_image_name.to_owned()),
-                            image_pull_policy: Some("Always".to_owned()),
+                            image_pull_policy: Some("IfNotPresent".to_owned()),
                             name: metadata_name,
                             // resources: todo!(), // this too
                             ..Default::default()

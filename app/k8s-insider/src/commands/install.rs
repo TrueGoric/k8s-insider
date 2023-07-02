@@ -122,6 +122,10 @@ async fn prepare_release(
             info!("Using controller image: {}", args.controller_image);
             args.controller_image.clone()
         },
+        network_manager_image_name: {
+            info!("Using network manager image: {}", args.network_manager_image);
+            args.network_manager_image.clone()
+        },
         router_image_name: {
             info!("Using router image: {}", args.router_image);
             args.router_image.clone()
@@ -138,23 +142,24 @@ async fn deploy_release(
     client: &Client,
     apply_params: &PatchParams
 ) -> anyhow::Result<()> {
-    let namespace = &release.namespace;
     let serviceaccount = release.generate_controller_service_account();
-    let controller_clusterrole = release.generate_controller_cluster_role();
+    let controller_clusterrole = release.generate_controller_clusterrole();
+    let network_manager_clusterrole = release.generate_network_manager_clusterrole();
+    let router_clusterrole = release.generate_router_clusterrole();
+    let configmap = release.generate_configmap();
     let controller_clusterrole_binding = release
         .generate_controller_cluster_role_binding(&controller_clusterrole, &serviceaccount)
         .context("Couldn't generate controller cluster role binding!")?;
-    let router_clusterrole = release.generate_router_clusterrole();
-    let configmap = release.generate_configmap();
     let deployment = release
         .generate_deployment(&configmap, &serviceaccount)
         .context("Couldn't generate controller deployment!")?;
     
-    create_namespace_if_not_exists(client, apply_params, namespace).await?;
-    apply_resource(client, &serviceaccount, apply_params).await?;
+    create_namespace_if_not_exists(client, apply_params, &release.namespace).await?;
     apply_cluster_resource(client, &controller_clusterrole, apply_params).await?;
-    apply_cluster_resource(client, &controller_clusterrole_binding, apply_params).await?;
+    apply_cluster_resource(client, &network_manager_clusterrole, apply_params).await?;
     apply_cluster_resource(client, &router_clusterrole, apply_params).await?;
+    apply_resource(client, &serviceaccount, apply_params).await?;
+    apply_cluster_resource(client, &controller_clusterrole_binding, apply_params).await?;
     apply_resource(client, &deployment, apply_params).await?;
     apply_resource(client, &configmap, apply_params).await?;
 

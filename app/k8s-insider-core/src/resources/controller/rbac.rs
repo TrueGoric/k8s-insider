@@ -9,7 +9,7 @@ use crate::{
         crd::v1alpha1::{connection::Connection, network::Network, tunnel::Tunnel},
         ResourceGenerationError,
     },
-    CONTROLLER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME,
+    CONTROLLER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME, NETWORK_MANAGER_CLUSTERROLE_NAME,
 };
 
 use super::ControllerRelease;
@@ -23,20 +23,13 @@ impl ControllerRelease {
         }
     }
 
-    pub fn generate_controller_cluster_role(&self) -> ClusterRole {
-        // RATIONALE: read nodes to generate NodePort service addresses
-        let read_nodes = PolicyRule {
-            api_groups: Some(vec!["".to_owned()]),
-            resources: Some(vec!["nodes".to_owned()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
-            ..Default::default()
-        };
-
-        // RATIONALE: bind k8s-insider-router role to routers to allow them to manage router-specific resources
+    pub fn generate_controller_clusterrole(&self) -> ClusterRole {
+        // RATIONALE: bind 'k8s-insider-router' and 'k8s-insider-network-manager' roles
+        //            to routers and network-managers to allow them to manage VPN-network-specific resources
         let bind_router_cluster_role = PolicyRule {
             api_groups: Some(vec!["rbac.authorization.k8s.io".to_owned()]),
             resources: Some(vec!["clusterroles".to_owned()]),
-            resource_names: Some(vec![ROUTER_CLUSTERROLE_NAME.to_owned()]),
+            resource_names: Some(vec![ROUTER_CLUSTERROLE_NAME.to_owned(), NETWORK_MANAGER_CLUSTERROLE_NAME.to_owned()]),
             verbs: vec!["bind".to_owned()],
             ..Default::default()
         };
@@ -55,8 +48,8 @@ impl ControllerRelease {
             ..Default::default()
         };
 
-        // RATIONALE: create/patch rolebindings to attach 'k8s-insider-router' role to router accounts,
-        //            watch/list to watch rolebindings owned by networks/routers
+        // RATIONALE: create/patch rolebindings to attach 'k8s-insider-router' and 'k8s-insider-network-manager'
+        //            roles to router accounts, watch/list to watch rolebindings owned by networks/routers
         let create_list_rolebindings = PolicyRule {
             api_groups: Some(vec!["rbac.authorization.k8s.io".to_owned()]),
             resources: Some(vec!["rolebindings".to_owned()]),
@@ -132,39 +125,9 @@ impl ControllerRelease {
             ..Default::default()
         };
 
-        // RATIONALE: manage tunnels to, well, manage tunnels (monitor state, delete when expired)
-        let manage_tunnels = PolicyRule {
-            api_groups: Some(vec![Tunnel::group(&()).into()]),
-            resources: Some(vec![Tunnel::plural(&()).into()]),
-            verbs: vec![
-                "get".to_owned(),
-                "watch".to_owned(),
-                "list".to_owned(),
-                "delete".to_owned(),
-            ],
-            ..Default::default()
-        };
-
-        // RATIONALE: update tunnel statuses to fill relevant data for config generation for peers
-        let update_tunnel_statuses = PolicyRule {
-            api_groups: Some(vec![Tunnel::group(&()).into()]),
-            resources: Some(vec![format!("{}/status", Tunnel::plural(&()))]),
-            verbs: vec!["update".to_owned(), "patch".to_owned()],
-            ..Default::default()
-        };
-
-        // RATIONALE: read connections to manage tunnels (whether or not they should be closed, etc.)
-        let read_connections = PolicyRule {
-            api_groups: Some(vec![Connection::group(&()).into()]),
-            resources: Some(vec![Connection::plural(&()).into()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
-            ..Default::default()
-        };
-
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(CONTROLLER_CLUSTERROLE_NAME),
             rules: Some(vec![
-                read_nodes,
                 bind_router_cluster_role,
                 create_list_serviceaccounts,
                 create_list_rolebindings,
@@ -173,9 +136,6 @@ impl ControllerRelease {
                 manage_deployments,
                 manage_networks,
                 update_network_statuses,
-                manage_tunnels,
-                update_tunnel_statuses,
-                read_connections,
             ]),
             ..Default::default()
         }
@@ -217,6 +177,66 @@ impl ControllerRelease {
                 ..Default::default()
             }]),
         })
+    }
+
+    pub fn generate_network_manager_clusterrole(&self) -> ClusterRole {
+        // RATIONALE: read nodes to generate NodePort service addresses
+        let read_nodes = PolicyRule {
+            api_groups: Some(vec!["".to_owned()]),
+            resources: Some(vec!["nodes".to_owned()]),
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
+            ..Default::default()
+        };
+
+        // RATIONALE: get network to acquire information about the current network to manage
+        let get_network = PolicyRule {
+            api_groups: Some(vec![Network::group(&()).into()]),
+            resources: Some(vec![Network::plural(&()).into()]),
+            verbs: vec!["get".to_owned(), "watch".to_owned()],
+            ..Default::default()
+        };
+
+
+        // RATIONALE: manage tunnels to, well, manage tunnels (monitor state, delete when expired)
+        let manage_tunnels = PolicyRule {
+            api_groups: Some(vec![Tunnel::group(&()).into()]),
+            resources: Some(vec![Tunnel::plural(&()).into()]),
+            verbs: vec![
+                "get".to_owned(),
+                "watch".to_owned(),
+                "list".to_owned(),
+                "delete".to_owned(),
+            ],
+            ..Default::default()
+        };
+
+        // RATIONALE: update tunnel statuses to fill relevant data for config generation for peers
+        let update_tunnel_statuses = PolicyRule {
+            api_groups: Some(vec![Tunnel::group(&()).into()]),
+            resources: Some(vec![format!("{}/status", Tunnel::plural(&()))]),
+            verbs: vec!["update".to_owned(), "patch".to_owned()],
+            ..Default::default()
+        };
+
+        // RATIONALE: read connections to manage tunnels (whether or not they should be closed, etc.)
+        let read_connections = PolicyRule {
+            api_groups: Some(vec![Connection::group(&()).into()]),
+            resources: Some(vec![Connection::plural(&()).into()]),
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
+            ..Default::default()
+        };
+
+        ClusterRole {
+            metadata: self.generate_clusterwide_metadata(NETWORK_MANAGER_CLUSTERROLE_NAME),
+            rules: Some(vec![
+                read_nodes,
+                get_network,
+                manage_tunnels,
+                update_tunnel_statuses,
+                read_connections,
+            ]),
+            ..Default::default()
+        }
     }
 
     pub fn generate_router_clusterrole(&self) -> ClusterRole {

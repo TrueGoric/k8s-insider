@@ -22,7 +22,7 @@ impl RouterRelease {
     pub fn generate_service(&self, deployment: &Deployment) -> Option<Service> {
         let service = self.service.as_ref()?;
         let port_name = extract_port_name(deployment);
-        let labels = get_router_labels();
+        let labels = get_router_labels(&self.name);
         let port = ServicePort {
             name: Some(port_name.to_owned()),
             port: PORT_NUMBER,

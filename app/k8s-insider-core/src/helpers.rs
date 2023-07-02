@@ -1,5 +1,7 @@
 use std::{time::{SystemTime, Duration}, any::type_name};
 
+use kube::Resource;
+
 pub fn get_secs_since_unix_epoch() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -59,5 +61,51 @@ impl<T, E> Invert<Result<E, T>> for Result<T, E> {
             Ok(ok) => Err(ok),
             Err(err) => Ok(err),
         }
+    }
+}
+
+pub trait RequireMetadata<E> {
+    fn require_name_or(&self, error: E) -> Result<&str, E>;
+    fn require_namespace_or(&self, error: E) -> Result<&str, E>;
+    fn require_name_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E>;
+    fn require_namespace_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E>;
+
+}
+
+impl<T: Resource, E> RequireMetadata<E> for T {
+    fn require_name_or(&self, error: E) -> Result<&str, E> {
+        Ok(self
+            .meta()
+            .name
+            .as_ref()
+            .ok_or(error)?
+            .as_str())
+    }
+
+    fn require_namespace_or(&self, error: E) -> Result<&str, E> {
+        Ok(self
+            .meta()
+            .namespace
+            .as_ref()
+            .ok_or(error)?
+            .as_str())
+    }
+
+    fn require_name_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E> {
+        Ok(self
+            .meta()
+            .name
+            .as_ref()
+            .ok_or_else(error)?
+            .as_str())
+    }
+
+    fn require_namespace_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E> {
+        Ok(self
+            .meta()
+            .namespace
+            .as_ref()
+            .ok_or_else(error)?
+            .as_str())
     }
 }

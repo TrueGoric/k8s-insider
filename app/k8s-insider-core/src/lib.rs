@@ -10,4 +10,5 @@ pub mod wireguard;
 pub const RESOURCE_GROUP: &str = "k8s-insider.dev";
 
 pub const CONTROLLER_CLUSTERROLE_NAME: &str = "k8s-insider-controller";
+pub const NETWORK_MANAGER_CLUSTERROLE_NAME: &str = "k8s-insider-network-manager";
 pub const ROUTER_CLUSTERROLE_NAME: &str = "k8s-insider-router";

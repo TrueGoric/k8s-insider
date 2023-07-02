@@ -24,6 +24,10 @@ impl ControllerRelease {
                 self.controller_image_name.to_string(),
             ),
             (
+                "KUBE_INSIDER_NETWORK_MANAGER_IMAGE_NAME".to_owned(),
+                self.network_manager_image_name.to_string(),
+            ),
+            (
                 "KUBE_INSIDER_ROUTER_IMAGE_NAME".to_owned(),
                 self.router_image_name.to_string(),
             ),
@@ -40,6 +44,7 @@ impl ControllerRelease {
         ConfigMap {
             metadata: self.generate_default_metadata(),
             data: Some(configmap_data),
+            immutable: Some(true),
             ..Default::default()
         }
     }

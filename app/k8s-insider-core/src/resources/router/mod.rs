@@ -1,21 +1,22 @@
 use std::net::IpAddr;
 
 use derive_builder::Builder;
+use ipnet::IpNet;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
-use kube::core::ObjectMeta;
+use kube::{core::ObjectMeta, Resource};
 use thiserror::Error;
 use wireguard_control::{InvalidKey, Key};
 
 use crate::{
     helpers::AndIfSome,
-    ip::{addrpair::IpAddrPair, netpair::IpNetPair, Contains},
+    ip::{addrpair::IpAddrPair, netpair::IpNetPair, Contains, schema::IpNetFit},
     wireguard::keys::{Keys, WgKey},
 };
 
 use super::{
     controller::ControllerRelease,
     crd::v1alpha1::network::{Network, NetworkService},
-    labels::get_router_labels,
+    labels::{get_router_labels, get_network_manager_labels},
     ResourceGenerationError,
 };
 
@@ -26,16 +27,20 @@ pub mod service;
 
 #[derive(Debug, Builder)]
 pub struct RouterRelease {
+    pub controller_namespace: String,
+
     pub name: String,
     pub namespace: String,
+
     pub kube_dns: Option<IpAddrPair>,
     pub service_domain: Option<String>,
     pub service_cidr: IpNetPair,
     pub pod_cidr: IpNetPair,
-    pub agent_image_name: String,
-    pub tunnel_image_name: String,
+    pub controller_image_name: String,
+    pub network_manager_image_name: String,
+    pub router_image_name: String,
 
-    pub server_keys: Option<Keys>,
+    pub server_keys: Keys,
     pub peer_cidr: IpNetPair,
     pub router_ip: IpAddrPair,
     pub service: Option<RouterReleaseService>,
@@ -71,12 +76,14 @@ pub enum RouterReleaseValidationError {
 
 impl RouterReleaseBuilder {
     pub fn with_controller(&mut self, controller_release: &ControllerRelease) -> &mut Self {
-        self.kube_dns(controller_release.kube_dns)
+        self.controller_namespace(controller_release.namespace.to_owned())
+            .kube_dns(controller_release.kube_dns)
             .service_domain(controller_release.service_domain.to_owned())
             .service_cidr(controller_release.service_cidr)
             .pod_cidr(controller_release.pod_cidr)
-            .agent_image_name(controller_release.controller_image_name.to_owned())
-            .tunnel_image_name(controller_release.router_image_name.to_owned())
+            .controller_image_name(controller_release.controller_image_name.to_owned())
+            .network_manager_image_name(controller_release.network_manager_image_name.to_owned())
+            .router_image_name(controller_release.router_image_name.to_owned())
     }
 
     pub fn with_network_crd(
@@ -94,6 +101,9 @@ impl RouterReleaseBuilder {
             })?;
 
         Ok(self
+            .owner(crd.controller_owner_ref(&()).ok_or(
+                ResourceGenerationError::DependentInvalidData("Network owner_ref".into()),
+            )?)
             .name(
                 crd.metadata
                     .name
@@ -118,14 +128,8 @@ impl RouterReleaseBuilder {
             )
             .and_if_some(
                 || server_public_key,
-                |builder, server_public_key| {
-                    builder.server_keys(Some(Keys::Public(server_public_key)))
-                },
+                |builder, server_public_key| builder.server_keys(Keys::Public(server_public_key)),
             ))
-    }
-
-    pub fn without_server_keys(&mut self) -> &mut Self {
-        self.server_keys(None)
     }
 }
 
@@ -135,30 +139,63 @@ impl RouterRelease {
             return Err(RouterReleaseValidationError::RouterIpOutOfBounds);
         }
 
-        if self.server_keys.is_none() {
-            return Err(RouterReleaseValidationError::MissingKeys);
-        }
-
         Ok(self)
     }
 
-    pub fn get_name(&self) -> String {
+    pub fn get_router_name(&self) -> String {
         format!("k8s-insider-router-{}", self.name)
+    }
+
+    pub fn get_network_manager_name(&self) -> String {
+        format!("k8s-insider-network-manager-{}", self.name)
     }
 
     pub fn get_namespace(&self) -> String {
         self.namespace.to_owned()
     }
 
+    pub fn get_controller_namespace(&self) -> String {
+        self.controller_namespace.to_owned()
+    }
+
+    pub fn get_allowed_cidrs(&self) -> Vec<IpNet> {
+        self.pod_cidr
+            .iter()
+            .chain(self.service_cidr.iter())
+            .chain(self.peer_cidr.iter())
+            .collect()
+    }
+
+    pub fn get_allowed_fitcidrs(&self) -> Vec<IpNetFit> {
+        self.pod_cidr
+            .iter()
+            .chain(self.service_cidr.iter())
+            .chain(self.peer_cidr.iter())
+            .map(|net| net.into())
+            .collect()
+    }
+
+
     pub fn generate_router_metadata(&self) -> ObjectMeta {
         ObjectMeta {
-            labels: Some(get_router_labels()),
+            labels: Some(get_router_labels(&self.name)),
             namespace: Some(self.get_namespace()),
-            name: Some(self.get_name()),
+            name: Some(self.get_router_name()),
             owner_references: Some(vec![self.owner.to_owned()]),
             ..Default::default()
         }
     }
+
+    pub fn generate_network_manager_metadata(&self) -> ObjectMeta {
+        ObjectMeta {
+            labels: Some(get_network_manager_labels(&self.name)),
+            namespace: Some(self.get_controller_namespace()),
+            name: Some(self.get_network_manager_name()),
+            owner_references: Some(vec![self.owner.to_owned()]),
+            ..Default::default()
+        }
+    }
+
 }
 
 impl From<NetworkService> for RouterReleaseService {

@@ -2,15 +2,22 @@ use k8s_openapi::{
     api::{
         apps::v1::{Deployment, DeploymentSpec},
         core::v1::{
-            Capabilities, Container, ContainerPort, EnvFromSource, PodSpec, PodTemplateSpec,
-            Secret, SecretEnvSource, SecurityContext, ServiceAccount,
+            Capabilities, ConfigMapEnvSource, Container, ContainerPort, EnvFromSource, PodSpec,
+            PodTemplateSpec, Secret, SecretEnvSource, SecurityContext, ServiceAccount, EnvVar,
         },
     },
     apimachinery::pkg::apis::meta::v1::LabelSelector,
 };
 use kube::core::ObjectMeta;
 
-use crate::resources::{labels::get_router_labels, ResourceGenerationError};
+use crate::{
+    helpers::RequireMetadata,
+    resources::{
+        controller::CONTROLLER_RELEASE_NAME,
+        labels::{get_network_manager_labels, get_router_labels},
+        ResourceGenerationError,
+    },
+};
 
 use super::RouterRelease;
 
@@ -19,12 +26,12 @@ pub const EXPOSED_PORT_NAME: &str = "vpn";
 pub const EXPOSED_PORT_PROTOCOL: &str = "UDP";
 
 impl RouterRelease {
-    pub fn generate_deployment(
+    pub fn generate_router_deployment(
         &self,
         secret: &Secret,
         service_account: &ServiceAccount,
     ) -> Result<Deployment, ResourceGenerationError> {
-        let labels = get_router_labels();
+        let labels = get_router_labels(&self.name);
         let metadata = self.generate_router_metadata();
         let metadata_name = metadata
             .name
@@ -32,16 +39,10 @@ impl RouterRelease {
             .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
         let secret_name = secret
-            .metadata
-            .name
-            .as_ref()
-            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .require_name_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
         let service_account_name = service_account
-            .metadata
-            .name
-            .as_ref()
-            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .require_name_or(ResourceGenerationError::DependentMissingMetadataName)?
             .to_owned();
 
         let pod_spec = PodSpec {
@@ -55,8 +56,8 @@ impl RouterRelease {
                     }),
                     ..Default::default()
                 }]),
-                image: Some(self.tunnel_image_name.to_owned()),
-                image_pull_policy: Some("Always".to_owned()),
+                image: Some(self.router_image_name.to_owned()),
+                image_pull_policy: Some("IfNotPresent".to_owned()),
                 name: metadata_name,
                 ports: Some(vec![ContainerPort {
                     name: Some(EXPOSED_PORT_NAME.to_owned()),
@@ -94,6 +95,71 @@ impl RouterRelease {
                         ..Default::default()
                     }),
                     spec: Some(pod_spec),
+                },
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
+    }
+
+    pub fn generate_network_manager_deployment(
+        &self,
+        service_account: &ServiceAccount,
+    ) -> Result<Deployment, ResourceGenerationError> {
+        let labels = get_network_manager_labels(&self.name);
+        let metadata = self.generate_network_manager_metadata();
+        let metadata_name = metadata
+            .name
+            .as_ref()
+            .ok_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+        let service_account_name = service_account
+            .require_name_or(ResourceGenerationError::DependentMissingMetadataName)?
+            .to_owned();
+
+        Ok(Deployment {
+            metadata,
+            spec: Some(DeploymentSpec {
+                replicas: Some(1),
+                selector: LabelSelector {
+                    match_expressions: None,
+                    match_labels: Some(labels.to_owned()),
+                },
+                template: PodTemplateSpec {
+                    metadata: Some(ObjectMeta {
+                        labels: Some(labels),
+                        ..Default::default()
+                    }),
+                    spec: Some(PodSpec {
+                        // affinity: todo!(), // this should probably be introduced at some point
+                        automount_service_account_token: Some(true),
+                        containers: vec![Container {
+                            env_from: Some(vec![EnvFromSource {
+                                config_map_ref: Some(ConfigMapEnvSource {
+                                    name: Some(CONTROLLER_RELEASE_NAME.to_owned()),
+                                    optional: Some(false),
+                                }),
+                                ..Default::default()
+                            }]),
+                            env: Some(vec![EnvVar {
+                                name: "KUBE_INSIDER_NETWORK_NAME".to_owned(),
+                                value: Some(self.name.to_owned()),
+                                ..Default::default()
+                            },
+                            EnvVar {
+                                name: "KUBE_INSIDER_NETWORK_NAMESPACE".to_owned(),
+                                value: Some(self.namespace.to_owned()),
+                                ..Default::default()
+                            }]),
+                            image: Some(self.network_manager_image_name.to_owned()),
+                            image_pull_policy: Some("IfNotPresent".to_owned()),
+                            name: metadata_name,
+                            // resources: todo!(), // this too
+                            ..Default::default()
+                        }],
+                        service_account_name: Some(service_account_name),
+                        ..Default::default()
+                    }),
                 },
                 ..Default::default()
             }),

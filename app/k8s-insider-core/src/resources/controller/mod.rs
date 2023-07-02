@@ -10,6 +10,8 @@ pub mod configmap;
 pub mod deployment;
 pub mod rbac;
 
+pub const CONTROLLER_RELEASE_NAME: &str = "k8s-insider-controller";
+
 #[derive(Debug, Clone)]
 pub struct ControllerRelease {
     pub namespace: String,
@@ -18,6 +20,7 @@ pub struct ControllerRelease {
     pub service_cidr: IpNetPair,
     pub pod_cidr: IpNetPair,
     pub controller_image_name: String,
+    pub network_manager_image_name: String,
     pub router_image_name: String,
 }
 
@@ -50,12 +53,14 @@ impl ControllerRelease {
                 .map_err(FromEnvError::IpNetParse)?,
             controller_image_name: var("KUBE_INSIDER_CONTROLLER_IMAGE_NAME")
                 .map_err(FromEnvError::Var)?,
+            network_manager_image_name: var("KUBE_INSIDER_NETWORK_MANAGER_IMAGE_NAME")
+                .map_err(FromEnvError::Var)?,
             router_image_name: var("KUBE_INSIDER_ROUTER_IMAGE_NAME").map_err(FromEnvError::Var)?,
         })
     }
 
     pub fn generate_default_metadata(&self) -> ObjectMeta {
-        self.generate_metadata("k8s-insider-controller")
+        self.generate_metadata(CONTROLLER_RELEASE_NAME)
     }
 
     pub fn generate_metadata(&self, name: &str) -> ObjectMeta {
@@ -68,7 +73,7 @@ impl ControllerRelease {
     }
 
     pub fn generate_clusterwide_default_metadata(&self) -> ObjectMeta {
-        self.generate_clusterwide_metadata("k8s-insider-controller")
+        self.generate_clusterwide_metadata(CONTROLLER_RELEASE_NAME)
     }
 
     pub fn generate_clusterwide_metadata(&self, name: &str) -> ObjectMeta {

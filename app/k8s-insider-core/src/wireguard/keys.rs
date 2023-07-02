@@ -1,6 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut}, fmt::Display,
 };
 
 pub use wireguard_control::{InvalidKey, Key, KeyPair};
@@ -55,6 +55,12 @@ impl TryFrom<Vec<u8>> for WgKey {
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         Ok(Key(value.try_into().map_err(|_| InvalidWgKey)?).into())
+    }
+}
+
+impl Display for WgKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.to_base64().as_str())
     }
 }
 

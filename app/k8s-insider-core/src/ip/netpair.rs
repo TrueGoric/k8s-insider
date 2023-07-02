@@ -15,6 +15,10 @@ pub enum IpNetPair {
 }
 
 impl IpNetPair {
+    pub fn iter<'a>(&'a self) -> IpNetPairIter<'_> {
+        IpNetPairIter::<'a>::new(self)
+    }
+
     pub fn try_get_ipv4(&self) -> Option<Ipv4Net> {
         match self {
             IpNetPair::Ipv4 { netv4 } => Some(*netv4),
@@ -80,7 +84,6 @@ impl Default for IpNetPair {
         Self::Ipv4 { netv4: Ipv4Net::default() }
     }
 }
-
 
 impl Display for IpNetPair {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -160,6 +163,41 @@ impl From<IpNetPair> for Vec<String> {
             IpNetPair::Ipv4 { netv4 } => vec![netv4.to_string()],
             IpNetPair::Ipv6 { netv6 } => vec![netv6.to_string()],
             IpNetPair::Ipv4v6 { netv4, netv6 } => vec![netv4.to_string(), netv6.to_string()],
+        }
+    }
+}
+
+pub struct IpNetPairIter<'a> {
+    pub pair: &'a IpNetPair,
+    first_served: bool,
+}
+
+impl<'a> IpNetPairIter<'a> {
+    pub fn new(pair: &'a IpNetPair) -> Self {
+        Self {
+            pair, first_served: false
+        }
+    }
+}
+
+impl<'a> Iterator for IpNetPairIter<'a> {
+    type Item = IpNet;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.first_served {
+            true => match self.pair {
+                IpNetPair::Ipv4v6 { netv6, ..} => Some(IpNet::V6(*netv6)),
+                _ => None
+            },
+            false => {
+                self.first_served = true;
+
+                match self.pair {
+                    IpNetPair::Ipv4 { netv4 } => Some(IpNet::V4(*netv4)),
+                    IpNetPair::Ipv6 { netv6 } => Some(IpNet::V6(*netv6)),
+                    IpNetPair::Ipv4v6 { netv4, ..} => Some(IpNet::V4(*netv4)),
+                }
+            },
         }
     }
 }
