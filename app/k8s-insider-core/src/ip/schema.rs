@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 // ugh
 #[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(untagged)]
 pub enum IpNetFit {
     V4 { ipv4: Ipv4Net },
     V6 { ipv6: Ipv6Net },

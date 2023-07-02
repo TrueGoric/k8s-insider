@@ -82,36 +82,26 @@ spec:
               allowedIps:
                 description: routable ip ranges for this tunnel
                 items:
-                  oneOf:
+                  anyOf:
                   - required:
-                    - V4
+                    - ipv4
                   - required:
-                    - V6
+                    - ipv6
                   properties:
-                    V4:
-                      properties:
-                        ipv4:
-                          description: An IPv4 address with prefix length
-                          example: 0.0.0.0/0
-                          maxLength: 18
-                          pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
-                          title: IPv4 network
-                          type: string
-                      required:
-                      - ipv4
-                      type: object
-                    V6:
-                      properties:
-                        ipv6:
-                          description: An IPv6 address with prefix length
-                          example: ::/0
-                          maxLength: 43
-                          pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
-                          title: IPv6 network
-                          type: string
-                      required:
-                      - ipv6
-                      type: object
+                    ipv4:
+                      description: An IPv4 address with prefix length
+                      example: 0.0.0.0/0
+                      maxLength: 18
+                      pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
+                      title: IPv4 network
+                      type: string
+                    ipv6:
+                      description: An IPv6 address with prefix length
+                      example: ::/0
+                      maxLength: 43
+                      pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
+                      title: IPv6 network
+                      type: string
                   type: object
                 nullable: true
                 type: array
