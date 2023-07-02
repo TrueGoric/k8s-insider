@@ -1,11 +1,14 @@
 use std::{error::Error, process::exit};
 
-use controller::main_controller;
 use kube::Client;
-use log::{info, error, LevelFilter};
+use log::{error, info, LevelFilter};
+
+use crate::{controller::main_controller, network_manager::main_network_manager};
 
 mod controller;
+mod error;
 mod helpers;
+mod network_manager;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -25,6 +28,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         "controller" => {
             info!("Starting agent in controller mode...");
             main_controller(client).await
+        }
+        "network-manager" => {
+            info!("Starting agent in network-manager mode...");
+            main_network_manager(client).await
         }
         "router" => {
             info!("Starting agent in router mode...");
@@ -56,6 +63,9 @@ fn configure_logger() {
         .default_format()
         .format_module_path(false)
         .filter_level(LevelFilter::Info)
-        .filter(Some("k8s_insider_core::kubernetes::operations"), LevelFilter::Warn)
+        .filter(
+            Some("k8s_insider_core::kubernetes::operations"),
+            LevelFilter::Warn,
+        )
         .init()
 }
