@@ -7,8 +7,9 @@ pub const DEFAULT_NAMESPACE: &str = "kube-insider";
 
 pub const DEFAULT_PEER_CIDR: &str = "10.11.11.0/24";
 
-pub const DEFAULT_ROUTER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-router:latest";
 pub const DEFAULT_CONTROLLER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-controller:latest";
+pub const DEFAULT_NETWORK_MANAGER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-network-manager:latest";
+pub const DEFAULT_ROUTER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-router:latest";
 
 pub const DEFAULT_NETWORK_NAME: &str = "default";
 
@@ -112,6 +113,9 @@ pub struct InstallArgs {
     /// Substitutes the k8s-insider-controller container image if specified
     #[arg(long, default_value = DEFAULT_CONTROLLER_IMAGE)]
     pub controller_image: String,
+    /// Substitutes the k8s-insider-controller container image if specified
+    #[arg(long, default_value = DEFAULT_NETWORK_MANAGER_IMAGE)]
+    pub network_manager_image: String,
     /// Substitutes the k8s-insider-router container image if specified
     #[arg(long, default_value = DEFAULT_ROUTER_IMAGE)]
     pub router_image: String,
