@@ -207,6 +207,8 @@ impl ControllerRelease {
                 "get".to_owned(),
                 "watch".to_owned(),
                 "list".to_owned(),
+                "update".to_owned(),
+                "patch".to_owned(),
                 "delete".to_owned(),
             ],
             ..Default::default()
