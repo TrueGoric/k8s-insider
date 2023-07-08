@@ -42,7 +42,7 @@ pub async fn reconcile_tunnel(
     finalizer(&tunnel_api, &finalizer_name, object, |event| async move {
         match event {
             FinalizerEvent::Apply(tunnel) => reconcile(tunnel, context).await,
-            FinalizerEvent::Cleanup(_) => todo!(),
+            FinalizerEvent::Cleanup(tunnel) => cleanup(tunnel, context).await,
         }
     })
     .await
@@ -79,6 +79,19 @@ async fn reconcile(
     .map_err(ReconcilerError::KubeApiError)?;
 
     Ok(Action::requeue(Duration::from_secs(RECONCILE_REQUEUE_SECS)))
+}
+
+async fn cleanup(
+    object: Arc<Tunnel>,
+    context: Arc<ReconcilerContext>,
+) -> Result<Action, ReconcilerError> {
+    let public_key = WgKey::from_base64(&object.spec.peer_public_key)
+        .map_err(|_| ReconcilerError::InvalidObjectData("peer_public_key".into()))?;
+    
+    try_remove_address_by_key(public_key, &context).await;
+
+
+    Ok(Action::await_change())
 }
 
 async fn try_get_connection(
@@ -139,8 +152,8 @@ async fn try_get_or_allocate_address(
     key: WgKey,
     context: &ReconcilerContext,
 ) -> Result<Option<IpAddrPair>, ReconcilerError> {
-    Ok(match context.allocations_ipv4.as_ref() {
-        Some(allocations) => Some(IpAddrPair::Ipv4 {
+    Ok(match context.allocations_ipv4 {
+        Some(ref allocations) => Some(IpAddrPair::Ipv4 {
             ipv4: allocations
                 .get_or_allocate(&key)
                 .await
@@ -155,8 +168,8 @@ async fn try_get_or_insert_address(
     ip: IpAddrPair,
     context: &ReconcilerContext,
 ) -> Result<Option<IpAddrPair>, ReconcilerError> {
-    Ok(match context.allocations_ipv4.as_ref() {
-        Some(allocations) => match ip.try_get_ipv4() {
+    Ok(match context.allocations_ipv4 {
+        Some(ref allocations) => match ip.try_get_ipv4() {
             Some(ipv4) => Some(IpAddrPair::Ipv4 {
                 ipv4: allocations
                     .get_or_insert(&key, || ipv4)
@@ -167,4 +180,13 @@ async fn try_get_or_insert_address(
         },
         _ => None,
     })
+}
+
+async fn try_remove_address_by_key(
+    key: WgKey,
+    context: &ReconcilerContext,
+) {
+    if let Some(ref allocator_ipv4) = context.allocations_ipv4 {
+        allocator_ipv4.try_remove(&key).await;
+    } 
 }

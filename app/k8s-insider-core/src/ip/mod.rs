@@ -1,10 +1,11 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-use ipnet::{Ipv4AddrRange, Ipv4Net, Ipv6AddrRange, Ipv6Net};
+use ipnet::{Ipv4Net, Ipv6Net};
 use thiserror::Error;
 
 pub mod addrpair;
 pub mod netpair;
+pub mod range;
 pub mod schema;
 
 #[derive(Debug, Error)]
@@ -30,27 +31,5 @@ impl Contains<Ipv4Addr> for Ipv4Net {
 impl Contains<Ipv6Addr> for Ipv6Net {
     fn contains(&self, other: &Ipv6Addr) -> bool {
         self.contains(other)
-    }
-}
-
-pub trait Range<T> {
-    type RangeIterator: Iterator<Item = T>;
-
-    fn range(&self) -> Self::RangeIterator;
-}
-
-impl Range<Ipv4Addr> for Ipv4Net {
-    type RangeIterator = Ipv4AddrRange;
-
-    fn range(&self) -> Self::RangeIterator {
-        self.hosts()
-    }
-}
-
-impl Range<Ipv6Addr> for Ipv6Net {
-    type RangeIterator = Ipv6AddrRange;
-
-    fn range(&self) -> Self::RangeIterator {
-        self.hosts()
     }
 }

@@ -13,6 +13,20 @@ pub fn pretty_type_name<'a, T>() -> &'a str {
     type_name::<T>().split("::").last().unwrap()
 }
 
+pub trait With<F> {
+    fn with(self, op: F) -> Self;
+}
+
+impl<T, F> With<F> for T
+where
+    F: FnOnce(&mut Self) {
+    fn with(mut self, op: F) -> Self {
+        op(&mut self);
+
+        self
+    }
+}
+
 pub trait AndIf<F> {
     fn and_if(self, condition: bool, then: F) -> Self;
 }

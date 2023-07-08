@@ -9,7 +9,7 @@ use k8s_openapi::{
     ClusterResourceScope, NamespaceResourceScope,
 };
 use kube::{
-    api::{DeleteParams, ListParams, Patch, PatchParams},
+    api::{DeleteParams, ListParams, Patch, PatchParams, PostParams},
     config::{KubeConfigOptions, Kubeconfig},
     core::{object::HasStatus, ObjectMeta},
     runtime::watcher::{self, watch_object},
@@ -149,6 +149,36 @@ pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + Debug>(
             Ok(true)
         }
     }
+}
+
+pub async fn create_resource<T>(
+    client: &Client,
+    resource: &T,
+    create_params: &PostParams,
+) -> Result<(), kube::Error>
+where
+    T: Resource<Scope = NamespaceResourceScope> + Serialize + Clone + DeserializeOwned + Debug,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_type_name = pretty_type_name::<T>();
+    let resource_name = resource.meta().name.as_ref().unwrap();
+
+    info!("Creating '{resource_name}' {resource_type_name} resource on the cluster...",);
+
+    debug!(
+        "{}",
+        serde_json::to_string_pretty(&resource)
+            .unwrap_or(format!("Couldn't serialize '{resource_name}'"))
+    );
+
+    let namespace = resource.meta().namespace.as_ref().unwrap();
+    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+
+    resource_api
+        .create(create_params, resource)
+        .await?;
+
+    Ok(())
 }
 
 pub async fn apply_resource<T>(

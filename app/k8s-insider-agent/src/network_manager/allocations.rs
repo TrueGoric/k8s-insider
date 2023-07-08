@@ -1,17 +1,18 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
+    fmt::Display,
     net::{Ipv4Addr, Ipv6Addr},
     ops::{Deref, DerefMut},
-    process::exit, fmt::Display,
+    process::exit,
 };
 
-use ipnet::{Ipv4Net, Ipv6Net};
+use ipnet::{IpAdd, Ipv4Net, Ipv6Net};
 use k8s_insider_core::{
-    helpers::Invert,
-    ip::{Contains, Range},
+    ip::{range::UniqueRandomWrappingHostsIpIterator, Contains},
     kubernetes::operations::{list_resources, try_remove_resource},
     resources::{crd::v1alpha1::tunnel::Tunnel, router::RouterRelease},
     wireguard::keys::WgKey,
+    AsPrimitive, FromPrimitive, Unsigned,
 };
 use kube::{
     api::{DeleteParams, ListParams},
@@ -21,32 +22,41 @@ use log::{error, info, warn};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
-pub type Ipv4Allocations = Allocations<Ipv4Addr, Ipv4Net>;
+pub type Ipv4Allocations = Allocations<Ipv4Addr, Ipv4Net, u32>;
 
 #[derive(Debug)]
-pub struct Allocations<IP, IPNet> {
+pub struct Allocations<IP, IPNet, IPSize> {
     range: IPNet,
     allocations: HashMap<WgKey, IP>,
-    /// a _sorted_ list of allocated IP addresses
-    reserved: Vec<IP>,
+    reserved: BTreeSet<IP>,
+    subnet_iterator: UniqueRandomWrappingHostsIpIterator<IP, IPSize>,
 }
 
-impl<IP, IPNet> Allocations<IP, IPNet>
+impl<IP, IPNet, IPSize> Allocations<IP, IPNet, IPSize>
 where
-    IP: Copy + Clone + Ord + Display,
-    IPNet: Contains<IP> + Range<IP>,
+    IP: Copy + Clone + Ord + Display + IpAdd<IPSize, Output = IP> + PartialEq<IP>,
+    IPNet: Contains<IP>,
+    IPSize: Unsigned + FromPrimitive + AsPrimitive<u128>,
 {
-    pub fn new(range: IPNet) -> Self {
+    pub fn new(
+        range: IPNet,
+        subnet_iterator: UniqueRandomWrappingHostsIpIterator<IP, IPSize>,
+    ) -> Self {
         Self {
             range,
             allocations: HashMap::new(),
-            reserved: Vec::new(),
+            reserved: BTreeSet::new(),
+            subnet_iterator,
         }
     }
 
     pub fn try_insert(&mut self, key: WgKey, ip: IP) -> Result<IP, AllocationsError<IP>> {
         if self.allocations.contains_key(&key) {
             return Err(AllocationsError::WgKeyConflict(key));
+        }
+
+        if self.reserved.contains(&ip) {
+            return Err(AllocationsError::IpConflict(ip));
         }
 
         if !self.is_in_range(&ip) {
@@ -57,13 +67,9 @@ where
             panic!("Allocation insert returned a value that wasn't supposed to be there!");
         }
 
-        self.reserved.insert(
-            self.reserved
-                .binary_search(&ip)
-                .invert()
-                .map_err(|_| AllocationsError::IpConflict(ip))?,
-            ip,
-        );
+        if !self.reserved.insert(ip) {
+            panic!("Reserved insertion reports an IP that shouldn't be there!");
+        }
 
         info!("Allocated {ip} address!");
 
@@ -75,35 +81,38 @@ where
             return Err(AllocationsError::WgKeyConflict(key));
         }
 
-        let (ip, index) =
-            self.try_get_next_allocatable_ip_internal()
-                .ok_or(AllocationsError::RangeExhausted)?;
+        let mut allocated = false;
+        let mut ip = self.subnet_iterator.get();
+
+        for _ in 1..self.subnet_iterator.address_count() {
+            if self.reserved.insert(ip) {
+                allocated = true;
+                break;
+            }
+
+            ip = self.subnet_iterator.get();
+        }
+
+        if !allocated {
+            return Err(AllocationsError::RangeExhausted);
+        }
 
         if self.allocations.insert(key, ip).is_some() {
             panic!("Allocation insert returned a value that wasn't supposed to be there!");
         }
-
-        self.reserved.insert(index, ip);
 
         info!("Allocated {ip} address!");
 
         Ok(ip)
     }
 
-    pub fn try_get_next_allocatable_ip(&self) -> Option<IP> {
-        let mut reserved_iter = self.reserved.iter();
+    pub fn try_remove(&mut self, key: &WgKey) -> Option<IP> {
+        if let Some(ip) = self.allocations.remove(key) {
+            self.reserved.remove(&ip);
 
-        // might get slow on restart for large networks, if that happens
-        // this naive approach could get swapped for something more applicable
-        // after profiling
-        for avaliable_ip in self.range.range() {
-            if let Some(reserved_ip) = reserved_iter.next() {
-                if &avaliable_ip == reserved_ip {
-                    continue;
-                }
-            }
+            info!("Deallocated {ip} address!");
 
-            return Some(avaliable_ip);
+            return Some(ip);
         }
 
         None
@@ -112,15 +121,7 @@ where
     pub fn is_in_range(&self, ip: &IP) -> bool {
         self.range.contains(ip)
     }
-
-    fn try_get_next_allocatable_ip_internal(&self) -> Option<(IP, usize)> {
-        let ip = self.try_get_next_allocatable_ip()?;
-        let position = self.reserved.binary_search(&ip).unwrap_err();
-
-        Some((ip, position))
-    }
 }
-
 
 #[derive(Debug, Error)]
 pub enum AllocationsError<IP: Display> {
@@ -134,15 +135,16 @@ pub enum AllocationsError<IP: Display> {
     IpOutOfRange(IP),
 }
 
-pub type Ipv4AllocationsSync = AllocationsSync<Ipv4Addr, Ipv4Net>;
-pub type Ipv6AllocationsSync = AllocationsSync<Ipv6Addr, Ipv6Net>;
+pub type Ipv4AllocationsSync = AllocationsSync<Ipv4Addr, Ipv4Net, u32>;
+pub type Ipv6AllocationsSync = AllocationsSync<Ipv6Addr, Ipv6Net, u128>;
 
-pub struct AllocationsSync<IP, IPNet>(RwLock<Allocations<IP, IPNet>>);
+pub struct AllocationsSync<IP, IPNet, IPSize>(RwLock<Allocations<IP, IPNet, IPSize>>);
 
-impl<IP, IPNet> AllocationsSync<IP, IPNet>
+impl<IP, IPNet, IPSize> AllocationsSync<IP, IPNet, IPSize>
 where
-    IP: Copy + Clone + Ord + Display,
-    IPNet: Contains<IP> + Range<IP>,
+    IP: Copy + Clone + Ord + Display + IpAdd<IPSize, Output = IP> + PartialEq<IP>,
+    IPNet: Contains<IP>,
+    IPSize: Unsigned + FromPrimitive + AsPrimitive<u128>,
 {
     pub async fn get_or_allocate(&self, key: &WgKey) -> Result<IP, AllocationsError<IP>> {
         {
@@ -154,7 +156,7 @@ where
         }
 
         let mut guard = self.write().await;
-        
+
         if let Some(ip) = guard.allocations.get(key) {
             return Ok(*ip);
         }
@@ -162,8 +164,11 @@ where
         guard.try_allocate(key.to_owned())
     }
 
-    pub async fn get_or_insert<F: FnOnce() -> IP>(&self, key: &WgKey, ip_getter: F) -> Result<IP, AllocationsError<IP>>
-    {
+    pub async fn get_or_insert<F: FnOnce() -> IP>(
+        &self,
+        key: &WgKey,
+        ip_getter: F,
+    ) -> Result<IP, AllocationsError<IP>> {
         {
             let read_guard = self.read().await;
 
@@ -173,31 +178,37 @@ where
         }
 
         let mut guard = self.write().await;
-        
+
         if let Some(ip) = guard.allocations.get(key) {
             return Ok(*ip);
         }
 
         guard.try_insert(key.to_owned(), ip_getter())
     }
+
+    pub async fn try_remove(&self, key: &WgKey) -> Option<IP> {
+        self.write().await.try_remove(key)
+    }
 }
 
-impl<IP, IPNet> Deref for AllocationsSync<IP, IPNet> {
-    type Target = RwLock<Allocations<IP, IPNet>>;
+impl<IP, IPNet, IPSize> Deref for AllocationsSync<IP, IPNet, IPSize> {
+    type Target = RwLock<Allocations<IP, IPNet, IPSize>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<IP, IPNet> DerefMut for AllocationsSync<IP, IPNet> {
+impl<IP, IPNet, IPSize> DerefMut for AllocationsSync<IP, IPNet, IPSize> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<IP, IPNet> From<Allocations<IP, IPNet>> for AllocationsSync<IP, IPNet> {
-    fn from(value: Allocations<IP, IPNet>) -> Self {
+impl<IP, IPNet, IPSize> From<Allocations<IP, IPNet, IPSize>>
+    for AllocationsSync<IP, IPNet, IPSize>
+{
+    fn from(value: Allocations<IP, IPNet, IPSize>) -> Self {
         Self(RwLock::new(value))
     }
 }
@@ -209,14 +220,15 @@ pub async fn sync_allocations(
     info!("Synchronizing address allocations...");
 
     let tunnels = list_resources(client, &router_release.namespace, &ListParams::default()).await?;
-    
-    let (allocations_ipv4, conflicting_tunnels) = match init_ipv4_allocations(router_release, tunnels.iter()) {
-        Some(result) => result,
-        None => {
-            error!("No IPv4 peer CIDR or router IP defined by the network! Can't continue!");
-            exit(100);
-        }
-    };
+
+    let (allocations_ipv4, conflicting_tunnels) =
+        match init_ipv4_allocations(router_release, tunnels.iter()) {
+            Some(result) => result,
+            None => {
+                error!("No IPv4 peer CIDR or router IP defined by the network! Can't continue!");
+                exit(100);
+            }
+        };
 
     let delete_params = DeleteParams::background();
     for tunnel in conflicting_tunnels {
@@ -229,7 +241,10 @@ pub async fn sync_allocations(
             None => continue,
         };
 
-        warn!("Removing '{tunnel_name}' due to conflicting IP address ({:?})! Someone was naughty!", tunnel.status.as_ref().and_then(|s| s.address));
+        warn!(
+            "Removing '{tunnel_name}' due to conflicting IP address ({:?})! Someone was naughty!",
+            tunnel.status.as_ref().and_then(|s| s.address)
+        );
 
         try_remove_resource::<Tunnel>(client, tunnel_name, tunnel_namespace, &delete_params)
             .await?;
@@ -243,10 +258,17 @@ pub fn init_ipv4_allocations<'a>(
     release: &RouterRelease,
     existing_tunnels: impl IntoIterator<Item = &'a Tunnel>,
 ) -> Option<(Ipv4Allocations, Vec<&'a Tunnel>)> {
-    let mut allocations = Ipv4Allocations::new(release.peer_cidr.try_get_ipv4()?);
+    let peer_cidr = release.peer_cidr.try_get_ipv4()?;
+    let iterator = UniqueRandomWrappingHostsIpIterator::new(peer_cidr);
+    let mut allocations = Ipv4Allocations::new(peer_cidr, iterator);
     let mut troublemakers = Vec::new();
 
-    allocations.try_insert(release.server_keys.get_public_key().to_owned(), release.router_ip.try_get_ipv4()?).unwrap();
+    allocations
+        .try_insert(
+            release.server_keys.get_public_key().to_owned(),
+            release.router_ip.try_get_ipv4()?,
+        )
+        .unwrap();
 
     // fill only the already allocated ips, the rest
     // will be handled by the controller

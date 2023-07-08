@@ -14,6 +14,22 @@ impl WgKey {
     pub fn from_base64(key: &str) -> Result<Self, InvalidWgKey> {
         Ok(WgKey(Key::from_base64(key).map_err(|_| InvalidWgKey)?))
     }
+
+    pub fn generate_private_key() -> Self {
+        WgKey(Key::generate_private())
+    }
+
+    pub fn generate_preshared_key() -> Self {
+        WgKey(Key::generate_preshared())
+    }
+
+    pub fn get_public(&self) -> Self {
+        WgKey(self.deref().get_public())
+    }
+    
+    pub fn to_dnssec_base32(&self) -> String {
+        data_encoding::BASE32_DNSSEC.encode(&self.0.0)
+    }
 }
 
 impl Deref for WgKey {
@@ -80,7 +96,7 @@ impl Keys {
     }
 
     pub fn from_private_key(key: WgKey) -> Self {
-        Self::Pair { public: key.get_public().into(), private: key }
+        Self::Pair { public: key.get_public(), private: key }
     }
 
     pub fn from_public_key(key: WgKey) -> Self {

@@ -7,6 +7,8 @@ pub mod resources;
 pub mod tunnel_info;
 pub mod wireguard;
 
+pub use num_traits::{AsPrimitive, FromPrimitive, Unsigned};
+
 pub const RESOURCE_GROUP: &str = "k8s-insider.dev";
 
 pub const CONTROLLER_CLUSTERROLE_NAME: &str = "k8s-insider-controller";
