@@ -24,6 +24,14 @@ impl ControllerRelease {
     }
 
     pub fn generate_controller_clusterrole(&self) -> ClusterRole {
+        // RATIONALE: read nodes to generate NodePort service addresses
+        let read_nodes = PolicyRule {
+            api_groups: Some(vec!["".to_owned()]),
+            resources: Some(vec!["nodes".to_owned()]),
+            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
+            ..Default::default()
+        };
+
         // RATIONALE: bind 'k8s-insider-router' and 'k8s-insider-network-manager' roles
         //            to routers and network-managers to allow them to manage VPN-network-specific resources
         let bind_router_cluster_role = PolicyRule {
@@ -131,6 +139,7 @@ impl ControllerRelease {
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(CONTROLLER_CLUSTERROLE_NAME),
             rules: Some(vec![
+                read_nodes,
                 bind_router_cluster_role,
                 create_list_serviceaccounts,
                 create_list_rolebindings,
@@ -183,14 +192,6 @@ impl ControllerRelease {
     }
 
     pub fn generate_network_manager_clusterrole(&self) -> ClusterRole {
-        // RATIONALE: read nodes to generate NodePort service addresses
-        let read_nodes = PolicyRule {
-            api_groups: Some(vec!["".to_owned()]),
-            resources: Some(vec!["nodes".to_owned()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
-            ..Default::default()
-        };
-
         // RATIONALE: read network to acquire information about the current network to manage
         let read_network = PolicyRule {
             api_groups: Some(vec![Network::group(&()).into()]),
@@ -233,7 +234,6 @@ impl ControllerRelease {
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(NETWORK_MANAGER_CLUSTERROLE_NAME),
             rules: Some(vec![
-                read_nodes,
                 read_network,
                 manage_tunnels,
                 update_tunnel_statuses,
