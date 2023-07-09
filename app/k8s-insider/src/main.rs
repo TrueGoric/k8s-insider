@@ -1,10 +1,14 @@
+use std::path::Path;
+
 use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel};
 use commands::{
-    create_network::create_network, delete_network::delete_network, install::install,
-    list_networks::list_networks, uninstall::uninstall,
+    create_network::create_network, create_tunnel::create_tunnel, delete_network::delete_network,
+    delete_tunnel::delete_tunnel, install::install, list_networks::list_networks,
+    uninstall::uninstall,
 };
+use config::InsiderConfig;
 use env_logger::Target;
 use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
@@ -13,6 +17,7 @@ use crate::cli::Cli;
 
 mod cli;
 mod commands;
+mod config;
 mod operations;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
@@ -26,6 +31,11 @@ async fn main() -> anyhow::Result<()> {
     let client = create_local_client(&cli.global_args.kube_config, &cli.global_args.kube_context)
         .await
         .context("Couldn't initialize k8s API client!")?;
+    let config = match cli.global_args.config {
+        Some(ref path) => InsiderConfig::load_or_create(Path::new(path)),
+        None => InsiderConfig::load_or_create_from_default(),
+    }
+    .context("Couldn't load k8s-insider configuration file!")?;
 
     if let Some(command) = cli.command {
         match command {
@@ -35,13 +45,17 @@ async fn main() -> anyhow::Result<()> {
                 CreateSubcommands::Network(args) => {
                     create_network(cli.global_args, args, client).await?
                 }
-                CreateSubcommands::Tunnel => todo!(),
+                CreateSubcommands::Tunnel(args) => {
+                    create_tunnel(cli.global_args, args, client, config).await?
+                }
             },
             Commands::Delete(delete_sub) => match delete_sub.subcommand {
                 DeleteSubcommands::Network(args) => {
                     delete_network(cli.global_args, args, client).await?
                 }
-                DeleteSubcommands::Tunnel => todo!(),
+                DeleteSubcommands::Tunnel(args) => {
+                    delete_tunnel(cli.global_args, args, client, config).await?
+                }
             },
             Commands::List(list_sub) => match list_sub.subcommand {
                 ListSubcommands::Network => list_networks(cli.global_args, client).await?,

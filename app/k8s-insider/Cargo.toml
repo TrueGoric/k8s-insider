@@ -15,9 +15,13 @@ serde_yaml = "0.9.21"
 anyhow = { workspace = true }
 clap = { version = "4.3.2", features = ["derive"] }
 env_logger = { workspace = true }
+home = "0.5.5"
 ipnet = { workspace = true }
 k8s-insider-core = { path = "../k8s-insider-core" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 log = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
