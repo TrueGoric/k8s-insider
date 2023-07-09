@@ -15,7 +15,7 @@ use tokio::join;
 
 use crate::network_manager::{allocations::sync_allocations, tunnel::start_tunnel_controller};
 
-use self::{allocations::Ipv4AllocationsSync, reconciler::context::ReconcilerContext};
+use self::reconciler::context::ReconcilerContext;
 
 pub mod allocations;
 pub mod reconciler;
@@ -38,28 +38,17 @@ pub async fn main_network_manager(client: Client) {
             exit(8)
         });
 
-    let reconciler_context =
-        get_reconciler_context(client, controller_release, router_release, network_crd, allocations_ipv4);
+    let reconciler_context = ReconcilerContext {
+        controller_release,
+        router_release,
+        owner: network_crd,
+        client,
+        allocations_ipv4,
+    };
 
     let tunnel_controller = start_tunnel_controller(reconciler_context.into());
 
     join!(tunnel_controller);
-}
-
-fn get_reconciler_context(
-    client: Client,
-    controller_release: ControllerRelease,
-    router_release: RouterRelease,
-    owner: Network,
-    allocations_ipv4: Option<Ipv4AllocationsSync>,
-) -> ReconcilerContext {
-    ReconcilerContext {
-        controller_release,
-        router_release,
-        owner,
-        client,
-        allocations_ipv4,
-    }
 }
 
 fn get_controller_release() -> ControllerRelease {
@@ -120,6 +109,7 @@ fn get_router_release(controller_release: &ControllerRelease, network: &Network)
             error!("Couldn't construct router release info! {err:?}");
             exit(22)
         })
+        
         .validated()
         .unwrap_or_else(|err| {
             error!("Couldn't validate router release info! {err:?}");

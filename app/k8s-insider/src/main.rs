@@ -18,7 +18,6 @@ use crate::cli::Cli;
 mod cli;
 mod commands;
 mod config;
-mod operations;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
 

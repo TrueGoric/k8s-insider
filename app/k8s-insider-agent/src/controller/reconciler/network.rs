@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use k8s_insider_core::{
     helpers::RequireMetadata,
-    kubernetes::operations::{apply_resource, apply_resource_status, try_get_resource},
+    kubernetes::{operations::{apply_resource, apply_resource_status, try_get_resource}, service::get_service_accessible_addresses},
     resources::{
         crd::v1alpha1::network::{Network, NetworkState, NetworkStatus},
         router::{
@@ -12,7 +12,7 @@ use k8s_insider_core::{
     },
     wireguard::keys::Keys,
 };
-use k8s_openapi::api::core::v1::Secret;
+use k8s_openapi::api::core::v1::{Secret, Service};
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
 
 use crate::controller::CONTROLLER_FIELD_MANAGER;
@@ -78,12 +78,16 @@ async fn try_reconcile(
 
     apply_release(context, &release).await?;
 
+    let service_meta = release.generate_service_metadata();
+    let service = try_get_resource::<Service>(&context.client, service_meta.name.as_ref().unwrap(), service_meta.namespace.as_ref().unwrap()).await.map_err(ReconcilerError::KubeApiError)?;
+    let nodes = context.nodes.state();
+    let node_slice = nodes.iter().map(|node| node.as_ref()).collect::<Vec<_>>();
+
     let status = NetworkStatus {
         state: NetworkState::Deployed,
         allowed_ips: Some(release.get_allowed_fitcidrs()),
         dns: release.kube_dns,
-        endpoint: None,
-        endpoint_port: None,
+        endpoints: get_service_accessible_addresses(service.as_ref(), &node_slice).await,
         server_public_key: Some(release.server_keys.get_public_key().to_base64()),
     };
 

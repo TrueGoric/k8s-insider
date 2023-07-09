@@ -1,28 +1,31 @@
-use std::{process::exit, sync::Arc};
+use std::process::exit;
 
 use k8s_insider_core::resources::controller::ControllerRelease;
 use kube::Client;
+use tokio::join;
 
 use crate::controller::reconciler::context::ReconcilerContext;
 
-use self::network::start_network_controller;
+use self::{network::start_network_controller, node::start_node_reflector};
 
 pub mod network;
+pub mod node;
 pub mod reconciler;
 
 pub const CONTROLLER_FIELD_MANAGER: &str = "k8s-insider-controller";
 
 pub async fn main_controller(client: Client) {
-    let reconciler_context = Arc::new(get_reconciler_context(client));
+    let (reflector, nodes, ping) = start_node_reflector(&client).await;
 
-    start_network_controller(&reconciler_context).await;
-}
-
-fn get_reconciler_context(client: Client) -> ReconcilerContext {
-    ReconcilerContext {
+    let reconciler_context = ReconcilerContext {
         release: get_controller_release(),
         client,
-    }
+        nodes,
+    };
+
+    let controller = start_network_controller(reconciler_context.into(), ping);
+
+    join!(reflector, controller);
 }
 
 fn get_controller_release() -> ControllerRelease {

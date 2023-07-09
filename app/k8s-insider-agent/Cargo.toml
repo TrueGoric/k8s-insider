@@ -15,4 +15,5 @@ k8s-openapi = { workspace = true }
 kube = { workspace = true, features = ["runtime"] }
 log = { workspace = true }
 thiserror = "1.0.40"
-tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+tokio-stream = { workspace = true }

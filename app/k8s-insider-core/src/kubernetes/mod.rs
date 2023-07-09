@@ -2,6 +2,7 @@ use k8s_openapi::NamespaceResourceScope;
 use kube::{core::object::HasStatus, Api, Client, Resource};
 
 pub mod operations;
+pub mod service;
 
 pub trait FromStatus<S> {
     fn from_status(status: S) -> Self;

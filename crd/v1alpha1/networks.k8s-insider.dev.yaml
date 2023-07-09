@@ -212,7 +212,7 @@ spec:
                     format: ipv6
                     type: string
                 type: object
-              endpoint:
+              endpoints:
                 description: publicly available address
                 items:
                   type: string

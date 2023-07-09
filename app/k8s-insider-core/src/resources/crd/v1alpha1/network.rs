@@ -59,7 +59,7 @@ pub struct NetworkStatus {
     /// dns address
     pub dns: Option<IpAddrPair>,
     /// publicly available address
-    pub endpoint: Option<Vec<SocketAddr>>,
+    pub endpoints: Option<Vec<SocketAddr>>,
     /// routable ip ranges for this tunnel
     pub allowed_ips: Option<Vec<IpNetFit>>,
 }

@@ -19,6 +19,10 @@ use super::{RouterRelease, RouterReleaseService};
 const PORT_NUMBER: i32 = 31313;
 
 impl RouterRelease {
+    pub fn generate_service_metadata(&self) -> ObjectMeta {
+        self.generate_router_metadata()
+    }
+    
     pub fn generate_service(&self, deployment: &Deployment) -> Option<Service> {
         let service = self.service.as_ref()?;
         let port_name = extract_port_name(deployment);
@@ -70,7 +74,7 @@ impl RouterRelease {
 
         let metadata = ObjectMeta {
             annotations,
-            ..self.generate_router_metadata()
+            ..self.generate_service_metadata()
         };
 
         Some(Service {

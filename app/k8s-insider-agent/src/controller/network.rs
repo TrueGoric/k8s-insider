@@ -9,6 +9,8 @@ use k8s_openapi::api::{
 };
 use kube::runtime::{watcher::Config, Controller};
 use log::info;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::{
     controller::reconciler::network::{reconcile_network, reconcile_network_error},
@@ -17,22 +19,41 @@ use crate::{
 
 use super::reconciler::context::ReconcilerContext;
 
-pub async fn start_network_controller(context: &Arc<ReconcilerContext>) {
+pub async fn start_network_controller(
+    context: Arc<ReconcilerContext>,
+    ping: UnboundedReceiver<()>,
+) {
     info!("Creating network controller...");
 
     let watcher_config = Config::default();
-    let controller = Controller::new(context.client.global_api::<Network>(), watcher_config.clone())
-        .owns(context.client.global_api::<Secret>(), watcher_config.clone())
-        .owns(context.client.global_api::<Deployment>(), watcher_config.clone())
-        .owns(context.client.global_api::<Service>(), watcher_config.clone())
-        .owns(context.client.global_api::<RoleBinding>(), watcher_config.clone())
-        .owns(
-            context.client.global_api::<ServiceAccount>(),
-            watcher_config.clone(),
-        )
-        .shutdown_on_signal()
-        .run(reconcile_network, reconcile_network_error, context.clone())
-        .for_each(handle_reconciliation_result::<_, _>);
+    let controller = Controller::new(
+        context.client.global_api::<Network>(),
+        watcher_config.clone(),
+    )
+    .owns(
+        context.client.global_api::<Secret>(),
+        watcher_config.clone(),
+    )
+    .owns(
+        context.client.global_api::<Deployment>(),
+        watcher_config.clone(),
+    )
+    .owns(
+        context.client.global_api::<Service>(),
+        watcher_config.clone(),
+    )
+    .owns(
+        context.client.global_api::<RoleBinding>(),
+        watcher_config.clone(),
+    )
+    .owns(
+        context.client.global_api::<ServiceAccount>(),
+        watcher_config.clone(),
+    )
+    .shutdown_on_signal()
+    .reconcile_all_on(UnboundedReceiverStream::new(ping))
+    .run(reconcile_network, reconcile_network_error, context.clone())
+    .for_each(handle_reconciliation_result::<_, _>);
 
     info!("Network controller created!");
 
