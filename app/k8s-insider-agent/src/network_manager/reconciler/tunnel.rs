@@ -109,8 +109,8 @@ async fn reconcile(
     object: &Tunnel,
     context: &ReconcilerContext,
 ) -> Result<Action, ReconcilerError> {
-    let connection = try_get_connection(object, context).await?;
-    let status: TunnelStatus = try_prepare_status(object, connection, context).await?;
+    let connection = get_connection(object, context).await?;
+    let status: TunnelStatus = prepare_status(object, connection, context).await?;
 
     apply_resource_status::<Tunnel, TunnelStatus>(
         &context.client,
@@ -129,12 +129,12 @@ async fn cleanup(object: &Tunnel, context: &ReconcilerContext) -> Result<Action,
     let public_key = WgKey::from_base64(&object.spec.peer_public_key)
         .map_err(|_| ReconcilerError::InvalidObjectData("peer_public_key".into()))?;
 
-    try_remove_address_by_key(public_key, context).await;
+    remove_address_by_key(public_key, context).await;
 
     Ok(Action::await_change())
 }
 
-async fn try_get_connection(
+async fn get_connection(
     object: &Tunnel,
     context: &ReconcilerContext,
 ) -> Result<Option<Connection>, ReconcilerError> {
@@ -147,7 +147,7 @@ async fn try_get_connection(
     .map_err(ReconcilerError::KubeApiError)
 }
 
-async fn try_prepare_status(
+async fn prepare_status(
     object: &Tunnel,
     connection: Option<Connection>,
     context: &ReconcilerContext,
@@ -158,25 +158,14 @@ async fn try_prepare_status(
         Some(status) => status.clone(),
         None => TunnelStatus {
             address: None,
-            allowed_ips: Some(context.router_release.get_allowed_fitcidrs()),
-            dns: context.router_release.kube_dns,
-            endpoint: None,
-            endpoint_port: None,
-            server_public_key: Some(
-                context
-                    .router_release
-                    .server_keys
-                    .get_public_key()
-                    .to_base64(),
-            ),
             state: Default::default(),
         },
     };
 
     if status.address.is_none() {
         status.address = match object.spec.static_ip {
-            Some(ip) => try_get_or_insert_address(public_key, ip, context).await?,
-            None => try_get_or_allocate_address(public_key, context).await?,
+            Some(ip) => get_or_insert_address(public_key, ip, context).await?,
+            None => get_or_allocate_address(public_key, context).await?,
         };
     }
 
@@ -188,7 +177,7 @@ async fn try_prepare_status(
     Ok(status)
 }
 
-async fn try_get_or_allocate_address(
+async fn get_or_allocate_address(
     key: WgKey,
     context: &ReconcilerContext,
 ) -> Result<Option<IpAddrPair>, ReconcilerError> {
@@ -203,7 +192,7 @@ async fn try_get_or_allocate_address(
     })
 }
 
-async fn try_get_or_insert_address(
+async fn get_or_insert_address(
     key: WgKey,
     ip: IpAddrPair,
     context: &ReconcilerContext,
@@ -222,7 +211,7 @@ async fn try_get_or_insert_address(
     })
 }
 
-async fn try_remove_address_by_key(key: WgKey, context: &ReconcilerContext) {
+async fn remove_address_by_key(key: WgKey, context: &ReconcilerContext) {
     if let Some(ref allocator_ipv4) = context.allocations_ipv4 {
         allocator_ipv4.try_remove(&key).await;
     }

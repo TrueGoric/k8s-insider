@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::ip::{addrpair::IpAddrPair, schema::IpNetFit};
+use crate::ip::addrpair::IpAddrPair;
 
 #[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Clone, Default, Debug, JsonSchema)]
@@ -36,18 +36,8 @@ pub struct TunnelSpec {
 #[serde(rename_all = "camelCase")]
 pub struct TunnelStatus {
     pub state: TunnelState,
-    /// server public key
-    pub server_public_key: Option<String>,
     /// dynamically assigned peer address
     pub address: Option<IpAddrPair>,
-    /// dns address
-    pub dns: Option<IpAddrPair>,
-    /// publicly available address
-    pub endpoint: Option<String>,
-    /// publicly available address
-    pub endpoint_port: Option<u32>,
-    /// routable ip ranges for this tunnel
-    pub allowed_ips: Option<Vec<IpNetFit>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
@@ -61,5 +51,5 @@ pub enum TunnelState {
     ErrorIpAlreadyInUse,
     ErrorIpOutOfRange,
     ErrorPublicKeyConflict,
-    ErrorIpRangeExhausted
+    ErrorIpRangeExhausted,
 }

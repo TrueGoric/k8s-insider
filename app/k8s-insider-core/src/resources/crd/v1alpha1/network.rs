@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
-use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair};
+use crate::ip::{addrpair::IpAddrPair, netpair::IpNetPair, schema::IpNetFit};
 
 #[skip_serializing_none]
 #[derive(CustomResource, Deserialize, Serialize, Default, Clone, Debug, JsonSchema)]
@@ -33,18 +33,14 @@ pub struct NetworkSpec {
 #[serde(rename_all = "camelCase")]
 pub enum NetworkService {
     #[serde(rename_all = "camelCase")]
-    ClusterIp {
-        ip: Option<IpAddrPair>
-    },
+    ClusterIp { ip: Option<IpAddrPair> },
     #[serde(rename_all = "camelCase")]
     NodePort {
         cluster_ip: Option<IpAddrPair>,
         predefined_ips: Option<Vec<IpAddr>>,
     },
     #[serde(rename_all = "camelCase")]
-    LoadBalancer {
-        cluster_ip: Option<IpAddrPair>
-    },
+    LoadBalancer { cluster_ip: Option<IpAddrPair> },
     #[serde(rename_all = "camelCase")]
     ExternalIp {
         cluster_ip: Option<IpAddrPair>,
@@ -60,6 +56,14 @@ pub struct NetworkStatus {
     pub state: NetworkState,
     /// server public key
     pub server_public_key: Option<String>,
+    /// dns address
+    pub dns: Option<IpAddrPair>,
+    /// publicly available address
+    pub endpoint: Option<String>,
+    /// publicly available address
+    pub endpoint_port: Option<u32>,
+    /// routable ip ranges for this tunnel
+    pub allowed_ips: Option<Vec<IpNetFit>>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]

@@ -34,15 +34,20 @@ pub async fn reconcile_network(
         Ok(_) => Ok(Action::requeue(Duration::from_secs(SUCCESS_REQUEUE_SECS))),
         Err(error) => {
             let state = get_error_state(&error);
+            let status = NetworkStatus {
+                state,
+                ..Default::default()
+            };
 
-            let _ = apply_status(
-                &context,
+            apply_resource_status::<Network, NetworkStatus>(
+                &context.client,
+                status,
                 object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
                 object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
-                state,
-                None,
+                &PatchParams::apply(CONTROLLER_FIELD_MANAGER),
             )
-            .await;
+            .await
+            .map_err(ReconcilerError::KubeApiError)?;
 
             Err(error)
         }
@@ -72,14 +77,25 @@ async fn try_reconcile(
         .map_err(ReconcilerError::RouterReleaseResourceValidationError)?;
 
     apply_release(context, &release).await?;
-    apply_status(
-        context,
+
+    let status = NetworkStatus {
+        state: NetworkState::Deployed,
+        allowed_ips: Some(release.get_allowed_fitcidrs()),
+        dns: release.kube_dns,
+        endpoint: None,
+        endpoint_port: None,
+        server_public_key: Some(release.server_keys.get_public_key().to_base64()),
+    };
+
+    apply_resource_status::<Network, NetworkStatus>(
+        &context.client,
+        status,
         object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
         object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
-        NetworkState::Deployed,
-        Some(release.server_keys.get_public_key().to_base64()),
+        &PatchParams::apply(CONTROLLER_FIELD_MANAGER),
     )
-    .await?;
+    .await
+    .map_err(ReconcilerError::KubeApiError)?;
 
     Ok(())
 }
@@ -203,31 +219,6 @@ async fn apply_network_manager(
     apply_resource(&context.client, &deployment, patch_params)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
-
-    Ok(())
-}
-
-async fn apply_status(
-    context: &ReconcilerContext,
-    name: &str,
-    namespace: &str,
-    state: NetworkState,
-    server_public_key: Option<String>,
-) -> Result<(), ReconcilerError> {
-    let status = NetworkStatus {
-        state,
-        server_public_key,
-    };
-
-    apply_resource_status::<Network, NetworkStatus>(
-        &context.client,
-        status,
-        name,
-        namespace,
-        &PatchParams::apply(CONTROLLER_FIELD_MANAGER),
-    )
-    .await
-    .map_err(ReconcilerError::KubeApiError)?;
 
     Ok(())
 }

@@ -167,6 +167,61 @@ spec:
           status:
             nullable: true
             properties:
+              allowedIps:
+                description: routable ip ranges for this tunnel
+                items:
+                  anyOf:
+                  - required:
+                    - ipv4
+                  - required:
+                    - ipv6
+                  properties:
+                    ipv4:
+                      description: An IPv4 address with prefix length
+                      example: 0.0.0.0/0
+                      maxLength: 18
+                      pattern: ^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/(?:3[0-2]|[1-2][0-9]|[0-9])$
+                      title: IPv4 network
+                      type: string
+                    ipv6:
+                      description: An IPv6 address with prefix length
+                      example: ::/0
+                      maxLength: 43
+                      pattern: ^[0-9A-Fa-f:\.]+\/(?:[0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])$
+                      title: IPv6 network
+                      type: string
+                  type: object
+                nullable: true
+                type: array
+              dns:
+                anyOf:
+                - required:
+                  - ipv4
+                - required:
+                  - ipv6
+                - required:
+                  - ipv4
+                  - ipv6
+                description: dns address
+                nullable: true
+                properties:
+                  ipv4:
+                    format: ipv4
+                    type: string
+                  ipv6:
+                    format: ipv6
+                    type: string
+                type: object
+              endpoint:
+                description: publicly available address
+                nullable: true
+                type: string
+              endpointPort:
+                description: publicly available address
+                format: uint32
+                minimum: 0.0
+                nullable: true
+                type: integer
               serverPublicKey:
                 description: server public key
                 nullable: true
