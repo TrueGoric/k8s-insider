@@ -8,6 +8,7 @@ use crate::{controller::main_controller, network_manager::main_network_manager};
 mod controller;
 mod helpers;
 mod network_manager;
+mod release;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {
