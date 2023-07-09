@@ -22,9 +22,9 @@ use kube::{
     CustomResourceExt,
 };
 
-use crate::{error::ReconcilerError, network_manager::NETWORK_MANAGER_FIELD_MANAGER};
+use crate::network_manager::{allocations::AllocationsError, NETWORK_MANAGER_FIELD_MANAGER};
 
-use super::context::ReconcilerContext;
+use super::{context::ReconcilerContext, error::ReconcilerError};
 
 const RECONCILE_REQUEUE_SECS: u64 = 60 * 5;
 const USER_ERROR_REQUEUE_SECS: u64 = 60 * 5;
@@ -39,10 +39,10 @@ pub async fn reconcile_tunnel(
         .namespaced_api(&context.router_release.namespace);
     let finalizer_name = format!("{}/cleanup", Tunnel::crd_name());
 
-    finalizer(&tunnel_api, &finalizer_name, object, |event| async move {
+    finalizer(&tunnel_api, &finalizer_name, object, |event| async {
         match event {
-            FinalizerEvent::Apply(tunnel) => reconcile(tunnel, context).await,
-            FinalizerEvent::Cleanup(tunnel) => cleanup(tunnel, context).await,
+            FinalizerEvent::Apply(tunnel) => try_reconcile(&tunnel, &context).await,
+            FinalizerEvent::Cleanup(tunnel) => cleanup(&tunnel, &context).await,
         }
     })
     .await
@@ -54,19 +54,63 @@ pub fn reconcile_tunnel_error(
     _context: Arc<ReconcilerContext>,
 ) -> Action {
     Action::requeue(match error {
-        FinalizerError::ApplyFailed(ReconcilerError::Ipv4AllocationError(_)) => {
-            Duration::from_secs(USER_ERROR_REQUEUE_SECS)
-        }
+        FinalizerError::ApplyFailed(ReconcilerError::Ipv4AllocationError(err)) => match err {
+            AllocationsError::WgKeyConflict(_) => Duration::from_secs(USER_ERROR_REQUEUE_SECS),
+            AllocationsError::IpConflict(_) => Duration::from_secs(USER_ERROR_REQUEUE_SECS),
+            AllocationsError::RangeExhausted => Duration::from_secs(ERROR_REQUEUE_SECS),
+            AllocationsError::IpOutOfRange(_) => Duration::from_secs(USER_ERROR_REQUEUE_SECS),
+        },
         _ => Duration::from_secs(ERROR_REQUEUE_SECS),
     })
 }
 
-async fn reconcile(
-    object: Arc<Tunnel>,
-    context: Arc<ReconcilerContext>,
+async fn try_reconcile(
+    object: &Tunnel,
+    context: &ReconcilerContext,
 ) -> Result<Action, ReconcilerError> {
-    let connection = try_get_connection(&object, &context).await?;
-    let status: TunnelStatus = try_prepare_status(&object, connection, &context).await?;
+    let reconcile_result = reconcile(object, context).await;
+
+    match reconcile_result {
+        Ok(action) => Ok(action),
+        Err(error) => {
+            let state = get_error_state(&error);
+            let status = TunnelStatus {
+                state,
+                ..Default::default()
+            };
+
+            let _ = apply_resource_status::<Tunnel, TunnelStatus>(
+                &context.client,
+                status,
+                object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
+                object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
+                &PatchParams::apply(NETWORK_MANAGER_FIELD_MANAGER),
+            )
+            .await;
+
+            Err(error)
+        }
+    }
+}
+
+fn get_error_state(error: &ReconcilerError) -> TunnelState {
+    match error {
+        ReconcilerError::Ipv4AllocationError(err) => match err {
+            AllocationsError::WgKeyConflict(_) => TunnelState::ErrorPublicKeyConflict,
+            AllocationsError::IpConflict(_) => TunnelState::ErrorIpAlreadyInUse,
+            AllocationsError::IpOutOfRange(_) => TunnelState::ErrorIpOutOfRange,
+            AllocationsError::RangeExhausted => TunnelState::ErrorIpRangeExhausted,
+        },
+        _ => TunnelState::ErrorCreatingTunnel,
+    }
+}
+
+async fn reconcile(
+    object: &Tunnel,
+    context: &ReconcilerContext,
+) -> Result<Action, ReconcilerError> {
+    let connection = try_get_connection(object, context).await?;
+    let status: TunnelStatus = try_prepare_status(object, connection, context).await?;
 
     apply_resource_status::<Tunnel, TunnelStatus>(
         &context.client,
@@ -81,15 +125,11 @@ async fn reconcile(
     Ok(Action::requeue(Duration::from_secs(RECONCILE_REQUEUE_SECS)))
 }
 
-async fn cleanup(
-    object: Arc<Tunnel>,
-    context: Arc<ReconcilerContext>,
-) -> Result<Action, ReconcilerError> {
+async fn cleanup(object: &Tunnel, context: &ReconcilerContext) -> Result<Action, ReconcilerError> {
     let public_key = WgKey::from_base64(&object.spec.peer_public_key)
         .map_err(|_| ReconcilerError::InvalidObjectData("peer_public_key".into()))?;
-    
-    try_remove_address_by_key(public_key, &context).await;
 
+    try_remove_address_by_key(public_key, context).await;
 
     Ok(Action::await_change())
 }
@@ -182,11 +222,8 @@ async fn try_get_or_insert_address(
     })
 }
 
-async fn try_remove_address_by_key(
-    key: WgKey,
-    context: &ReconcilerContext,
-) {
+async fn try_remove_address_by_key(key: WgKey, context: &ReconcilerContext) {
     if let Some(ref allocator_ipv4) = context.allocations_ipv4 {
         allocator_ipv4.try_remove(&key).await;
-    } 
+    }
 }

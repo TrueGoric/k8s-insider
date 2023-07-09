@@ -6,7 +6,6 @@ use log::{error, info, LevelFilter};
 use crate::{controller::main_controller, network_manager::main_network_manager};
 
 mod controller;
-mod error;
 mod helpers;
 mod network_manager;
 

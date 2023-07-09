@@ -1,9 +1,7 @@
-use std::{borrow::Cow, net::Ipv4Addr};
+use std::borrow::Cow;
 
 use k8s_insider_core::resources::{router::{RouterReleaseBuilderError, RouterReleaseValidationError}, ResourceGenerationError};
 use thiserror::Error;
-
-use crate::network_manager::allocations::AllocationsError;
 
 #[derive(Debug, Error)]
 pub enum ReconcilerError {
@@ -23,7 +21,4 @@ pub enum ReconcilerError {
     RouterReleaseResourceGenerationError(ResourceGenerationError),
     #[error("The release resource is invalid! Details: {}", .0)]
     RouterReleaseResourceValidationError(RouterReleaseValidationError),
-    #[error("Couldn't allocate Ipv4! Details: {}", .0)]
-    Ipv4AllocationError(AllocationsError<Ipv4Addr>)
-
 }

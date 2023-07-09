@@ -57,8 +57,9 @@ pub enum TunnelState {
     Configured,
     Connected,
     Closed,
-    ErrorUnknownNetwork,
     ErrorCreatingTunnel,
     ErrorIpAlreadyInUse,
     ErrorIpOutOfRange,
+    ErrorPublicKeyConflict,
+    ErrorIpRangeExhausted
 }

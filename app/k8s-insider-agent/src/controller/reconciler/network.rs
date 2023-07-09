@@ -15,9 +15,9 @@ use k8s_insider_core::{
 use k8s_openapi::api::core::v1::Secret;
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
 
-use crate::{controller::CONTROLLER_FIELD_MANAGER, error::ReconcilerError};
+use crate::controller::CONTROLLER_FIELD_MANAGER;
 
-use super::context::ReconcilerContext;
+use super::{context::ReconcilerContext, error::ReconcilerError};
 
 const SUCCESS_REQUEUE_SECS: u64 = 60 * 5;
 

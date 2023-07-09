@@ -144,10 +144,11 @@ spec:
                 - Configured
                 - Connected
                 - Closed
-                - ErrorUnknownNetwork
                 - ErrorCreatingTunnel
                 - ErrorIpAlreadyInUse
                 - ErrorIpOutOfRange
+                - ErrorPublicKeyConflict
+                - ErrorIpRangeExhausted
                 type: string
             required:
             - state
