@@ -214,14 +214,10 @@ spec:
                 type: object
               endpoint:
                 description: publicly available address
+                items:
+                  type: string
                 nullable: true
-                type: string
-              endpointPort:
-                description: publicly available address
-                format: uint32
-                minimum: 0.0
-                nullable: true
-                type: integer
+                type: array
               serverPublicKey:
                 description: server public key
                 nullable: true

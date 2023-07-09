@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use kube::CustomResource;
 use schemars::JsonSchema;
@@ -59,9 +59,7 @@ pub struct NetworkStatus {
     /// dns address
     pub dns: Option<IpAddrPair>,
     /// publicly available address
-    pub endpoint: Option<String>,
-    /// publicly available address
-    pub endpoint_port: Option<u32>,
+    pub endpoint: Option<Vec<SocketAddr>>,
     /// routable ip ranges for this tunnel
     pub allowed_ips: Option<Vec<IpNetFit>>,
 }
