@@ -20,3 +20,4 @@ serde_yaml = "0.9.21"
 thiserror = "1.0.40"
 tokio = { version = "1.28.2", features = ["macros", "io-util"] }
 tokio-stream = { version = "0.1.14" }
+wireguard-control = { git = "https://github.com/tonarino/innernet.git", tag = "v1.6.0", version = "1.6.0" }
