@@ -49,6 +49,16 @@ impl RouterRelease {
             // affinity: todo!(), // this should probably be introduced at some point
             automount_service_account_token: Some(true),
             containers: vec![Container {
+                env: Some(vec![EnvVar {
+                    name: "KUBE_INSIDER_NETWORK_NAME".to_owned(),
+                    value: Some(self.name.to_owned()),
+                    ..Default::default()
+                },
+                EnvVar {
+                    name: "KUBE_INSIDER_NETWORK_NAMESPACE".to_owned(),
+                    value: Some(self.namespace.to_owned()),
+                    ..Default::default()
+                }]),
                 env_from: Some(vec![EnvFromSource {
                     secret_ref: Some(SecretEnvSource {
                         name: Some(secret_name),

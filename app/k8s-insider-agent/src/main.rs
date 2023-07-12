@@ -3,12 +3,17 @@ use std::{error::Error, process::exit};
 use kube::Client;
 use log::{error, info, LevelFilter};
 
-use crate::{controller::main_controller, network_manager::main_network_manager};
+use crate::{
+    controller::main_controller,
+    network_manager::main_network_manager,
+    router::{main_router, main_router_config_gen},
+};
 
 mod controller;
 mod helpers;
 mod network_manager;
 mod release;
+mod router;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -19,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mode = match args.get(1) {
         Some(val) => val.as_str(),
         None => {
-            error!("Missing deployment mode (should be controller or router)!");
+            error!("Missing deployment mode!");
             exit(1)
         }
     };
@@ -27,23 +32,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match mode {
         "controller" => {
             info!("Starting agent in controller mode...");
-            main_controller(client).await
+            main_controller(client).await;
+            info!("Exiting...");
         }
         "network-manager" => {
             info!("Starting agent in network-manager mode...");
-            main_network_manager(client).await
+            main_network_manager(client).await;
+            info!("Exiting...");
         }
         "router" => {
             info!("Starting agent in router mode...");
-            todo!()
+            main_router(client).await;
+            info!("Exiting...");
+        }
+        "router-config-gen" => {
+            info!("Generating router WireGuard configuration...");
+            main_router_config_gen(client).await
         }
         _ => {
             error!("Unsupported deployment mode!");
             exit(1)
         }
     };
-
-    info!("Exiting...");
 
     Ok(())
 }
