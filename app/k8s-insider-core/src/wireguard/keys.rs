@@ -5,6 +5,7 @@ use std::{
 
 pub use wireguard_control::{InvalidKey, Key, KeyPair};
 
+#[derive(Debug)]
 pub struct InvalidWgKey;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +56,12 @@ impl Hash for WgKey {
 impl From<Key> for WgKey {
     fn from(value: Key) -> Self {
         Self(value)
+    }
+}
+
+impl From<WgKey> for Key {
+    fn from(value: WgKey) -> Self {
+        value.0
     }
 }
 
@@ -115,5 +122,19 @@ impl Keys {
             Self::Pair { public, .. } => public,
             Self::Public(public) => public,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WgKey;
+
+    #[test]
+    fn base_preserves_key() {
+        let key = WgKey::generate_private_key();
+        let based = key.to_base64();
+        let unbased = WgKey::from_base64(&based).unwrap();
+
+        assert_eq!(key, unbased);
     }
 }
