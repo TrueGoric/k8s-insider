@@ -9,14 +9,23 @@ use wireguard_control::{InvalidKey, Key};
 
 use crate::{
     helpers::AndIfSome,
-    ip::{addrpair::IpAddrPair, netpair::IpNetPair, Contains, schema::IpNetFit},
+    ip::{
+        addrpair::{DualStackTryGet, IpAddrPair},
+        netpair::IpNetPair,
+        schema::IpNetFit,
+        Contains,
+    },
+    resources::router::deployment::EXPOSED_PORT,
     wireguard::keys::{Keys, WgKey},
 };
+
+use self::secret::SERVER_PRIVATE_KEY_SECRET;
 
 use super::{
     controller::ControllerRelease,
     crd::v1alpha1::network::{Network, NetworkService},
-    labels::{get_router_labels, get_network_manager_labels},
+    labels::{get_network_manager_labels, get_router_labels},
+    meta::NetworkMeta,
     ResourceGenerationError,
 };
 
@@ -43,13 +52,26 @@ pub struct RouterRelease {
     pub server_keys: Keys,
     pub peer_cidr: IpNetPair,
     pub router_ip: IpAddrPair,
-    pub service: Option<RouterReleaseService>,
+    pub service: Option<RouterService>,
+
+    pub owner: OwnerReference,
+}
+
+#[derive(Debug, Builder)]
+pub struct RouterInfo {
+    pub name: String,
+    pub namespace: String,
+
+    pub server_keys: Keys,
+    pub peer_cidr: IpNetPair,
+    pub router_ip: IpAddrPair,
+    pub service: Option<RouterService>,
 
     pub owner: OwnerReference,
 }
 
 #[derive(Debug, Clone)]
-pub enum RouterReleaseService {
+pub enum RouterService {
     ClusterIp {
         ip: Option<IpAddrPair>,
     },
@@ -86,6 +108,18 @@ impl RouterReleaseBuilder {
             .router_image_name(controller_release.router_image_name.to_owned())
     }
 
+    pub fn with_router_info(&mut self, router_info: RouterInfo) -> &mut Self {
+        self.name(router_info.name)
+            .namespace(router_info.namespace)
+            .server_keys(router_info.server_keys)
+            .peer_cidr(router_info.peer_cidr)
+            .router_ip(router_info.router_ip)
+            .service(router_info.service)
+            .owner(router_info.owner)
+    }
+}
+
+impl RouterInfoBuilder {
     pub fn with_network_crd(
         &mut self,
         crd: &Network,
@@ -131,6 +165,18 @@ impl RouterReleaseBuilder {
                 |builder, server_public_key| builder.server_keys(Keys::Public(server_public_key)),
             ))
     }
+
+    pub fn with_private_key_from_env(&mut self) -> Result<&mut Self, ResourceGenerationError> {
+        let env_var = std::env::var(SERVER_PRIVATE_KEY_SECRET).map_err(|_| {
+            ResourceGenerationError::DependentMissingData("env.SERVER_PRIVATE_KEY".into())
+        })?;
+        let private_key = WgKey::from_base64(&env_var).map_err(|_| {
+            ResourceGenerationError::DependentInvalidData("env.SERVER_PRIVATE_KEY".into())
+        })?;
+        let keys = Keys::from_private_key(private_key);
+
+        Ok(self.server_keys(keys))
+    }
 }
 
 impl RouterRelease {
@@ -140,18 +186,6 @@ impl RouterRelease {
         }
 
         Ok(self)
-    }
-
-    pub fn get_router_name(&self) -> String {
-        format!("k8s-insider-router-{}", self.name)
-    }
-
-    pub fn get_network_manager_name(&self) -> String {
-        format!("k8s-insider-network-manager-{}", self.name)
-    }
-
-    pub fn get_namespace(&self) -> String {
-        self.namespace.to_owned()
     }
 
     pub fn get_controller_namespace(&self) -> String {
@@ -175,11 +209,10 @@ impl RouterRelease {
             .collect()
     }
 
-
     pub fn generate_router_metadata(&self) -> ObjectMeta {
         ObjectMeta {
             labels: Some(get_router_labels(&self.name)),
-            namespace: Some(self.get_namespace()),
+            namespace: Some(self.get_router_namespace()),
             name: Some(self.get_router_name()),
             owner_references: Some(vec![self.owner.to_owned()]),
             ..Default::default()
@@ -195,27 +228,50 @@ impl RouterRelease {
             ..Default::default()
         }
     }
-
 }
 
-impl From<NetworkService> for RouterReleaseService {
+impl RouterInfo {
+    pub fn generate_server_wg_config(&self) -> Result<String, ResourceGenerationError> {
+        let address = self
+            .router_ip
+            .try_get_ipv4()
+            .ok_or(ResourceGenerationError::MissingData(
+                "router_ip.ipv4".into(),
+            ))?;
+        let private_key =
+            self.server_keys
+                .get_private_key()
+                .ok_or(ResourceGenerationError::MissingData(
+                    "server_keys.private_key".into(),
+                ))?;
+
+        Ok(format!(
+            "[Interface]
+ListenPort = {EXPOSED_PORT}
+Address = {address}
+PrivateKey = {private_key}"
+        ))
+    }
+}
+
+impl From<NetworkService> for RouterService {
     fn from(value: NetworkService) -> Self {
         match value {
-            NetworkService::ClusterIp { ip } => RouterReleaseService::ClusterIp { ip },
+            NetworkService::ClusterIp { ip } => RouterService::ClusterIp { ip },
             NetworkService::NodePort {
                 cluster_ip,
                 predefined_ips,
-            } => RouterReleaseService::NodePort {
+            } => RouterService::NodePort {
                 cluster_ip,
                 predefined_ips,
             },
             NetworkService::LoadBalancer { cluster_ip } => {
-                RouterReleaseService::LoadBalancer { cluster_ip }
+                RouterService::LoadBalancer { cluster_ip }
             }
             NetworkService::ExternalIp {
                 cluster_ip,
                 ips: ip,
-            } => RouterReleaseService::ExternalIp {
+            } => RouterService::ExternalIp {
                 cluster_ip,
                 ips: ip,
             },

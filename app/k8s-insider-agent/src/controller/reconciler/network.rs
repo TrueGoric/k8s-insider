@@ -1,16 +1,20 @@
-use std::{sync::Arc, time::Duration};
+use std::{str::from_utf8, sync::Arc, time::Duration};
 
 use k8s_insider_core::{
     helpers::RequireMetadata,
-    kubernetes::{operations::{apply_resource, apply_resource_status, try_get_resource}, service::get_service_accessible_addresses},
+    kubernetes::{
+        operations::{apply_resource, apply_resource_status, try_get_resource},
+        service::get_service_accessible_addresses,
+    },
     resources::{
         crd::v1alpha1::network::{Network, NetworkState, NetworkStatus},
+        meta::TryNetworkMeta,
         router::{
-            secret::SERVER_PRIVATE_KEY_SECRET, RouterRelease, RouterReleaseBuilder,
-            RouterReleaseValidationError,
+            secret::SERVER_PRIVATE_KEY_SECRET, RouterInfoBuilder, RouterRelease,
+            RouterReleaseBuilder, RouterReleaseValidationError,
         },
     },
-    wireguard::keys::Keys,
+    wireguard::keys::{Keys, WgKey},
 };
 use k8s_openapi::api::core::v1::{Secret, Service};
 use kube::{api::PatchParams, runtime::controller::Action, Resource};
@@ -79,7 +83,13 @@ async fn try_reconcile(
     apply_release(context, &release).await?;
 
     let service_meta = release.generate_service_metadata();
-    let service = try_get_resource::<Service>(&context.client, service_meta.name.as_ref().unwrap(), service_meta.namespace.as_ref().unwrap()).await.map_err(ReconcilerError::KubeApiError)?;
+    let service = try_get_resource::<Service>(
+        &context.client,
+        service_meta.name.as_ref().unwrap(),
+        service_meta.namespace.as_ref().unwrap(),
+    )
+    .await
+    .map_err(ReconcilerError::KubeApiError)?;
     let nodes = context.nodes.state();
     let node_slice = nodes.iter().map(|node| node.as_ref()).collect::<Vec<_>>();
 
@@ -109,12 +119,17 @@ fn build_release(
     object: &Network,
     context: &ReconcilerContext,
 ) -> Result<RouterRelease, ReconcilerError> {
-    RouterReleaseBuilder::default()
-        .server_keys(private_key)
-        .with_controller(&context.release)
+    let router_info = RouterInfoBuilder::default()
         .with_network_crd(object)
         .map_err(ReconcilerError::RouterReleaseBuilderResourceError)?
+        .server_keys(private_key)
         .owner(object.controller_owner_ref(&()).unwrap())
+        .build()
+        .map_err(ReconcilerError::RouterInfoBuilderError)?;
+
+    RouterReleaseBuilder::default()
+        .with_controller(&context.release)
+        .with_router_info(router_info)
         .build()
         .map_err(ReconcilerError::RouterReleaseBuilderError)
 }
@@ -124,25 +139,30 @@ async fn ensure_server_private_key(
     context: &ReconcilerContext,
 ) -> Result<Keys, ReconcilerError> {
     let name = crd
-        .require_name_or(ReconcilerError::MissingObjectMetadata)?
-        .to_owned();
-    let namespace = crd.require_namespace_or(ReconcilerError::MissingObjectMetadata)?;
-    let secret = try_get_resource::<Secret>(&context.client, &name, namespace)
+        .try_get_router_name()
+        .ok_or(ReconcilerError::MissingObjectMetadata)?;
+    let namespace = crd
+        .try_get_router_namespace()
+        .ok_or(ReconcilerError::MissingObjectMetadata)?;
+    let secret = try_get_resource::<Secret>(&context.client, &name, &namespace)
         .await
         .map_err(ReconcilerError::KubeApiError)?;
 
     let private_key = match secret {
         Some(secret) => Keys::from_private_key(
-            secret
-                .data
-                .as_ref()
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
-                .get(SERVER_PRIVATE_KEY_SECRET)
-                .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
-                .0
-                .as_slice()
-                .try_into()
-                .map_err(|_| ReconcilerError::InvalidObjectData(name.into()))?,
+            WgKey::from_base64(
+                from_utf8(
+                    &secret
+                        .data
+                        .as_ref()
+                        .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
+                        .get(SERVER_PRIVATE_KEY_SECRET)
+                        .ok_or_else(|| ReconcilerError::MissingObjectData(name.clone()))?
+                        .0[..],
+                )
+                .map_err(|_| ReconcilerError::InvalidObjectData(name.clone().into()))?,
+            )
+            .map_err(|_| ReconcilerError::InvalidObjectData(name.into()))?,
         ),
         None => Keys::generate_new_pair(),
     };

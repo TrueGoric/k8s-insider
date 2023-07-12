@@ -2,7 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use k8s_insider_core::{
     helpers::RequireMetadata,
-    ip::addrpair::IpAddrPair,
+    ip::addrpair::{DualStackTryGet, IpAddrPair},
     kubernetes::{
         operations::{apply_resource_status, try_get_resource},
         GetApi,

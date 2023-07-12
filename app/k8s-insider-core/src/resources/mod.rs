@@ -6,11 +6,16 @@ pub mod annotations;
 pub mod controller;
 pub mod crd;
 pub mod labels;
+pub mod meta;
 pub mod router;
 pub mod templates;
 
 #[derive(Debug, Error)]
 pub enum ResourceGenerationError {
+    #[error("Resource contains invalid data ({})!", .0)]
+    InvalidData(Cow<'static, str>),
+    #[error("Resource is missing required data ({})!", .0)]
+    MissingData(Cow<'static, str>),
     #[error("Provided dependent resource is missing a name!")]
     DependentMissingMetadataName,
     #[error("Provided dependent resource is missing a namespace!")]
@@ -19,5 +24,4 @@ pub enum ResourceGenerationError {
     DependentMissingData(Cow<'static, str>),
     #[error("Provided dependent resource contains invalid value!")]
     DependentInvalidData(Cow<'static, str>),
-
 }

@@ -12,7 +12,15 @@ impl RouterRelease {
     pub fn generate_secret(&self) -> Result<Secret, ResourceGenerationError> {
         let secret_data = BTreeMap::from([(
             SERVER_PRIVATE_KEY_SECRET.to_owned(),
-            ByteString(self.server_keys.get_public_key().as_bytes().to_vec()),
+            ByteString(
+                self.server_keys
+                    .get_private_key()
+                    .ok_or(ResourceGenerationError::MissingData(
+                        "server_keys.private_key".into(),
+                    ))?
+                    .to_base64()
+                    .into_bytes(),
+            ),
         )]);
 
         Ok(Secret {

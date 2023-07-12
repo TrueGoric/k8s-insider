@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use k8s_insider_core::resources::{router::{RouterReleaseBuilderError, RouterReleaseValidationError}, ResourceGenerationError};
+use k8s_insider_core::resources::{router::{RouterReleaseBuilderError, RouterReleaseValidationError, RouterInfoBuilderError}, ResourceGenerationError};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -13,6 +13,8 @@ pub enum ReconcilerError {
     InvalidObjectData(Cow<'static, str>),
     #[error("Couldn't patch the resource! Reason: {}", .0)]
     KubeApiError(kube::Error),
+    #[error("Couldn't prepare router information! Reason: {}", .0)]
+    RouterInfoBuilderError(RouterInfoBuilderError),
     #[error("Couldn't prepare a router release! Reason: {}", .0)]
     RouterReleaseBuilderError(RouterReleaseBuilderError),
     #[error("Couldn't prepare a router release! Reason: {}", .0)]

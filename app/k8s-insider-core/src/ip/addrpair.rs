@@ -13,8 +13,13 @@ pub enum IpAddrPair {
     Ipv4v6 { ipv4: Ipv4Addr, ipv6: Ipv6Addr },
 }
 
-impl IpAddrPair {
-    pub fn try_get_ipv4(&self) -> Option<Ipv4Addr> {
+pub trait DualStackTryGet {
+    fn try_get_ipv4(&self) -> Option<Ipv4Addr>;
+    fn try_get_ipv6(&self) -> Option<Ipv6Addr>;
+}
+
+impl DualStackTryGet for IpAddrPair {
+    fn try_get_ipv4(&self) -> Option<Ipv4Addr> {
         match self {
             IpAddrPair::Ipv4 { ipv4 } => Some(*ipv4),
             IpAddrPair::Ipv4v6 { ipv4, .. } => Some(*ipv4),
@@ -22,11 +27,27 @@ impl IpAddrPair {
         }
     }
 
-    pub fn try_get_ipv6(&self) -> Option<Ipv6Addr> {
+    fn try_get_ipv6(&self) -> Option<Ipv6Addr> {
         match self {
             IpAddrPair::Ipv6 { ipv6 } => Some(*ipv6),
             IpAddrPair::Ipv4v6 { ipv6, .. } => Some(*ipv6),
             _ => None
+        }
+    }
+}
+
+impl DualStackTryGet for IpAddr {
+    fn try_get_ipv4(&self) -> Option<Ipv4Addr> {
+        match self {
+            IpAddr::V4(ipv4) => Some(*ipv4),
+            IpAddr::V6(_) => None,
+        }
+        }
+
+    fn try_get_ipv6(&self) -> Option<Ipv6Addr> {
+        match self {
+            IpAddr::V4(_) => None,
+            IpAddr::V6(ipv6) => Some(*ipv6),
         }
     }
 }

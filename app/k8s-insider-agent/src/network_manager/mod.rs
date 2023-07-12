@@ -1,13 +1,12 @@
 use std::process::exit;
 
-use k8s_insider_core::resources::controller::ControllerRelease;
 use kube::Client;
 use log::error;
 use tokio::join;
 
 use crate::{
     network_manager::{allocations::sync_allocations, tunnel::start_tunnel_controller},
-    release::{get_ready_network_crd, get_router_release},
+    release::{get_controller_release_from_env, get_ready_network_crd, get_router_release},
 };
 
 use self::reconciler::context::ReconcilerContext;
@@ -19,7 +18,7 @@ pub mod tunnel;
 pub const NETWORK_MANAGER_FIELD_MANAGER: &str = "k8s-insider-network-manager";
 
 pub async fn main_network_manager(client: Client) {
-    let controller_release = get_controller_release();
+    let controller_release = get_controller_release_from_env();
     let network_crd = get_ready_network_crd(&client).await;
     let router_release = get_router_release(&controller_release, &network_crd);
 
@@ -41,14 +40,4 @@ pub async fn main_network_manager(client: Client) {
     let tunnel_controller = start_tunnel_controller(reconciler_context.into());
 
     join!(tunnel_controller);
-}
-
-fn get_controller_release() -> ControllerRelease {
-    match ControllerRelease::from_env() {
-        Ok(release) => release,
-        Err(error) => {
-            error!("Couldn't retrieve controller release info! {error:?}");
-            exit(7)
-        }
-    }
 }

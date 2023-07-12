@@ -14,7 +14,7 @@ use crate::{
     resources::{annotations::get_service_annotations, labels::get_router_labels},
 };
 
-use super::{RouterRelease, RouterReleaseService};
+use super::{RouterRelease, RouterService};
 
 const PORT_NUMBER: i32 = 31313;
 
@@ -22,7 +22,7 @@ impl RouterRelease {
     pub fn generate_service_metadata(&self) -> ObjectMeta {
         self.generate_router_metadata()
     }
-    
+
     pub fn generate_service(&self, deployment: &Deployment) -> Option<Service> {
         let service = self.service.as_ref()?;
         let port_name = extract_port_name(deployment);
@@ -35,13 +35,13 @@ impl RouterRelease {
             ..Default::default()
         };
         let spec = match service {
-            RouterReleaseService::ClusterIp { ip: cluster_ip } => Some(get_base_servicespec(
+            RouterService::ClusterIp { ip: cluster_ip } => Some(get_base_servicespec(
                 "ClusterIP",
                 Some(labels),
                 cluster_ip,
                 port,
             )),
-            RouterReleaseService::NodePort {
+            RouterService::NodePort {
                 cluster_ip,
                 predefined_ips: _,
             } => Some(get_base_servicespec(
@@ -50,13 +50,13 @@ impl RouterRelease {
                 cluster_ip,
                 port,
             )),
-            RouterReleaseService::LoadBalancer { cluster_ip } => Some(get_base_servicespec(
+            RouterService::LoadBalancer { cluster_ip } => Some(get_base_servicespec(
                 "LoadBalancer",
                 Some(labels),
                 cluster_ip,
                 port,
             )),
-            RouterReleaseService::ExternalIp {
+            RouterService::ExternalIp {
                 cluster_ip,
                 ips: ip,
             } => Some(ServiceSpec {
@@ -66,7 +66,7 @@ impl RouterRelease {
         };
 
         let annotations: Option<std::collections::BTreeMap<String, String>> = match service {
-            RouterReleaseService::NodePort { predefined_ips, .. } => predefined_ips
+            RouterService::NodePort { predefined_ips, .. } => predefined_ips
                 .as_ref()
                 .map(|ips| get_service_annotations(ips)),
             _ => None,

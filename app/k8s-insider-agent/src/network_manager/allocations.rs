@@ -8,7 +8,7 @@ use std::{
 
 use ipnet::{IpAdd, Ipv4Net, Ipv6Net};
 use k8s_insider_core::{
-    ip::{range::UniqueRandomWrappingHostsIpIterator, Contains},
+    ip::{addrpair::DualStackTryGet, range::UniqueRandomWrappingHostsIpIterator, Contains},
     kubernetes::operations::{list_resources, try_remove_resource},
     resources::{crd::v1alpha1::tunnel::Tunnel, router::RouterRelease},
     wireguard::keys::WgKey,
