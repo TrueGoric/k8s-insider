@@ -4,6 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::anyhow;
 use log::debug;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -92,5 +93,22 @@ impl InsiderConfig {
         serde_yaml::to_writer(file, self).map_err(InsiderConfigError::SerializationError)?;
 
         Ok(())
+    }
+
+    pub fn try_get_default_tunnel(&self) -> anyhow::Result<&TunnelConfig> {
+        if self.tunnels.len() > 1 {
+            return Err(anyhow!(
+                "No default tunnel: multiple tunnels written to config!"
+            ));
+        }
+
+        self.tunnels
+            .first_key_value()
+            .map(|kv| kv.1)
+            .ok_or(anyhow!("No tunnels defined in the config!"))
+    }
+
+    pub fn try_get_tunnel(&self, name: &str) -> Option<&TunnelConfig> {
+        self.tunnels.get(name)
     }
 }

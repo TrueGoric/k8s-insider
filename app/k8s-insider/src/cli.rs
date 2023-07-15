@@ -88,7 +88,7 @@ pub enum Commands {
     /// Disconnect from the network
     #[command()]
     Disconnect,
-    /// Get the WireGuard configuration file for a network
+    /// Get the WireGuard configuration file for a tunnel
     #[command()]
     GetConf(GetConfArgs),
     /// Patch the DNS resolver to avoid loops when deploying on the local machine
@@ -283,6 +283,17 @@ pub struct ConnectArgs {
 
 #[derive(Debug, Args)]
 pub struct GetConfArgs {
+    /// Name of the tunnel to generate configuration for
+    ///
+    /// The application will look for the tunnels that are defined in
+    /// the configuration file first, then it will try to query the cluster
+    /// for the specified tunnel. Optional if there's one (and only one) tunnel
+    /// defined in the config.
+    /// 
+    /// If the configuration doesn't have the specified tunnel the application will
+    /// expect a private key to be fed through stdin.
+    #[arg()]
+    pub name: Option<String>,    
     /// If set, the command will write the config to a file instead of stdout
     #[arg(short = 'o', long)]
     pub output: Option<String>,

@@ -6,7 +6,7 @@ use cli::{Commands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcom
 use commands::{
     create_network::create_network, create_tunnel::create_tunnel, delete_network::delete_network,
     delete_tunnel::delete_tunnel, install::install, list_networks::list_networks,
-    uninstall::uninstall,
+    uninstall::uninstall, get_configuration::get_configuration,
 };
 use config::InsiderConfig;
 use env_logger::Target;
@@ -18,6 +18,7 @@ use crate::cli::Cli;
 mod cli;
 mod commands;
 mod config;
+mod wireguard;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
 
@@ -62,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
             },
             Commands::Connect(_) => todo!(),
             Commands::Disconnect => todo!(),
-            Commands::GetConf(_) => todo!(),
+            Commands::GetConf(args) => get_configuration(cli.global_args, args, client, config).await?,
             Commands::PatchDns(_) => todo!(),
         }
     }

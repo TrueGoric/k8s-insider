@@ -3,15 +3,34 @@ use std::{
     ops::{Deref, DerefMut}, fmt::Display,
 };
 
+use thiserror::Error;
 pub use wireguard_control::{InvalidKey, Key, KeyPair};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("Couldn't parse the key from base64 string!")]
 pub struct InvalidWgKey;
+
+#[derive(Debug, Error)]
+pub enum WgKeyError {
+    #[error("Couldn't parse the key from base64 string!")]
+    InvalidKey,
+    #[error("{}", .0)]
+    IoError(std::io::Error)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WgKey(wireguard_control::Key);
 
 impl WgKey {
+    pub fn from_base64_stdin() -> Result<Self, WgKeyError> {
+        let mut buffer = String::new();
+        
+        match std::io::stdin().read_line(&mut buffer) {
+            Ok(_) => Self::from_base64(&buffer).map_err(|_| WgKeyError::InvalidKey),
+            Err(error) => Err(WgKeyError::IoError(error)),
+        }
+    }
+
     pub fn from_base64(key: &str) -> Result<Self, InvalidWgKey> {
         Ok(WgKey(Key::from_base64(key).map_err(|_| InvalidWgKey)?))
     }

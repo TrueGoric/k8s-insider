@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use kube::CustomResource;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -40,7 +42,7 @@ pub struct TunnelStatus {
     pub address: Option<IpAddrPair>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub enum TunnelState {
     #[default]
     Created,
@@ -52,4 +54,30 @@ pub enum TunnelState {
     ErrorIpOutOfRange,
     ErrorPublicKeyConflict,
     ErrorIpRangeExhausted,
+}
+
+impl Display for TunnelState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TunnelState::Created => f.write_str("tunnel created"),
+            TunnelState::Configured => f.write_str("tunnel configured by the controller"),
+            TunnelState::Connected => f.write_str("user connected to the tunnel"),
+            TunnelState::Closed => f.write_str("tunnel is closed"),
+            TunnelState::ErrorCreatingTunnel => {
+                f.write_str("an error occurred while creating the tunnel")
+            }
+            TunnelState::ErrorIpAlreadyInUse => {
+                f.write_str("tunnel requested a static IP that's already in use")
+            }
+            TunnelState::ErrorIpOutOfRange => {
+                f.write_str("tunnel requested a static IP that's out of range")
+            }
+            TunnelState::ErrorPublicKeyConflict => {
+                f.write_str("there's another tunnel with the same public key")
+            }
+            TunnelState::ErrorIpRangeExhausted => {
+                f.write_str("IP range for tunnels has been exhausted")
+            }
+        }
+    }
 }

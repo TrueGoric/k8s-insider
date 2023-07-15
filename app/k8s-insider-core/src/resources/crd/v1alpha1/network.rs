@@ -1,4 +1,4 @@
-use std::net::{IpAddr, SocketAddr};
+use std::{net::{IpAddr, SocketAddr}, fmt::Display};
 
 use kube::CustomResource;
 use schemars::JsonSchema;
@@ -64,7 +64,7 @@ pub struct NetworkStatus {
     pub allowed_ips: Option<Vec<IpNetFit>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
 pub enum NetworkState {
     #[default]
     Created,
@@ -73,4 +73,17 @@ pub enum NetworkState {
     ErrorCreatingService,
     ErrorSubnetConflict,
     ErrorInsufficientPermissions,
+}
+
+impl Display for NetworkState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NetworkState::Created => f.write_str("network was created"),
+            NetworkState::Deployed => f.write_str("network is deployed"),
+            NetworkState::UnknownError => f.write_str("an unknown error happenned when setting up the network"),
+            NetworkState::ErrorCreatingService => f.write_str("couldn't create a Service resource for the network"),
+            NetworkState::ErrorSubnetConflict => f.write_str("there was an error when assigning IPs in the network"),
+            NetworkState::ErrorInsufficientPermissions => f.write_str("controller lacks sufficient permissions to set up the network"),
+        }
+    }
 }
