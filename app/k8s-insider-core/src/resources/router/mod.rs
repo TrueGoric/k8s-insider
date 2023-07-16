@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 
 use derive_builder::Builder;
-use ipnet::IpNet;
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::{core::ObjectMeta, Resource};
 use thiserror::Error;
@@ -244,14 +244,35 @@ impl RouterInfo {
                 .ok_or(ResourceGenerationError::MissingData(
                     "server_keys.private_key".into(),
                 ))?;
+        let route_up = self.get_wgconfig_route_up();
 
         Ok(format!(
             "[Interface]
 ListenPort = {EXPOSED_PORT}
 Address = {address}
-PrivateKey = {private_key}"
+PrivateKey = {private_key}
+PostUp = {route_up}"
         ))
     }
+
+    fn get_wgconfig_route_up(&self) -> String {
+        fn up4_snip(net: Ipv4Net) -> String {
+            format!("ip -4 route add {} dev %i", net)
+        }
+    
+        fn up6_snip(net: Ipv6Net) -> String {
+            format!("ip -6 route add {} dev %i", net)
+        }
+    
+        match self.peer_cidr {
+            IpNetPair::Ipv4 { netv4 } => up4_snip(netv4),
+            IpNetPair::Ipv6 { netv6 } => up6_snip(netv6),
+            IpNetPair::Ipv4v6 { netv4, netv6 } => {
+                format!("{} && {}", up4_snip(netv4), up6_snip(netv6))
+            }
+        }
+    }
+    
 }
 
 impl From<NetworkService> for RouterService {
