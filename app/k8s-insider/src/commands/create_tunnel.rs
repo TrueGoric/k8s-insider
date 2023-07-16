@@ -6,21 +6,22 @@ use k8s_insider_core::{
     resources::crd::v1alpha1::tunnel::{Tunnel, TunnelSpec},
     wireguard::keys::WgKey,
 };
-use kube::{api::PostParams, core::ObjectMeta, Client};
+use kube::{api::PostParams, core::ObjectMeta};
 use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::{tunnel::TunnelConfig, InsiderConfig},
+    config::{tunnel::TunnelConfig, ConfigContext, InsiderConfig},
     CLI_FIELD_MANAGER,
 };
 
 pub async fn create_tunnel(
     global_args: GlobalArgs,
     args: CreateTunnelArgs,
-    client: Client,
-    mut config: InsiderConfig,
+    mut context: ConfigContext,
 ) -> anyhow::Result<()> {
+    let client = context.create_client_with_default_context().await?;
+
     info!(
         "Creating a tunnel for '{}' network in '{}' namespace...",
         args.network, global_args.namespace
@@ -44,7 +45,7 @@ pub async fn create_tunnel(
     debug!("{tunnel_crd:#?}");
 
     create_resource(&client, &tunnel_crd, &apply_params).await?;
-    write_config(args.name, &mut config, &tunnel_crd, private_key)?;
+    write_config(args.name, &mut context, &tunnel_crd, private_key)?;
 
     info!("Tunnel successfully created!");
 
@@ -82,24 +83,37 @@ fn create_tunnel_crd(
 
 fn write_config(
     name: Option<String>,
-    config: &mut InsiderConfig,
+    context: &mut ConfigContext,
     crd: &Tunnel,
     private_key: WgKey,
 ) -> anyhow::Result<()> {
-    let local_name = name.unwrap_or_else(|| generate_config_tunnel_name(&crd.spec.network, config));
+    let local_name = name.unwrap_or_else(|| {
+        generate_config_tunnel_name(&crd.spec.network, context.insider_config())
+    });
     let entry = TunnelConfig::new(
+        context.kube_context_name().to_owned(),
         crd.require_name_or(anyhow!("Missing Tunnel CRD name!"))?
             .to_owned(),
         crd.require_namespace_or(anyhow!("Missing Tunnel CRD namespace!"))?
-        .to_owned(),
+            .to_owned(),
         private_key,
     );
 
-    if config.tunnels.insert(local_name, entry).is_some() {
-        return Err(anyhow!("Provided name is already present in the configuration file!"));
+    if context
+        .insider_config_mut()
+        .tunnels
+        .insert(local_name, entry)
+        .is_some()
+    {
+        return Err(anyhow!(
+            "Provided name is already present in the configuration file!"
+        ));
     }
 
-    config.save().context("Couldn't save the configuration file!")?;
+    context
+        .insider_config()
+        .save()
+        .context("Couldn't save the configuration file!")?;
 
     Ok(())
 }

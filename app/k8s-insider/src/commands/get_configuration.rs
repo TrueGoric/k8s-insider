@@ -1,29 +1,30 @@
-use anyhow::Context;
+use std::path::Path;
 
-use kube::Client;
+use anyhow::Context;
 
 use crate::{
     cli::{GetConfArgs, GlobalArgs},
-    config::InsiderConfig,
+    config::ConfigContext,
     wireguard::connection::get_peer_config,
 };
 
 pub async fn get_configuration(
     global_args: GlobalArgs,
     args: GetConfArgs,
-    client: Client,
-    config: InsiderConfig,
+    context: ConfigContext,
 ) -> anyhow::Result<()> {
-    let peer_config = get_peer_config(
+    let client = context.create_client_with_default_context().await?;
+    let (peer_config, _, _) = get_peer_config(
         args.name.as_deref(),
         &global_args.namespace,
         &client,
-        config,
+        context.insider_config(),
     )
     .await?;
 
     if let Some(output) = args.output {
-        std::fs::write(&output, peer_config.generate_configuration_file())
+        peer_config
+            .write_configuration(Path::new(&output))
             .context(format!("Couldn't write the output to {output}"))?;
     } else {
         print!("{}", peer_config.generate_configuration_file());

@@ -10,38 +10,15 @@ use k8s_openapi::{
 };
 use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams, PostParams},
-    config::{KubeConfigOptions, Kubeconfig},
     core::{object::HasStatus, ObjectMeta},
     runtime::watcher::{self, watch_object},
-    Api, Client, Config, Resource,
+    Api, Client, Resource,
 };
 use log::{debug, info, warn};
 
 use crate::helpers::pretty_type_name;
 
 use super::FromStatus;
-
-pub async fn create_local_client(
-    config_path: &Option<String>,
-    context_name: &Option<String>,
-) -> anyhow::Result<Client> {
-    let config_options = KubeConfigOptions {
-        context: context_name.to_owned(),
-        ..Default::default()
-    };
-
-    let config = match config_path {
-        Some(path) => {
-            let kubeconfig = Kubeconfig::read_from(path)?;
-            Config::from_custom_kubeconfig(kubeconfig, &config_options).await?
-        }
-        None => Config::from_kubeconfig(&config_options).await?,
-    };
-
-    let client = Client::try_from(config)?;
-
-    Ok(client)
-}
 
 pub fn watch_resource<T>(
     client: &Client,
@@ -174,9 +151,7 @@ where
     let namespace = resource.meta().namespace.as_ref().unwrap();
     let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
 
-    resource_api
-        .create(create_params, resource)
-        .await?;
+    resource_api.create(create_params, resource).await?;
 
     Ok(())
 }

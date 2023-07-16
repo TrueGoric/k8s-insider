@@ -3,8 +3,8 @@ use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
     helpers::AndIf,
     kubernetes::operations::{
-        check_if_resource_exists, apply_cluster_resource, create_namespace_if_not_exists,
-        apply_resource,
+        apply_cluster_resource, apply_resource, check_if_resource_exists,
+        create_namespace_if_not_exists,
     },
     resources::{
         controller::ControllerRelease, crd::v1alpha1::create_v1alpha1_crds,
@@ -18,18 +18,24 @@ use kube::{
 };
 use log::{debug, info, warn};
 
-use crate::{cli::{GlobalArgs, InstallArgs}, CLI_FIELD_MANAGER};
+use crate::{
+    cli::{GlobalArgs, InstallArgs},
+    config::ConfigContext,
+    CLI_FIELD_MANAGER,
+};
 
 pub async fn install(
     global_args: GlobalArgs,
     args: InstallArgs,
-    client: Client,
+    context: ConfigContext,
 ) -> anyhow::Result<()> {
+    let client = context.create_client_with_default_context().await?;
+
     info!(
         "Installing k8s-insider into '{}' namespace...",
         global_args.namespace
     );
-    
+
     let no_crds = args.no_crds;
     let dry_run = args.dry_run;
     let release_params = get_controller_listparams();
@@ -51,13 +57,11 @@ pub async fn install(
 
     debug!("Preparing release...");
     let release_info = prepare_release(global_args.namespace, args, &client).await?;
-    let apply_params = PatchParams::apply(CLI_FIELD_MANAGER)
-        .and_if(dry_run, |s| s.dry_run());
+    let apply_params = PatchParams::apply(CLI_FIELD_MANAGER).and_if(dry_run, |s| s.dry_run());
 
     if no_crds {
         info!("Skipping CRD deployment...");
-    }
-    else {
+    } else {
         create_v1alpha1_crds(&client, &apply_params).await?;
     }
 
@@ -123,7 +127,10 @@ async fn prepare_release(
             args.controller_image.clone()
         },
         network_manager_image_name: {
-            info!("Using network manager image: {}", args.network_manager_image);
+            info!(
+                "Using network manager image: {}",
+                args.network_manager_image
+            );
             args.network_manager_image.clone()
         },
         router_image_name: {
@@ -140,7 +147,7 @@ async fn prepare_release(
 async fn deploy_release(
     release: ControllerRelease,
     client: &Client,
-    apply_params: &PatchParams
+    apply_params: &PatchParams,
 ) -> anyhow::Result<()> {
     let serviceaccount = release.generate_controller_service_account();
     let controller_clusterrole = release.generate_controller_clusterrole();
@@ -153,7 +160,7 @@ async fn deploy_release(
     let deployment = release
         .generate_deployment(&configmap, &serviceaccount)
         .context("Couldn't generate controller deployment!")?;
-    
+
     create_namespace_if_not_exists(client, apply_params, &release.namespace).await?;
     apply_cluster_resource(client, &controller_clusterrole, apply_params).await?;
     apply_cluster_resource(client, &network_manager_clusterrole, apply_params).await?;

@@ -1,16 +1,15 @@
 use std::path::Path;
 
-use anyhow::Context;
 use clap::Parser;
 use cli::{Commands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel};
 use commands::{
-    create_network::create_network, create_tunnel::create_tunnel, delete_network::delete_network,
-    delete_tunnel::delete_tunnel, install::install, list_networks::list_networks,
-    uninstall::uninstall, get_configuration::get_configuration,
+    connect::connect, create_network::create_network, create_tunnel::create_tunnel,
+    delete_network::delete_network, delete_tunnel::delete_tunnel,
+    get_configuration::get_configuration, install::install, list_networks::list_networks,
+    uninstall::uninstall,
 };
-use config::InsiderConfig;
+use config::ConfigContext;
 use env_logger::Target;
-use k8s_insider_core::kubernetes::operations::create_local_client;
 use log::LevelFilter;
 
 use crate::cli::Cli;
@@ -28,42 +27,39 @@ async fn main() -> anyhow::Result<()> {
 
     configure_logging(&cli.global_args);
 
-    let client = create_local_client(&cli.global_args.kube_config, &cli.global_args.kube_context)
-        .await
-        .context("Couldn't initialize k8s API client!")?;
-    let config = match cli.global_args.config {
-        Some(ref path) => InsiderConfig::load_or_create(Path::new(path)),
-        None => InsiderConfig::load_or_create_from_default(),
-    }
-    .context("Couldn't load k8s-insider configuration file!")?;
+    let context = ConfigContext::new(
+        cli.global_args.kube_config.as_deref().map(|s| Path::new(s)),
+        cli.global_args.config.as_deref().map(|s| Path::new(s)),
+        cli.global_args.kube_context.as_deref(),
+    )?;
 
     if let Some(command) = cli.command {
         match command {
-            Commands::Install(args) => install(cli.global_args, args, client).await?,
-            Commands::Uninstall(args) => uninstall(cli.global_args, args, client).await?,
+            Commands::Install(args) => install(cli.global_args, args, context).await?,
+            Commands::Uninstall(args) => uninstall(cli.global_args, args, context).await?,
             Commands::Create(create_sub) => match create_sub.subcommand {
                 CreateSubcommands::Network(args) => {
-                    create_network(cli.global_args, args, client).await?
+                    create_network(cli.global_args, args, context).await?
                 }
                 CreateSubcommands::Tunnel(args) => {
-                    create_tunnel(cli.global_args, args, client, config).await?
+                    create_tunnel(cli.global_args, args, context).await?
                 }
             },
             Commands::Delete(delete_sub) => match delete_sub.subcommand {
                 DeleteSubcommands::Network(args) => {
-                    delete_network(cli.global_args, args, client).await?
+                    delete_network(cli.global_args, args, context).await?
                 }
                 DeleteSubcommands::Tunnel(args) => {
-                    delete_tunnel(cli.global_args, args, client, config).await?
+                    delete_tunnel(cli.global_args, args, context).await?
                 }
             },
             Commands::List(list_sub) => match list_sub.subcommand {
-                ListSubcommands::Network => list_networks(cli.global_args, client).await?,
+                ListSubcommands::Network => list_networks(cli.global_args, context).await?,
                 ListSubcommands::Tunnel => todo!(),
             },
-            Commands::Connect(_) => todo!(),
+            Commands::Connect(args) => connect(cli.global_args, args, context).await?,
             Commands::Disconnect => todo!(),
-            Commands::GetConf(args) => get_configuration(cli.global_args, args, client, config).await?,
+            Commands::GetConf(args) => get_configuration(cli.global_args, args, context).await?,
             Commands::PatchDns(_) => todo!(),
         }
     }

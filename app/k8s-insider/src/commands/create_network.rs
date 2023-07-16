@@ -6,19 +6,22 @@ use k8s_insider_core::{
     kubernetes::operations::{apply_resource, try_get_resource},
     resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec},
 };
-use kube::{api::PatchParams, core::ObjectMeta, Client};
+use kube::{api::PatchParams, core::ObjectMeta};
 use log::{debug, info};
 
 use crate::{
     cli::{CreateNetworkArgs, GlobalArgs, ServiceType},
+    config::ConfigContext,
     CLI_FIELD_MANAGER,
 };
 
 pub async fn create_network(
     global_args: GlobalArgs,
     args: CreateNetworkArgs,
-    client: Client,
+    context: ConfigContext,
 ) -> anyhow::Result<()> {
+    let client = context.create_client_with_default_context().await?;
+
     info!(
         "Creating '{}' network in '{}' namespace...",
         args.name, global_args.namespace
@@ -53,8 +56,7 @@ pub async fn create_network(
 
     if existing_network.is_some() {
         info!("Network successfully updated!");
-    }
-    else {
+    } else {
         info!("Network successfully created!");
     }
 
