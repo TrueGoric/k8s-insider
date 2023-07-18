@@ -28,9 +28,6 @@ pub struct TunnelSpec {
     /// static IP of choice, the tunnel will fail to be created if it's unavailable or out of range
     /// the allocations are made on a first-come-first-served basis,
     pub static_ip: Option<IpAddrPair>,
-    /// if set to true this tunnel won't be automatically cleaned up after
-    /// being unused for a preconfigured amount of time
-    pub persistent: bool,
 }
 
 #[skip_serializing_none]
@@ -42,7 +39,7 @@ pub struct TunnelStatus {
     pub address: Option<IpAddrPair>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, Default, PartialEq, JsonSchema)]
 pub enum TunnelState {
     #[default]
     Created,

@@ -1,10 +1,14 @@
 use std::path::Path;
 
 use clap::Parser;
-use cli::{Commands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel};
+use cli::{
+    Commands, ConfigSubcommands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands,
+    LogLevel,
+};
 use commands::{
-    connect::connect, create_network::create_network, create_tunnel::create_tunnel,
-    delete_network::delete_network, delete_tunnel::delete_tunnel,
+    config_add_tunnel::config_add_tunnel, config_list_tunnels::config_list_tunnels,
+    config_remove_tunnel::config_remove_tunnel, connect::connect, create_network::create_network,
+    create_tunnel::create_tunnel, delete_network::delete_network, delete_tunnel::delete_tunnel,
     get_configuration::get_configuration, install::install, list_networks::list_networks,
     uninstall::uninstall,
 };
@@ -27,9 +31,9 @@ async fn main() -> anyhow::Result<()> {
 
     configure_logging(&cli.global_args);
 
-    let context = ConfigContext::new(
-        cli.global_args.kube_config.as_deref().map(|s| Path::new(s)),
-        cli.global_args.config.as_deref().map(|s| Path::new(s)),
+    let mut context = ConfigContext::new(
+        cli.global_args.kube_config.as_deref().map(Path::new),
+        cli.global_args.config.as_deref().map(Path::new),
         cli.global_args.kube_context.as_deref(),
     )?;
 
@@ -42,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
                     create_network(cli.global_args, args, context).await?
                 }
                 CreateSubcommands::Tunnel(args) => {
-                    create_tunnel(cli.global_args, args, context).await?
+                    create_tunnel(&cli.global_args, &args, &mut context).await?
                 }
             },
             Commands::Delete(delete_sub) => match delete_sub.subcommand {
@@ -59,8 +63,15 @@ async fn main() -> anyhow::Result<()> {
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
             Commands::Disconnect => todo!(),
-            Commands::GetConf(args) => get_configuration(cli.global_args, args, context).await?,
+            Commands::GetConf(args) => get_configuration(args, context).await?,
             Commands::PatchDns(_) => todo!(),
+            Commands::Config(config_sub) => match config_sub.subcommand {
+                ConfigSubcommands::AddTunnel(args) => {
+                    config_add_tunnel(cli.global_args, args, context)?
+                }
+                ConfigSubcommands::ListTunnels(args) => config_list_tunnels(args, context)?,
+                ConfigSubcommands::RemoveTunnel(args) => config_remove_tunnel(args, context)?,
+            },
         }
     }
 

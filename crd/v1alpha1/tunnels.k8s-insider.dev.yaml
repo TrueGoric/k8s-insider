@@ -26,9 +26,6 @@ spec:
               peerPublicKey:
                 description: peer public key
                 type: string
-              persistent:
-                description: if set to true this tunnel won't be automatically cleaned up after being unused for a preconfigured amount of time
-                type: boolean
               presharedKey:
                 description: tunnel's preshared key
                 type: string
@@ -54,7 +51,6 @@ spec:
             required:
             - network
             - peerPublicKey
-            - persistent
             - presharedKey
             type: object
           status:

@@ -64,7 +64,7 @@ pub struct NetworkStatus {
     pub allowed_ips: Option<Vec<IpNetFit>>,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default, PartialEq, JsonSchema)]
+#[derive(Deserialize, Serialize, Clone, Copy, Debug, Default, PartialEq, JsonSchema)]
 pub enum NetworkState {
     #[default]
     Created,

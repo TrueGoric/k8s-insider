@@ -6,7 +6,10 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use k8s_insider_core::helpers::With;
-use kube::{config::{Kubeconfig, KubeConfigOptions}, Client, Config};
+use kube::{
+    config::{KubeConfigOptions, Kubeconfig},
+    Client, Config,
+};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -20,8 +23,6 @@ pub const KUBECONFIG_ENV_VAR: &str = "KUBECONFIG";
 
 #[derive(Debug, Error)]
 pub enum InsiderConfigError {
-    #[error("Couldn't establish user's home directory!")]
-    UnknownHomeDir,
     #[error("Io error: {}", .0)]
     IoError(std::io::Error),
     #[error("Serialization error: {}", .0)]
@@ -59,28 +60,6 @@ impl InsiderConfig {
         Ok(config)
     }
 
-    pub fn load_or_create_from_default() -> Result<Self, InsiderConfigError> {
-        Self::load_or_create(&Self::get_default_path()?)
-    }
-
-    fn get_default_path() -> Result<PathBuf, InsiderConfigError> {
-        if let Ok(kubeconfig_path) = std::env::var("KUBECONFIG") {
-            let mut path: PathBuf = kubeconfig_path.into();
-
-            path.pop();
-            path.push(DEFAULT_CONFIG_FILENAME);
-
-            return Ok(path);
-        }
-
-        let mut path = home::home_dir().ok_or(InsiderConfigError::UnknownHomeDir)?;
-
-        path.push(".kube");
-        path.push(DEFAULT_CONFIG_FILENAME);
-
-        Ok(path)
-    }
-
     pub fn save(&self) -> Result<(), InsiderConfigError> {
         let path = self
             .path
@@ -98,22 +77,34 @@ impl InsiderConfig {
         Ok(())
     }
 
-    pub fn try_get_default_tunnel(&self) -> anyhow::Result<&TunnelConfig> {
+    pub fn try_get_default_tunnel(&self) -> anyhow::Result<Option<&TunnelConfig>> {
         if self.tunnels.len() > 1 {
             return Err(anyhow!(
                 "No default tunnel: multiple tunnels written to config!"
             ));
         }
 
-        self.tunnels
+        Ok(self
+            .tunnels
             .first_key_value()
-            .map(|kv| kv.1)
-            .ok_or(anyhow!("No tunnels defined in the config!"))
+            .map(|kv| kv.1))
     }
 
     pub fn try_get_tunnel(&self, name: &str) -> Option<&TunnelConfig> {
         self.tunnels.get(name)
     }
+
+    pub fn generate_config_tunnel_name(&self, network_name: &str) -> String {
+        for index in 0.. {
+            let name = format!("{network_name}-tun{index}");
+    
+            if !self.tunnels.contains_key(&name) {
+                return name;
+            }
+        }
+    
+        panic!("You disobeyed my orders son, why were you ever born?");
+    }    
 }
 
 pub struct ConfigContext {
@@ -142,7 +133,7 @@ impl ConfigContext {
         };
 
         let kube_config =
-            Kubeconfig::read_from(kube_config_path).context("Couldn't load kubeconfig!")?;
+            Kubeconfig::read_from(&kube_config_path).context("Couldn't load kubeconfig!")?;
         let insider_config_path = match insider_config_path {
             Some(path) => path.into(),
             None => kube_config_path
@@ -202,16 +193,17 @@ impl ConfigContext {
     }
 
     pub async fn create_client_with_default_context(&self) -> anyhow::Result<Client> {
-        self.create_client(self.kube_context_name.to_owned()).await
+        self.create_client(&self.kube_context_name).await
     }
 
-    pub async fn create_client(&self, context: String) -> anyhow::Result<Client> {
+    pub async fn create_client(&self, context: &str) -> anyhow::Result<Client> {
         let config_options = KubeConfigOptions {
-            context: Some(context),
+            context: Some(context.to_owned()),
             ..Default::default()
         };
 
-        let config = Config::from_custom_kubeconfig(self.kube_config.clone(), &config_options).await?;
+        let config =
+            Config::from_custom_kubeconfig(self.kube_config.clone(), &config_options).await?;
         let client = Client::try_from(config)?;
 
         Ok(client)
@@ -220,5 +212,4 @@ impl ConfigContext {
     pub fn get_path_base(&self) -> Option<&Path> {
         self.insider_config_path.parent()
     }
-
 }

@@ -27,3 +27,12 @@ impl From<IpNetFit> for IpNet {
         }
     }
 }
+
+impl From<&IpNetFit> for IpNet {
+    fn from(value: &IpNetFit) -> Self {
+        match value {
+            IpNetFit::V4 { ipv4 } => Self::V4(*ipv4),
+            IpNetFit::V6 { ipv6 } => Self::V6(*ipv6),
+        }
+    }
+}

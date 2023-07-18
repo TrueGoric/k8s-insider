@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{io, net::SocketAddr, path::Path, fs};
 
 use ipnet::IpNet;
 use k8s_insider_core::{
@@ -12,6 +12,7 @@ use k8s_insider_core::{
 use thiserror::Error;
 
 pub mod connection;
+pub mod linux;
 
 #[derive(Debug, Error)]
 pub enum WireguardError {
@@ -50,15 +51,15 @@ pub struct WireguardPeerConfig {
 impl WireguardPeerConfig {
     pub fn from_crd(
         peer_private_key: WgKey,
-        network: Network,
-        tunnel: Tunnel,
+        network: &Network,
+        tunnel: &Tunnel,
     ) -> Result<Self, WireguardError> {
-        if let Some(network_status) = network.status {
+        if let Some(ref network_status) = network.status {
             if network_status.state != NetworkState::Deployed {
                 return Err(WireguardError::NetworkInvalidState(network_status.state));
             }
 
-            if let Some(tunnel_status) = tunnel.status {
+            if let Some(ref tunnel_status) = tunnel.status {
                 if tunnel_status.state != TunnelState::Configured
                     && tunnel_status.state != TunnelState::Connected
                 {
@@ -71,17 +72,21 @@ impl WireguardPeerConfig {
                 let dns = network_status.dns;
                 let server_public_key = network_status
                     .server_public_key
-                    .and_then(|k| WgKey::from_base64(&k).ok())
+                    .as_deref()
+                    .and_then(|k| WgKey::from_base64(k).ok())
                     .ok_or(WireguardError::NetworkInvalidServerPublicKey)?;
                 let preshared_key = WgKey::from_base64(&tunnel.spec.preshared_key)
                     .map_err(|_| WireguardError::TunnelInvalidPresharedKey)?;
                 let server_endpoint = network_status
                     .endpoints
-                    .and_then(|e| e.into_iter().next())
-                    .ok_or(WireguardError::NetworkMissingEndpoint)?;
+                    .as_deref()
+                    .and_then(|e| e.iter().next())
+                    .ok_or(WireguardError::NetworkMissingEndpoint)?
+                    .to_owned();
                 let allowed_ips = network_status
                     .allowed_ips
-                    .map(|v| v.into_iter().map(|ip| ip.into()).collect())
+                    .as_deref()
+                    .map(|v| v.iter().map(|ip| ip.into()).collect())
                     .ok_or(WireguardError::NetworkMissingAllowedIps)?;
 
                 Ok(WireguardPeerConfig {
@@ -101,7 +106,7 @@ impl WireguardPeerConfig {
         }
     }
 
-    pub fn generate_configuration_file(self) -> String {
+    pub fn generate_configuration_file(&self) -> String {
         let address = self.address;
         let private_key = self.peer_private_key.to_base64();
         let dns = self.dns.map(|i| format!("DNS = {i}")).unwrap_or_default();
@@ -110,7 +115,7 @@ impl WireguardPeerConfig {
         let endpoint = self.server_endpoint;
         let allowed_ips = self
             .allowed_ips
-            .into_iter()
+            .iter()
             .map(|ip| ip.to_string())
             .collect::<Vec<_>>()
             .join(",");
@@ -127,5 +132,13 @@ PresharedKey = {preshared_key}
 Endpoint = {endpoint}
 AllowedIPs = {allowed_ips}"
         )
+    }
+
+    pub fn write_configuration(&self, path: &Path) -> Result<(), io::Error> {
+        let config = self.generate_configuration_file();
+
+        fs::write(path, config)?;
+
+        Ok(())
     }
 }

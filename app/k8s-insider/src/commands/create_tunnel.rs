@@ -11,14 +11,14 @@ use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::{tunnel::TunnelConfig, ConfigContext, InsiderConfig},
+    config::{tunnel::TunnelConfig, ConfigContext},
     CLI_FIELD_MANAGER,
 };
 
 pub async fn create_tunnel(
-    global_args: GlobalArgs,
-    args: CreateTunnelArgs,
-    mut context: ConfigContext,
+    global_args: &GlobalArgs,
+    args: &CreateTunnelArgs,
+    context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
     let client = context.create_client_with_default_context().await?;
 
@@ -39,13 +39,12 @@ pub async fn create_tunnel(
         public_key,
         preshared_key,
         args.static_ip.map(|ipv4| ipv4.into()),
-        args.persist,
     );
 
     debug!("{tunnel_crd:#?}");
 
     create_resource(&client, &tunnel_crd, &apply_params).await?;
-    write_config(args.name, &mut context, &tunnel_crd, private_key)?;
+    write_config(args.name.as_deref(), context, &tunnel_crd, private_key)?;
 
     info!("Tunnel successfully created!");
 
@@ -58,7 +57,6 @@ fn create_tunnel_crd(
     public_key: WgKey,
     preshared_key: WgKey,
     static_ip: Option<IpAddrPair>,
-    persistent: bool,
 ) -> Tunnel {
     // CRD resource names must be valid DNS subdomains, so Base64 is out of the question
     // this public key representation conforms to https://datatracker.ietf.org/doc/html/rfc5155
@@ -75,21 +73,17 @@ fn create_tunnel_crd(
             peer_public_key: public_key.to_base64(),
             preshared_key: preshared_key.to_base64(),
             static_ip,
-            persistent,
         },
         status: None,
     }
 }
 
 fn write_config(
-    name: Option<String>,
+    name: Option<&str>,
     context: &mut ConfigContext,
     crd: &Tunnel,
     private_key: WgKey,
 ) -> anyhow::Result<()> {
-    let local_name = name.unwrap_or_else(|| {
-        generate_config_tunnel_name(&crd.spec.network, context.insider_config())
-    });
     let entry = TunnelConfig::new(
         context.kube_context_name().to_owned(),
         crd.require_name_or(anyhow!("Missing Tunnel CRD name!"))?
@@ -98,13 +92,12 @@ fn write_config(
             .to_owned(),
         private_key,
     );
+    let config = context.insider_config_mut();
+    let local_name = name
+        .map(|s| s.to_owned())
+        .unwrap_or_else(|| config.generate_config_tunnel_name(&crd.spec.network));
 
-    if context
-        .insider_config_mut()
-        .tunnels
-        .insert(local_name, entry)
-        .is_some()
-    {
+    if config.tunnels.insert(local_name, entry).is_some() {
         return Err(anyhow!(
             "Provided name is already present in the configuration file!"
         ));
@@ -116,16 +109,4 @@ fn write_config(
         .context("Couldn't save the configuration file!")?;
 
     Ok(())
-}
-
-fn generate_config_tunnel_name(network_name: &str, config: &InsiderConfig) -> String {
-    for index in 0.. {
-        let name = format!("{network_name}-tun{index}");
-
-        if !config.tunnels.contains_key(&name) {
-            return name;
-        }
-    }
-
-    panic!("You disobeyed my orders son, why were you ever born?");
 }
