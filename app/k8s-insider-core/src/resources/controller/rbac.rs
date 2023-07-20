@@ -6,7 +6,7 @@ use kube::Resource;
 
 use crate::{
     resources::{
-        crd::v1alpha1::{connection::Connection, network::Network, tunnel::Tunnel},
+        crd::v1alpha1::{network::Network, tunnel::Tunnel},
         ResourceGenerationError,
     },
     CONTROLLER_CLUSTERROLE_NAME, NETWORK_MANAGER_CLUSTERROLE_NAME, ROUTER_CLUSTERROLE_NAME,
@@ -223,22 +223,9 @@ impl ControllerRelease {
             ..Default::default()
         };
 
-        // RATIONALE: read connections to manage tunnels (whether or not they should be closed, etc.)
-        let read_connections = PolicyRule {
-            api_groups: Some(vec![Connection::group(&()).into()]),
-            resources: Some(vec![Connection::plural(&()).into()]),
-            verbs: vec!["get".to_owned(), "watch".to_owned(), "list".to_owned()],
-            ..Default::default()
-        };
-
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(NETWORK_MANAGER_CLUSTERROLE_NAME),
-            rules: Some(vec![
-                read_network,
-                manage_tunnels,
-                update_tunnel_statuses,
-                read_connections,
-            ]),
+            rules: Some(vec![read_network, manage_tunnels, update_tunnel_statuses]),
             ..Default::default()
         }
     }
@@ -260,38 +247,9 @@ impl ControllerRelease {
             ..Default::default()
         };
 
-        // RATIONALE: manage connections to share connection state
-        let manage_connections = PolicyRule {
-            api_groups: Some(vec![Connection::group(&()).into()]),
-            resources: Some(vec![Connection::plural(&()).into()]),
-            verbs: vec![
-                "get".to_owned(),
-                "watch".to_owned(),
-                "list".to_owned(),
-                "create".to_owned(),
-                "update".to_owned(),
-                "patch".to_owned(),
-                "delete".to_owned(),
-            ],
-            ..Default::default()
-        };
-
-        // RATIONALE: manage connections to share connection state
-        let manage_connection_status = PolicyRule {
-            api_groups: Some(vec![Connection::group(&()).into()]),
-            resources: Some(vec![format!("{}/status", Connection::plural(&()))]),
-            verbs: vec!["update".to_owned(), "patch".to_owned()],
-            ..Default::default()
-        };
-
         ClusterRole {
             metadata: self.generate_clusterwide_metadata(ROUTER_CLUSTERROLE_NAME),
-            rules: Some(vec![
-                get_network,
-                read_tunnels,
-                manage_connections,
-                manage_connection_status,
-            ]),
+            rules: Some(vec![get_network, read_tunnels]),
             ..Default::default()
         }
     }

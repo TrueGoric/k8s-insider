@@ -3,14 +3,8 @@ use std::{sync::Arc, time::Duration};
 use k8s_insider_core::{
     helpers::RequireMetadata,
     ip::addrpair::{DualStackTryGet, IpAddrPair},
-    kubernetes::{
-        operations::{apply_resource_status, try_get_resource},
-        GetApi,
-    },
-    resources::crd::v1alpha1::{
-        connection::Connection,
-        tunnel::{Tunnel, TunnelState, TunnelStatus},
-    },
+    kubernetes::{operations::apply_resource_status, GetApi},
+    resources::crd::v1alpha1::tunnel::{Tunnel, TunnelState, TunnelStatus},
     wireguard::keys::WgKey,
 };
 use kube::{
@@ -109,8 +103,7 @@ async fn reconcile(
     object: &Tunnel,
     context: &ReconcilerContext,
 ) -> Result<Action, ReconcilerError> {
-    let connection = get_connection(object, context).await?;
-    let status: TunnelStatus = prepare_status(object, connection, context).await?;
+    let status: TunnelStatus = prepare_status(object, context).await?;
 
     apply_resource_status::<Tunnel, TunnelStatus>(
         &context.client,
@@ -134,22 +127,8 @@ async fn cleanup(object: &Tunnel, context: &ReconcilerContext) -> Result<Action,
     Ok(Action::await_change())
 }
 
-async fn get_connection(
-    object: &Tunnel,
-    context: &ReconcilerContext,
-) -> Result<Option<Connection>, ReconcilerError> {
-    try_get_resource(
-        &context.client,
-        object.require_name_or(ReconcilerError::MissingObjectMetadata)?,
-        object.require_namespace_or(ReconcilerError::MissingObjectMetadata)?,
-    )
-    .await
-    .map_err(ReconcilerError::KubeApiError)
-}
-
 async fn prepare_status(
     object: &Tunnel,
-    connection: Option<Connection>,
     context: &ReconcilerContext,
 ) -> Result<TunnelStatus, ReconcilerError> {
     let public_key = WgKey::from_base64(&object.spec.peer_public_key)
@@ -168,11 +147,6 @@ async fn prepare_status(
             None => get_or_allocate_address(public_key, context).await?,
         };
     }
-
-    status.state = match &connection {
-        Some(_) => TunnelState::Connected,
-        None => TunnelState::Configured,
-    };
 
     Ok(status)
 }

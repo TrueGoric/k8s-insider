@@ -1,10 +1,7 @@
 use std::sync::Arc;
 
 use futures::StreamExt;
-use k8s_insider_core::{
-    kubernetes::GetApi,
-    resources::crd::v1alpha1::{connection::Connection, tunnel::Tunnel},
-};
+use k8s_insider_core::{kubernetes::GetApi, resources::crd::v1alpha1::tunnel::Tunnel};
 use kube::runtime::{watcher::Config, Controller};
 use log::info;
 
@@ -23,12 +20,6 @@ pub async fn start_tunnel_controller(context: Arc<ReconcilerContext>) {
         context
             .client
             .namespaced_api::<Tunnel>(&context.router_release.namespace),
-        watcher_config.clone(),
-    )
-    .owns(
-        context
-            .client
-            .namespaced_api::<Connection>(&context.router_release.namespace),
         watcher_config.clone(),
     )
     .shutdown_on_signal()
