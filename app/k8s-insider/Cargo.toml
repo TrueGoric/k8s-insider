@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 clap = { version = "4.3.2", features = ["derive"] }
 env_logger = { workspace = true }
 home = "0.5.5"
+insider-macros = { path = "../insider-macros" }
 ipnet = { workspace = true }
 k8s-insider-core = { path = "../k8s-insider-core" }
 k8s-openapi = { workspace = true }

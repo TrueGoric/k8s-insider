@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -8,6 +10,15 @@ use serde::{Deserialize, Serialize};
 pub enum IpNetFit {
     V4 { ipv4: Ipv4Net },
     V6 { ipv6: Ipv6Net },
+}
+
+impl Display for IpNetFit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IpNetFit::V4 { ipv4 } => ipv4.fmt(f),
+            IpNetFit::V6 { ipv6 } => ipv6.fmt(f),
+        }
+    }
 }
 
 impl From<IpNet> for IpNetFit {

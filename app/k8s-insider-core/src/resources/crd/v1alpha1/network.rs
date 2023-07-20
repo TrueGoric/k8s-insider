@@ -48,6 +48,17 @@ pub enum NetworkService {
     },
 }
 
+impl Display for NetworkService {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NetworkService::ClusterIp { .. } => f.write_str("ClusterIp"),
+            NetworkService::NodePort { .. } => f.write_str("NodePort"),
+            NetworkService::LoadBalancer { .. } => f.write_str("LoadBalancer"),
+            NetworkService::ExternalIp { .. } => f.write_str("ExternalIp"),
+        }
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]

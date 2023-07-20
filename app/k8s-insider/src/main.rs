@@ -21,6 +21,7 @@ use crate::cli::Cli;
 mod cli;
 mod commands;
 mod config;
+mod output;
 mod wireguard;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
@@ -58,8 +59,8 @@ async fn main() -> anyhow::Result<()> {
                 }
             },
             Commands::List(list_sub) => match list_sub.subcommand {
-                ListSubcommands::Network => list_networks(cli.global_args, context).await?,
-                ListSubcommands::Tunnel => todo!(),
+                ListSubcommands::Network(args) => list_networks(cli.global_args, args, context).await?,
+                ListSubcommands::Tunnel(_) => todo!(),
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
             Commands::Disconnect => todo!(),

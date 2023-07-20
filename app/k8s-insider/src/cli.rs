@@ -279,11 +279,26 @@ pub struct ListCommand {
 pub enum ListSubcommands {
     /// List cluster VPN networks
     #[command(alias = "n")]
-    Network,
+    Network(ListNetworksArgs),
     /// List network tunnels
     #[command(alias = "t")]
-    Tunnel,
+    Tunnel(ListTunnelsArgs),
 }
+
+#[derive(Debug, Args)]
+pub struct ListNetworksArgs {
+    /// Output format
+    #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
+}
+
+#[derive(Debug, Args)]
+pub struct ListTunnelsArgs {
+    /// Output format
+    #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
+}
+
 
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
