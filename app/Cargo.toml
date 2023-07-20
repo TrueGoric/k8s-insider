@@ -3,7 +3,6 @@ members = [
     "insider-macros",
     "k8s-insider",
     "k8s-insider-agent",
-    "k8s-insider-info-server",
     "k8s-insider-core",
 ]
 
