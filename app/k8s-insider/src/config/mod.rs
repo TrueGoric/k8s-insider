@@ -77,34 +77,31 @@ impl InsiderConfig {
         Ok(())
     }
 
-    pub fn try_get_default_tunnel(&self) -> anyhow::Result<Option<&TunnelConfig>> {
+    pub fn try_get_default_tunnel(&self) -> anyhow::Result<Option<(&String, &TunnelConfig)>> {
         if self.tunnels.len() > 1 {
             return Err(anyhow!(
                 "No default tunnel: multiple tunnels written to config!"
             ));
         }
 
-        Ok(self
-            .tunnels
-            .first_key_value()
-            .map(|kv| kv.1))
+        Ok(self.tunnels.first_key_value())
     }
 
-    pub fn try_get_tunnel(&self, name: &str) -> Option<&TunnelConfig> {
-        self.tunnels.get(name)
+    pub fn try_get_tunnel(&self, name: &str) -> Option<(&String, &TunnelConfig)> {
+        self.tunnels.get_key_value(name)
     }
 
     pub fn generate_config_tunnel_name(&self, network_name: &str) -> String {
         for index in 0.. {
             let name = format!("{network_name}-tun{index}");
-    
+
             if !self.tunnels.contains_key(&name) {
                 return name;
             }
         }
-    
+
         panic!("You disobeyed my orders son, why were you ever born?");
-    }    
+    }
 }
 
 pub struct ConfigContext {
@@ -135,7 +132,13 @@ impl ConfigContext {
         let kube_config =
             Kubeconfig::read_from(&kube_config_path).context("Couldn't load kubeconfig!")?;
         let insider_config_path = match insider_config_path {
-            Some(path) => path.into(),
+            Some(path) => {
+                if path.file_name().is_none() {
+                    return Err(anyhow!("Insider config path is invalid!"))
+                }
+
+                path.into()
+            },
             None => kube_config_path
                 .as_path()
                 .parent()
@@ -209,7 +212,7 @@ impl ConfigContext {
         Ok(client)
     }
 
-    pub fn get_path_base(&self) -> Option<&Path> {
-        self.insider_config_path.parent()
+    pub fn get_path_base(&self) -> &Path {
+        self.insider_config_path.parent().unwrap() // unwrapping is safe since we make sure that this path contains at least a filename
     }
 }

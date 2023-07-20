@@ -30,6 +30,34 @@ pub struct TunnelSpec {
     pub static_ip: Option<IpAddrPair>,
 }
 
+impl Tunnel {
+    pub fn is_ready(&self) -> bool {
+        self.status
+            .as_ref()
+            .map(|s| s.state == TunnelState::Configured || s.state == TunnelState::Connected)
+            .unwrap_or(false)
+    }
+
+    pub fn is_error(&self) -> bool {
+        self.status
+            .as_ref()
+            .map(|s| {
+                s.state != TunnelState::Closed
+                    && s.state != TunnelState::Configured
+                    && s.state != TunnelState::Connected
+                    && s.state != TunnelState::Created
+            })
+            .unwrap_or(false)
+    }
+
+    pub fn is_closed(&self) -> bool {
+        self.status
+            .as_ref()
+            .map(|s| s.state == TunnelState::Closed)
+            .unwrap_or(false)
+    }
+}
+
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize, Clone, Debug, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]

@@ -299,13 +299,13 @@ pub struct ListTunnelsArgs {
     pub output: OutputFormat,
 }
 
-
 #[derive(Debug, Args)]
 pub struct ConnectArgs {
     /// Name of the tunnel to connect to (can be omitted if there's only one tunnel in the config)
     #[arg()]
     pub name: Option<String>,
     /// Whether or not to omit patching the DNS resolver on connection
+    #[arg(long, default_value_t = false)]
     pub dont_patch_dns: bool,
 }
 

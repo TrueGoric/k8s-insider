@@ -1,4 +1,7 @@
-use std::{net::{IpAddr, SocketAddr}, fmt::Display};
+use std::{
+    fmt::Display,
+    net::{IpAddr, SocketAddr},
+};
 
 use kube::CustomResource;
 use schemars::JsonSchema;
@@ -26,6 +29,22 @@ pub struct NetworkSpec {
     /// whether to enable NAT or allow this network to interact directly with the cluster
     /// (depending on the controller implementation and cluster capabilities this might not have an effect)
     pub nat: Option<bool>,
+}
+
+impl Network {
+    pub fn is_ready(&self) -> bool {
+        self.status
+            .as_ref()
+            .map(|s| s.state == NetworkState::Deployed)
+            .unwrap_or(false)
+    }
+
+    pub fn is_error(&self) -> bool {
+        self.status
+            .as_ref()
+            .map(|s| s.state != NetworkState::Created && s.state != NetworkState::Deployed)
+            .unwrap_or(false)
+    }
 }
 
 #[skip_serializing_none]
@@ -91,10 +110,18 @@ impl Display for NetworkState {
         match self {
             NetworkState::Created => f.write_str("network was created"),
             NetworkState::Deployed => f.write_str("network is deployed"),
-            NetworkState::UnknownError => f.write_str("an unknown error happenned when setting up the network"),
-            NetworkState::ErrorCreatingService => f.write_str("couldn't create a Service resource for the network"),
-            NetworkState::ErrorSubnetConflict => f.write_str("there was an error when assigning IPs in the network"),
-            NetworkState::ErrorInsufficientPermissions => f.write_str("controller lacks sufficient permissions to set up the network"),
+            NetworkState::UnknownError => {
+                f.write_str("an unknown error happenned when setting up the network")
+            }
+            NetworkState::ErrorCreatingService => {
+                f.write_str("couldn't create a Service resource for the network")
+            }
+            NetworkState::ErrorSubnetConflict => {
+                f.write_str("there was an error when assigning IPs in the network")
+            }
+            NetworkState::ErrorInsufficientPermissions => {
+                f.write_str("controller lacks sufficient permissions to set up the network")
+            }
         }
     }
 }

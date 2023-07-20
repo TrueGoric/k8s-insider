@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, time::Duration};
 
 use anyhow::{anyhow, Context};
 use futures::Stream;
@@ -11,7 +11,10 @@ use k8s_openapi::{
 use kube::{
     api::{DeleteParams, ListParams, Patch, PatchParams, PostParams},
     core::{object::HasStatus, ObjectMeta},
-    runtime::watcher::{self, watch_object},
+    runtime::{
+        wait::await_condition,
+        watcher::{self, watch_object},
+    },
     Api, Client, Resource,
 };
 use log::{debug, info, warn};
@@ -32,6 +35,46 @@ where
     let api: Api<T> = Api::namespaced(client.clone(), namespace);
 
     watch_object(api, resource_name)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AwaitError<T> {
+    #[error("{}", .0)]
+    KubeError(kube::Error),
+    #[error("{}", .0)]
+    KubeWaitError(kube::runtime::wait::Error),
+    #[error("Timed out while waiting for a condition!")]
+    Timeout(Option<T>),
+}
+
+pub async fn await_resource_condition<T>(
+    client: &Client,
+    resource_name: &str,
+    namespace: &str,
+    condition: impl Fn(Option<&T>) -> bool,
+    timeout: Duration,
+) -> Result<Option<T>, AwaitError<T>>
+where
+    T: Resource<Scope = NamespaceResourceScope>
+        + Serialize
+        + Clone
+        + DeserializeOwned
+        + Debug
+        + Send
+        + 'static,
+    <T as Resource>::DynamicType: Default,
+{
+    let resource_api: Api<T> = Api::namespaced(client.clone(), namespace);
+    let resource = await_condition(resource_api, resource_name, condition);
+    let resource = tokio::time::timeout(timeout, resource).await;
+
+    match resource {
+        Ok(result) => Ok(result.map_err(AwaitError::KubeWaitError)?),
+        Err(_) => Err(try_get_resource::<T>(client, resource_name, namespace)
+            .await
+            .map(AwaitError::Timeout)
+            .map_err(AwaitError::KubeError)?),
+    }
 }
 
 pub async fn try_get_resource<T>(
