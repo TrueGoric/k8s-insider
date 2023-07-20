@@ -278,10 +278,10 @@ pub struct ListCommand {
 #[command(arg_required_else_help = true)]
 pub enum ListSubcommands {
     /// List cluster VPN networks
-    #[command(alias = "n")]
+    #[command(alias = "n", alias = "networks")]
     Network(ListNetworksArgs),
     /// List network tunnels
-    #[command(alias = "t")]
+    #[command(alias = "t", alias = "tunnels")]
     Tunnel(ListTunnelsArgs),
 }
 
