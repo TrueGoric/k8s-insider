@@ -14,8 +14,9 @@ use log::debug;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use self::tunnel::TunnelConfig;
+use self::network::NetworkConfig;
 
+pub mod network;
 pub mod tunnel;
 
 pub const DEFAULT_CONFIG_FILENAME: &str = "insider-config";
@@ -38,7 +39,7 @@ pub enum InsiderConfigError {
 pub struct InsiderConfig {
     #[serde(skip)]
     pub path: Option<PathBuf>,
-    pub tunnels: BTreeMap<String, TunnelConfig>,
+    networks: BTreeMap<String, NetworkConfig>,
 }
 
 impl InsiderConfig {
@@ -77,30 +78,55 @@ impl InsiderConfig {
         Ok(())
     }
 
-    pub fn try_get_default_tunnel(&self) -> anyhow::Result<Option<(&String, &TunnelConfig)>> {
-        if self.tunnels.len() > 1 {
+    pub fn try_get_default_network(&self) -> anyhow::Result<Option<(&String, &NetworkConfig)>> {
+        if self.networks.len() > 1 {
             return Err(anyhow!(
-                "No default tunnel: multiple tunnels written to config!"
+                "No default network: multiple networks written to config!"
             ));
         }
 
-        Ok(self.tunnels.first_key_value())
+        Ok(self.networks.first_key_value())
     }
 
-    pub fn try_get_tunnel(&self, name: &str) -> Option<(&String, &TunnelConfig)> {
-        self.tunnels.get_key_value(name)
+    pub fn try_get_network(&self, name: &str) -> Option<(&String, &NetworkConfig)> {
+        self.networks.get_key_value(name)
     }
 
-    pub fn generate_config_tunnel_name(&self, network_name: &str) -> String {
-        for index in 0.. {
-            let name = format!("{network_name}-tun{index}");
+    pub fn get_or_add_network(
+        &self,
+        name: String,
+        config_creator: impl FnOnce() -> NetworkConfig,
+    ) -> anyhow::Result<(&String, &NetworkConfig)> {
+        match self.networks.get_key_value(&name) {
+            Some(config) => Ok(config),
+            None => {
+                self.networks.insert(name, config_creator());
 
-            if !self.tunnels.contains_key(&name) {
-                return name;
+                Ok(self.networks.get_key_value(&name).unwrap())
             }
         }
+    }
 
-        panic!("You disobeyed my orders son, why were you ever born?");
+    pub fn try_add_network(&self, name: String, config: NetworkConfig) -> anyhow::Result<()> {
+        if self.networks.contains_key(&name) {
+            return Err(anyhow!(
+                "Network named {name} is already present in the config!"
+            ));
+        }
+
+        if self.networks.insert(name, config).is_some() {
+            panic!("(*birb*) DONT TOUCH ME (*birb*)");
+        }
+
+        Ok(())
+    }
+
+    pub fn try_remove_network(&self, name: &str) -> anyhow::Result<NetworkConfig> {
+        if !self.networks.contains_key(name) {
+            return Err(anyhow!("There's no '{name}' tunnel in the config!"));
+        }
+
+        Ok(self.networks.remove(name).unwrap())
     }
 }
 
@@ -134,11 +160,11 @@ impl ConfigContext {
         let insider_config_path = match insider_config_path {
             Some(path) => {
                 if path.file_name().is_none() {
-                    return Err(anyhow!("Insider config path is invalid!"))
+                    return Err(anyhow!("Insider config path is invalid!"));
                 }
 
                 path.into()
-            },
+            }
             None => kube_config_path
                 .as_path()
                 .parent()

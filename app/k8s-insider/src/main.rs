@@ -2,8 +2,8 @@ use std::path::Path;
 
 use clap::Parser;
 use cli::{
-    Commands, ConfigSubcommands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands,
-    LogLevel,
+    Commands, ConfigAddSubcommands, ConfigListSubcommands, ConfigRemoveSubcommands,
+    ConfigSubcommands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel,
 };
 use commands::{
     config_add_tunnel::config_add_tunnel, config_list_tunnels::config_list_tunnels,
@@ -59,7 +59,9 @@ async fn main() -> anyhow::Result<()> {
                 }
             },
             Commands::List(list_sub) => match list_sub.subcommand {
-                ListSubcommands::Network(args) => list_networks(cli.global_args, args, context).await?,
+                ListSubcommands::Network(args) => {
+                    list_networks(cli.global_args, args, context).await?
+                }
                 ListSubcommands::Tunnel(_) => todo!(),
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
@@ -67,11 +69,24 @@ async fn main() -> anyhow::Result<()> {
             Commands::GetConf(args) => get_configuration(args, context).await?,
             Commands::PatchDns(_) => todo!(),
             Commands::Config(config_sub) => match config_sub.subcommand {
-                ConfigSubcommands::AddTunnel(args) => {
-                    config_add_tunnel(cli.global_args, args, context)?
+                ConfigSubcommands::Add(config_add_sub) => match config_add_sub.subcommand {
+                    ConfigAddSubcommands::Network(_) => todo!(),
+                    ConfigAddSubcommands::Tunnel(args) => {
+                        config_add_tunnel(cli.global_args, args, context)?
+                    }
+                },
+                ConfigSubcommands::List(config_list_sub) => match config_list_sub.subcommand {
+                    ConfigListSubcommands::Network(_) => todo!(),
+                    ConfigListSubcommands::Tunnel(args) => config_list_tunnels(args, context)?,
+                },
+                ConfigSubcommands::Remove(config_remove_sub) => {
+                    match config_remove_sub.subcommand {
+                        ConfigRemoveSubcommands::Network(_) => todo!(),
+                        ConfigRemoveSubcommands::Tunnel(args) => {
+                            config_remove_tunnel(args, context)?
+                        }
+                    }
                 }
-                ConfigSubcommands::ListTunnels(args) => config_list_tunnels(args, context)?,
-                ConfigSubcommands::RemoveTunnel(args) => config_remove_tunnel(args, context)?,
             },
         }
     }

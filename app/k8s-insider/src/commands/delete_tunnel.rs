@@ -18,20 +18,21 @@ pub async fn delete_tunnel(
 ) -> anyhow::Result<()> {
     let client = context.create_client_with_default_context().await?;
 
-    let tunnel = context
+    let network = context
         .insider_config_mut()
-        .tunnels
-        .remove(&args.name)
+        .try_get_network(&args.network)
         .ok_or(anyhow!(
-            "'{}' tunnel is not defined in the config!",
-            args.name
-        ))?;
+            "Couldn't find '{}' network in the config!",
+            args.network
+        ))?
+        .1;
+    let tunnel = network.try_remove_tunnel(&args.tunnel)?;
 
-    info!("Removing '{}' tunnel...", args.name);
+    info!("Removing '{}' tunnel...", args.tunnel);
 
     let delete_params = DeleteParams::background().and_if(args.dry_run, DeleteParams::dry_run);
     let was_removed =
-        try_remove_resource::<Tunnel>(&client, &tunnel.name, &tunnel.namespace, &delete_params)
+        try_remove_resource::<Tunnel>(&client, &tunnel.name, &network.namespace, &delete_params)
             .await?;
 
     context
@@ -42,7 +43,7 @@ pub async fn delete_tunnel(
     if was_removed {
         info!("Tunnel successfully deleted!");
     } else {
-        info!("Couldn't find '{}' network on the cluster!", args.name);
+        info!("Couldn't find '{}' network on the cluster!", args.tunnel);
     }
 
     Ok(())

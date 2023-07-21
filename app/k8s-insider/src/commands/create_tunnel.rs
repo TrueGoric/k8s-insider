@@ -11,7 +11,7 @@ use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::{tunnel::TunnelConfig, ConfigContext},
+    config::{network::NetworkConfig, tunnel::TunnelConfig, ConfigContext},
     CLI_FIELD_MANAGER,
 };
 
@@ -84,24 +84,23 @@ fn write_config(
     crd: &Tunnel,
     private_key: WgKey,
 ) -> anyhow::Result<()> {
+    let namespace = crd
+        .require_namespace_or(anyhow!("Missing Tunnel CRD namespace!"))?
+        .to_owned();
     let entry = TunnelConfig::new(
-        context.kube_context_name().to_owned(),
         crd.require_name_or(anyhow!("Missing Tunnel CRD name!"))?
-            .to_owned(),
-        crd.require_namespace_or(anyhow!("Missing Tunnel CRD namespace!"))?
             .to_owned(),
         private_key,
     );
     let config = context.insider_config_mut();
+    let (_, network) = config.get_or_add_network(crd.spec.network.clone(), || {
+        NetworkConfig::new(namespace, context.kube_context_name().to_owned())
+    })?;
     let local_name = name
         .map(|s| s.to_owned())
-        .unwrap_or_else(|| config.generate_config_tunnel_name(&crd.spec.network));
+        .unwrap_or_else(|| network.generate_config_tunnel_name(&crd.spec.network));
 
-    if config.tunnels.insert(local_name, entry).is_some() {
-        return Err(anyhow!(
-            "Provided name is already present in the configuration file!"
-        ));
-    }
+    network.try_add_tunnel(local_name, entry)?;
 
     context
         .insider_config()

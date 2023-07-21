@@ -6,21 +6,22 @@ use k8s_insider_core::{
     resources::crd::v1alpha1::{network::Network, tunnel::Tunnel},
 };
 
-use crate::config::{tunnel::TunnelConfig, ConfigContext};
+use crate::config::{network::NetworkConfig, tunnel::TunnelConfig, ConfigContext};
 
 use super::WireguardPeerConfig;
 
 pub async fn await_tunnel_availability(
+    config_network: &NetworkConfig,
     config_tunnel: &TunnelConfig,
     context: &ConfigContext,
 ) -> anyhow::Result<(WireguardPeerConfig, Tunnel, Network)> {
-    let client = context.create_client(&config_tunnel.context).await?;
+    let client = context.create_client(&config_network.context).await?;
 
     let tunnel_condition = |t: Option<&Tunnel>| t.map(|t| t.is_ready()).unwrap_or(true);
     let tunnel = await_resource_condition::<Tunnel>(
         &client,
         &config_tunnel.name,
-        &config_tunnel.namespace,
+        &config_network.namespace,
         tunnel_condition,
         Duration::from_secs(5),
     )
@@ -50,7 +51,7 @@ pub async fn await_tunnel_availability(
     let network = await_resource_condition::<Network>(
         &client,
         &tunnel.spec.network,
-        &config_tunnel.namespace,
+        &config_network.namespace,
         network_condition,
         Duration::from_secs(5),
     )
