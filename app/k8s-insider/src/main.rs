@@ -6,9 +6,11 @@ use cli::{
     ConfigSubcommands, CreateSubcommands, DeleteSubcommands, GlobalArgs, ListSubcommands, LogLevel,
 };
 use commands::{
-    config_add_tunnel::config_add_tunnel, config_list_tunnels::config_list_tunnels,
-    config_remove_tunnel::config_remove_tunnel, connect::connect, create_network::create_network,
-    create_tunnel::create_tunnel, delete_network::delete_network, delete_tunnel::delete_tunnel,
+    config_add_network::config_add_network, config_add_tunnel::config_add_tunnel,
+    config_list_networks::config_list_networks, config_list_tunnels::config_list_tunnels,
+    config_remove_network::config_remove_network, config_remove_tunnel::config_remove_tunnel,
+    connect::connect, create_network::create_network, create_tunnel::create_tunnel,
+    delete_network::delete_network, delete_tunnel::delete_tunnel,
     get_configuration::get_configuration, install::install, list_networks::list_networks,
     uninstall::uninstall,
 };
@@ -70,18 +72,20 @@ async fn main() -> anyhow::Result<()> {
             Commands::PatchDns(_) => todo!(),
             Commands::Config(config_sub) => match config_sub.subcommand {
                 ConfigSubcommands::Add(config_add_sub) => match config_add_sub.subcommand {
-                    ConfigAddSubcommands::Network(_) => todo!(),
-                    ConfigAddSubcommands::Tunnel(args) => {
-                        config_add_tunnel(args, context)?
+                    ConfigAddSubcommands::Network(args) => {
+                        config_add_network(cli.global_args, args, context)?
                     }
+                    ConfigAddSubcommands::Tunnel(args) => config_add_tunnel(args, context)?,
                 },
                 ConfigSubcommands::List(config_list_sub) => match config_list_sub.subcommand {
-                    ConfigListSubcommands::Network(_) => todo!(),
+                    ConfigListSubcommands::Network(args) => config_list_networks(args, context)?,
                     ConfigListSubcommands::Tunnel(args) => config_list_tunnels(args, context)?,
                 },
                 ConfigSubcommands::Remove(config_remove_sub) => {
                     match config_remove_sub.subcommand {
-                        ConfigRemoveSubcommands::Network(_) => todo!(),
+                        ConfigRemoveSubcommands::Network(args) => {
+                            config_remove_network(args, context)?
+                        }
                         ConfigRemoveSubcommands::Tunnel(args) => {
                             config_remove_tunnel(args, context)?
                         }

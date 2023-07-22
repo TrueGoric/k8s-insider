@@ -44,7 +44,7 @@ pub async fn create_tunnel(
     debug!("{tunnel_crd:#?}");
 
     create_resource(&client, &tunnel_crd, &apply_params).await?;
-    write_config(args.name.as_deref(), context, &tunnel_crd, private_key)?;
+    write_config(args.name.as_deref(), &tunnel_crd, private_key, context)?;
 
     info!("Tunnel successfully created!");
 
@@ -80,9 +80,9 @@ fn create_tunnel_crd(
 
 fn write_config(
     name: Option<&str>,
-    context: &mut ConfigContext,
     crd: &Tunnel,
     private_key: WgKey,
+    context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
     let namespace = crd
         .require_namespace_or(anyhow!("Missing Tunnel CRD namespace!"))?

@@ -419,8 +419,8 @@ pub struct ConfigListNetworksArgs {
 
 #[derive(Debug, Args)]
 pub struct ConfigListTunnelsArgs {
-    /// Limit the search to tunnels belonging to a particular network
-    #[arg(short, long)]
+    /// Limit the search to tunnels belonging to a particular network (optional)
+    #[arg()]
     pub network: Option<String>,
     /// Output format
     #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table)]
@@ -436,7 +436,7 @@ pub struct ConfigRemoveCommand {
 #[derive(Debug, Subcommand)]
 #[command(arg_required_else_help = true)]
 pub enum ConfigRemoveSubcommands {
-    /// Remove a network and all associated tunnels
+    /// Remove a network and all associated tunnels from config
     #[command(alias = "n")]
     Network(ConfigRemoveNetworkArgs),
     /// Remove a tunnel from configuration
@@ -446,12 +446,9 @@ pub enum ConfigRemoveSubcommands {
 
 #[derive(Debug, Args)]
 pub struct ConfigRemoveNetworkArgs {
-    /// Locally scoped name of the tunnel to remove
+    /// Name of the network to remove
     #[arg()]
     pub name: String,
-    /// Parent network of the soon-to-be-expunged tunnel
-    #[arg()]
-    pub network: String,
 }
 
 #[derive(Debug, Args)]

@@ -2,9 +2,9 @@ use insider_macros::TableOutputRow;
 use serde::Serialize;
 
 use crate::{
-    cli::{ConfigListTunnelsArgs, OutputFormat},
+    cli::ConfigListTunnelsArgs,
     config::{network::NetworkConfig, tunnel::TunnelConfig, ConfigContext},
-    output::{SerializableOutputDisplay, TableOutputDisplay},
+    output::CliPrint,
 };
 
 pub fn config_list_tunnels(
@@ -44,14 +44,7 @@ pub fn config_list_tunnels(
         .map(std::convert::Into::<TunnelConfigView>::into)
         .collect::<Vec<_>>();
 
-    match args.output {
-        OutputFormat::Names => tunnels.print_names(),
-        OutputFormat::Table => tunnels.print_table(),
-        OutputFormat::TableWithHeaders => tunnels.print_table_with_headers(),
-        OutputFormat::Json => tunnels.print_json()?,
-        OutputFormat::JsonPretty => tunnels.print_json_pretty()?,
-        OutputFormat::Yaml => tunnels.print_yaml()?,
-    }
+    tunnels.print(args.output)?;
 
     Ok(())
 }

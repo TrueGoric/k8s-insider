@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use serde::Serialize;
 
+use crate::cli::OutputFormat;
+
 #[derive(Serialize)]
 pub struct TableCellOption<T>(Option<T>);
 
@@ -102,6 +104,25 @@ impl<T: ?Sized + Serialize> SerializableOutputDisplay for T {
     fn print_yaml(&self) -> Result<(), serde_yaml::Error> {
         let output = serde_yaml::to_string(self)?;
         print!("{output}");
+
+        Ok(())
+    }
+}
+
+pub trait CliPrint {
+    fn print(self, format: OutputFormat) -> anyhow::Result<()>;
+}
+
+impl<T: Serialize + TableOutputDisplay> CliPrint for T {
+    fn print(self, format: OutputFormat) -> anyhow::Result<()> {
+        match format {
+            OutputFormat::Names => self.print_names(),
+            OutputFormat::Table => self.print_table(),
+            OutputFormat::TableWithHeaders => self.print_table_with_headers(),
+            OutputFormat::Json => self.print_json()?,
+            OutputFormat::JsonPretty => self.print_json_pretty()?,
+            OutputFormat::Yaml => self.print_yaml()?,
+        }
 
         Ok(())
     }
