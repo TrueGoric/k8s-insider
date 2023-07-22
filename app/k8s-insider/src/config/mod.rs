@@ -92,22 +92,27 @@ impl InsiderConfig {
         self.networks.get_key_value(name)
     }
 
-    pub fn get_or_add_network(
-        &self,
-        name: String,
-        config_creator: impl FnOnce() -> NetworkConfig,
-    ) -> anyhow::Result<(&String, &NetworkConfig)> {
-        match self.networks.get_key_value(&name) {
-            Some(config) => Ok(config),
-            None => {
-                self.networks.insert(name, config_creator());
-
-                Ok(self.networks.get_key_value(&name).unwrap())
-            }
-        }
+    pub fn try_get_network_mut(&mut self, name: &str) -> Option<&mut NetworkConfig> {
+        self.networks.get_mut(name)
     }
 
-    pub fn try_add_network(&self, name: String, config: NetworkConfig) -> anyhow::Result<()> {
+    pub fn list_networks(&self) -> impl Iterator<Item = (&String, &NetworkConfig)> {
+        self.networks.iter()
+    }
+
+    pub fn get_or_add_network<'a>(
+        &'a mut self,
+        name: &str,
+        config_creator: impl FnOnce() -> NetworkConfig,
+    ) -> anyhow::Result<&'a mut NetworkConfig> {
+        if !self.networks.contains_key(name) {
+            self.networks.insert(name.to_owned(), config_creator());
+        }
+
+        Ok(self.networks.get_mut(name).unwrap())
+    }
+
+    pub fn try_add_network(&mut self, name: String, config: NetworkConfig) -> anyhow::Result<()> {
         if self.networks.contains_key(&name) {
             return Err(anyhow!(
                 "Network named {name} is already present in the config!"
@@ -121,7 +126,7 @@ impl InsiderConfig {
         Ok(())
     }
 
-    pub fn try_remove_network(&self, name: &str) -> anyhow::Result<NetworkConfig> {
+    pub fn try_remove_network(&mut self, name: &str) -> anyhow::Result<NetworkConfig> {
         if !self.networks.contains_key(name) {
             return Err(anyhow!("There's no '{name}' tunnel in the config!"));
         }

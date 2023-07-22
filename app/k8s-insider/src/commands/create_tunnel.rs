@@ -92,13 +92,15 @@ fn write_config(
             .to_owned(),
         private_key,
     );
+    let kube_context = context.kube_context_name().to_owned();
+
     let config = context.insider_config_mut();
-    let (_, network) = config.get_or_add_network(crd.spec.network.clone(), || {
-        NetworkConfig::new(namespace, context.kube_context_name().to_owned())
+    let network = config.get_or_add_network(&crd.spec.network, || {
+        NetworkConfig::new(namespace, kube_context)
     })?;
     let local_name = name
         .map(|s| s.to_owned())
-        .unwrap_or_else(|| network.generate_config_tunnel_name(&crd.spec.network));
+        .unwrap_or_else(|| network.generate_config_tunnel_name());
 
     network.try_add_tunnel(local_name, entry)?;
 

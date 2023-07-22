@@ -20,12 +20,11 @@ pub async fn delete_tunnel(
 
     let network = context
         .insider_config_mut()
-        .try_get_network(&args.network)
+        .try_get_network_mut(&args.network)
         .ok_or(anyhow!(
             "Couldn't find '{}' network in the config!",
             args.network
-        ))?
-        .1;
+        ))?;
     let tunnel = network.try_remove_tunnel(&args.tunnel)?;
 
     info!("Removing '{}' tunnel...", args.tunnel);

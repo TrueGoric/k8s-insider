@@ -72,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
                 ConfigSubcommands::Add(config_add_sub) => match config_add_sub.subcommand {
                     ConfigAddSubcommands::Network(_) => todo!(),
                     ConfigAddSubcommands::Tunnel(args) => {
-                        config_add_tunnel(cli.global_args, args, context)?
+                        config_add_tunnel(args, context)?
                     }
                 },
                 ConfigSubcommands::List(config_list_sub) => match config_list_sub.subcommand {

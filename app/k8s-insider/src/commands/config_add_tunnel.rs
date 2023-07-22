@@ -1,13 +1,12 @@
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use k8s_insider_core::wireguard::keys::WgKey;
 
 use crate::{
-    cli::{ConfigAddTunnelArgs, GlobalArgs},
+    cli::ConfigAddTunnelArgs,
     config::{tunnel::TunnelConfig, ConfigContext},
 };
 
 pub fn config_add_tunnel(
-    global_args: GlobalArgs,
     args: ConfigAddTunnelArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
@@ -15,26 +14,21 @@ pub fn config_add_tunnel(
     let private_key = WgKey::from_base64_stdin()
         .context("Invalid private key from stdin!")?
         .to_base64();
-    let kube_context = global_args
-        .kube_context
-        .unwrap_or_else(|| context.kube_context_name().to_owned());
-
-    let tunnel = TunnelConfig {
-        context: kube_context,
+    let config = context.insider_config_mut();
+    let config_network = config.try_get_network_mut(&args.network).ok_or(anyhow!(
+        "'{}' network is not present in the config!",
+        args.network
+    ))?;
+    let config_tunnel = TunnelConfig {
         name: args.name,
-        namespace: global_args.namespace,
         private_key,
     };
 
-    let config = context.insider_config_mut();
     let local_name = args
         .local_name
-        .unwrap_or_else(|| config.generate_config_tunnel_name(&args.network));
+        .unwrap_or_else(|| config_network.generate_config_tunnel_name());
 
-    if config.tunnels.insert(local_name, tunnel).is_some() {
-        panic!("Tunnel name collision - please report this error if you encounter it");
-    }
-
+    config_network.try_add_tunnel(local_name, config_tunnel)?;
     config.save()?;
 
     Ok(())

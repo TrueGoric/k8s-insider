@@ -35,7 +35,11 @@ impl NetworkConfig {
         self.tunnels.get_key_value(name)
     }
 
-    pub fn try_add_tunnel(&self, name: String, config: TunnelConfig) -> anyhow::Result<()> {
+    pub fn list_tunnels(&self) -> impl Iterator<Item = (&String, &TunnelConfig)> {
+        self.tunnels.iter()
+    }
+
+    pub fn try_add_tunnel(&mut self, name: String, config: TunnelConfig) -> anyhow::Result<()> {
         if self.tunnels.contains_key(&name) {
             return Err(anyhow!(
                 "Tunnel named {name} is already present in the config!"
@@ -49,7 +53,7 @@ impl NetworkConfig {
         Ok(())
     }
 
-    pub fn try_remove_tunnel(&self, name: &str) -> anyhow::Result<TunnelConfig> {
+    pub fn try_remove_tunnel(&mut self, name: &str) -> anyhow::Result<TunnelConfig> {
         if !self.tunnels.contains_key(name) {
             return Err(anyhow!("There's no '{name}' tunnel in the config!"));
         }
@@ -57,7 +61,7 @@ impl NetworkConfig {
         Ok(self.tunnels.remove(name).unwrap())
     }
 
-    pub fn generate_config_tunnel_name(&self, network_name: &str) -> String {
+    pub fn generate_config_tunnel_name(&self) -> String {
         for index in 0.. {
             let name = format!("tun{index}");
 
