@@ -17,7 +17,7 @@ pub async fn await_tunnel_availability(
 ) -> anyhow::Result<(WireguardPeerConfig, Tunnel, Network)> {
     let client = context.create_client(&config_network.context).await?;
 
-    let tunnel_condition = |t: Option<&Tunnel>| t.map(|t| t.is_ready()).unwrap_or(true);
+    let tunnel_condition = |t: Option<&Tunnel>| t.map(|t| t.is_ready() || t.is_error()).unwrap_or(true);
     let tunnel = await_resource_condition::<Tunnel>(
         &client,
         &config_tunnel.name,
@@ -38,7 +38,7 @@ pub async fn await_tunnel_availability(
 
     if tunnel.is_error() || tunnel.is_closed() {
         return Err(anyhow!(
-            "Tunnel is in invalid state ({:?})!",
+            "Tunnel is in an invalid state ({:?})!",
             tunnel.status.map(|s| s.state)
         ));
     }
@@ -47,7 +47,7 @@ pub async fn await_tunnel_availability(
         return Err(anyhow!("Timed out waiting for tunnel to be ready!"));
     }
 
-    let network_condition = |t: Option<&Network>| t.map(|t| t.is_ready()).unwrap_or(true);
+    let network_condition = |n: Option<&Network>| n.map(|n| n.is_ready() || n.is_error()).unwrap_or(true);
     let network = await_resource_condition::<Network>(
         &client,
         &tunnel.spec.network,
@@ -68,7 +68,7 @@ pub async fn await_tunnel_availability(
 
     if network.is_error() {
         return Err(anyhow!(
-            "Network is in invalid state ({:?})!",
+            "Network is in an invalid state ({:?})!",
             network.status.map(|s| s.state)
         ));
     }
