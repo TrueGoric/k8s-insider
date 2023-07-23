@@ -19,7 +19,6 @@ pub fn config_list_tunnels(
             .iter()
             .flat_map(|n| {
                 n.1.list_tunnels().map(|t| TunnelConfigViewSourceData {
-                    network_name: n.0,
                     network: n.1,
                     local_tunnel_name: t.0,
                     tunnel: t.1,
@@ -30,7 +29,6 @@ pub fn config_list_tunnels(
             .list_networks()
             .flat_map(|n| {
                 n.1.list_tunnels().map(|t| TunnelConfigViewSourceData {
-                    network_name: n.0,
                     network: n.1,
                     local_tunnel_name: t.0,
                     tunnel: t.1,
@@ -50,7 +48,6 @@ pub fn config_list_tunnels(
 }
 
 struct TunnelConfigViewSourceData<'a> {
-    pub network_name: &'a String,
     pub local_tunnel_name: &'a String,
     pub network: &'a NetworkConfig,
     pub tunnel: &'a TunnelConfig,
@@ -70,9 +67,9 @@ impl<'a> From<TunnelConfigViewSourceData<'a>> for TunnelConfigView<'a> {
     fn from(value: TunnelConfigViewSourceData<'a>) -> Self {
         TunnelConfigView {
             local_name: value.local_tunnel_name,
-            network: value.network_name,
-            context: &value.network.context,
-            namespace: &value.network.namespace,
+            network: &value.network.id.name,
+            context: &value.network.id.context,
+            namespace: &value.network.id.namespace,
             crd_name: &value.tunnel.name,
         }
     }

@@ -1,24 +1,24 @@
 use std::net::IpAddr;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use k8s_insider_core::{
-    helpers::AndIf,
+    helpers::{AndIf, RequireMetadata},
     kubernetes::operations::{apply_resource, try_get_resource},
     resources::crd::v1alpha1::network::{Network, NetworkService, NetworkSpec},
 };
 use kube::{api::PatchParams, core::ObjectMeta};
-use log::{debug, info};
+use log::{debug, info, warn};
 
 use crate::{
     cli::{CreateNetworkArgs, GlobalArgs, ServiceType},
-    config::ConfigContext,
+    config::{network::NetworkIdentifier, ConfigContext},
     CLI_FIELD_MANAGER,
 };
 
 pub async fn create_network(
     global_args: GlobalArgs,
     args: CreateNetworkArgs,
-    context: ConfigContext,
+    mut context: ConfigContext,
 ) -> anyhow::Result<()> {
     let client = context.create_client_with_default_context().await?;
 
@@ -53,6 +53,7 @@ pub async fn create_network(
     debug!("{network_crd:#?}");
 
     apply_resource(&client, &network_crd, &apply_params).await?;
+    write_config(&network_crd, &mut context)?;
 
     if existing_network.is_some() {
         info!("Network successfully updated!");
@@ -98,4 +99,36 @@ fn create_network_crd(namespace: String, args: CreateNetworkArgs) -> anyhow::Res
         },
         status: None,
     })
+}
+
+fn write_config(crd: &Network, context: &mut ConfigContext) -> anyhow::Result<()> {
+    let kube_context = context.kube_context_name().to_owned();
+    let name = crd
+        .require_name_or(anyhow!("Missing Network CRD name!"))?
+        .to_owned();
+    let namespace = crd
+        .require_namespace_or(anyhow!("Missing Network CRD namespace!"))?
+        .to_owned();
+    let entry = NetworkIdentifier::new(name, namespace, kube_context).into();
+    let local_name = context
+        .insider_config()
+        .generate_config_network_name(&entry);
+
+    if local_name != entry.id.name {
+        warn!(
+            "'{}' network is already present in the config, saving as '{}' instead.",
+            entry.id.name, local_name
+        );
+    }
+
+    context
+        .insider_config_mut()
+        .try_add_network(local_name, entry)?;
+
+    context
+        .insider_config()
+        .save()
+        .context("Couldn't save the configuration file!")?;
+
+    Ok(())
 }

@@ -35,6 +35,7 @@ struct NetworkConfigViewSourceData<'a> {
 #[derive(Serialize, TableOutputRow)]
 struct NetworkConfigView<'a> {
     #[name_column]
+    pub local_name: &'a str,
     pub name: &'a str,
     pub context: &'a str,
     pub namespace: &'a str,
@@ -43,9 +44,10 @@ struct NetworkConfigView<'a> {
 impl<'a> From<NetworkConfigViewSourceData<'a>> for NetworkConfigView<'a> {
     fn from(value: NetworkConfigViewSourceData<'a>) -> Self {
         NetworkConfigView {
-            name: value.network_name,
-            context: &value.network.context,
-            namespace: &value.network.namespace,
+            local_name: value.network_name,
+            name: &value.network.id.name,
+            context: &value.network.id.context,
+            namespace: &value.network.id.namespace,
         }
     }
 }

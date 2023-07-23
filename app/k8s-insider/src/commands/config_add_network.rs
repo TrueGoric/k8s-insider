@@ -1,6 +1,6 @@
 use crate::{
     cli::{ConfigAddNetworkArgs, GlobalArgs},
-    config::{network::NetworkConfig, ConfigContext},
+    config::{network::NetworkIdentifier, ConfigContext},
 };
 
 pub fn config_add_network(
@@ -12,10 +12,12 @@ pub fn config_add_network(
         .kube_context
         .unwrap_or_else(|| context.kube_context_name().to_owned());
 
-    let network = NetworkConfig::new(global_args.namespace, kube_context);
+    let local_name = args.local_name.unwrap_or_else(|| args.name.to_owned());
+
+    let network = NetworkIdentifier::new(args.name, global_args.namespace, kube_context).into();
     let config = context.insider_config_mut();
 
-    config.try_add_network(args.name, network)?;
+    config.try_add_network(local_name, network)?;
     config.save()?;
 
     Ok(())

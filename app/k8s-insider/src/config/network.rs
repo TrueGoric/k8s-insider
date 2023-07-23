@@ -5,22 +5,31 @@ use serde::{Deserialize, Serialize};
 
 use super::tunnel::TunnelConfig;
 
-#[derive(Serialize, Deserialize, Default)]
-pub struct NetworkConfig {
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub struct NetworkIdentifier {
+    pub name: String,
     pub namespace: String,
     pub context: String,
+}
+
+impl NetworkIdentifier {
+    pub fn new(name: String, namespace: String, context: String) -> Self {
+        Self {
+            name,
+            namespace,
+            context,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Default)]
+pub struct NetworkConfig {
+    #[serde(flatten)]
+    pub id: NetworkIdentifier,
     tunnels: BTreeMap<String, TunnelConfig>,
 }
 
 impl NetworkConfig {
-    pub fn new(namespace: String, context: String) -> Self {
-        Self {
-            namespace,
-            context,
-            tunnels: BTreeMap::new(),
-        }
-    }
-
     pub fn try_get_default_tunnel(&self) -> anyhow::Result<Option<(&String, &TunnelConfig)>> {
         if self.tunnels.len() > 1 {
             return Err(anyhow!(
@@ -71,5 +80,23 @@ impl NetworkConfig {
         }
 
         panic!("You disobeyed my orders son, why were you ever born?");
+    }
+}
+
+impl From<NetworkIdentifier> for NetworkConfig {
+    fn from(value: NetworkIdentifier) -> Self {
+        Self {
+            id: value,
+            tunnels: BTreeMap::new(),
+        }
+    }
+}
+
+impl From<&NetworkIdentifier> for NetworkConfig {
+    fn from(value: &NetworkIdentifier) -> Self {
+        Self {
+            id: value.to_owned(),
+            tunnels: BTreeMap::new(),
+        }
     }
 }

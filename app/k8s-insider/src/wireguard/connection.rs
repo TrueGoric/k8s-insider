@@ -15,13 +15,13 @@ pub async fn await_tunnel_availability(
     config_tunnel: &TunnelConfig,
     context: &ConfigContext,
 ) -> anyhow::Result<(WireguardPeerConfig, Tunnel, Network)> {
-    let client = context.create_client(&config_network.context).await?;
+    let client = context.create_client(&config_network.id.context).await?;
 
     let tunnel_condition = |t: Option<&Tunnel>| t.map(|t| t.is_ready() || t.is_error()).unwrap_or(true);
     let tunnel = await_resource_condition::<Tunnel>(
         &client,
         &config_tunnel.name,
-        &config_network.namespace,
+        &config_network.id.namespace,
         tunnel_condition,
         Duration::from_secs(5),
     )
@@ -51,7 +51,7 @@ pub async fn await_tunnel_availability(
     let network = await_resource_condition::<Network>(
         &client,
         &tunnel.spec.network,
-        &config_network.namespace,
+        &config_network.id.namespace,
         network_condition,
         Duration::from_secs(5),
     )

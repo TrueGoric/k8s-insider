@@ -31,7 +31,7 @@ pub async fn delete_tunnel(
 
     let delete_params = DeleteParams::background().and_if(args.dry_run, DeleteParams::dry_run);
     let was_removed =
-        try_remove_resource::<Tunnel>(&client, &tunnel.name, &network.namespace, &delete_params)
+        try_remove_resource::<Tunnel>(&client, &tunnel.name, &network.id.namespace, &delete_params)
             .await?;
 
     context

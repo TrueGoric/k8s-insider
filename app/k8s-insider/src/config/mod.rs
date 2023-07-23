@@ -78,6 +78,27 @@ impl InsiderConfig {
         Ok(())
     }
 
+    pub fn generate_config_network_name(&self, network: &NetworkConfig) -> String {
+        if !self.networks.contains_key(&network.id.name) {
+            return network.id.name.to_owned();
+        }
+
+        let name_context = format!("{}-{}", network.id.name, network.id.context);
+        if !self.networks.contains_key(&name_context) {
+            return name_context;
+        }
+
+        for index in 0.. {
+            let name = format!("{name_context}{index}");
+
+            if !self.networks.contains_key(&name) {
+                return name;
+            }
+        }
+
+        panic!("Your brother's ten times better than you");
+    }
+
     pub fn try_get_default_network(&self) -> anyhow::Result<Option<(&String, &NetworkConfig)>> {
         if self.networks.len() > 1 {
             return Err(anyhow!(
@@ -98,18 +119,6 @@ impl InsiderConfig {
 
     pub fn list_networks(&self) -> impl Iterator<Item = (&String, &NetworkConfig)> {
         self.networks.iter()
-    }
-
-    pub fn get_or_add_network<'a>(
-        &'a mut self,
-        name: &str,
-        config_creator: impl FnOnce() -> NetworkConfig,
-    ) -> anyhow::Result<&'a mut NetworkConfig> {
-        if !self.networks.contains_key(name) {
-            self.networks.insert(name.to_owned(), config_creator());
-        }
-
-        Ok(self.networks.get_mut(name).unwrap())
     }
 
     pub fn try_add_network(&mut self, name: String, config: NetworkConfig) -> anyhow::Result<()> {
@@ -198,24 +207,12 @@ impl ConfigContext {
         })
     }
 
-    pub fn kube_config_path(&self) -> &Path {
-        &self.kube_config_path
-    }
-
     pub fn kube_config(&self) -> &Kubeconfig {
         &self.kube_config
     }
 
-    pub fn kube_config_mut(&mut self) -> &mut Kubeconfig {
-        &mut self.kube_config
-    }
-
     pub fn kube_context_name(&self) -> &str {
         &self.kube_context_name
-    }
-
-    pub fn insider_config_path(&self) -> &Path {
-        &self.insider_config_path
     }
 
     pub fn insider_config(&self) -> &InsiderConfig {

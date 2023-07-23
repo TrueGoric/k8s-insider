@@ -11,7 +11,7 @@ use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::{network::NetworkConfig, tunnel::TunnelConfig, ConfigContext},
+    config::{tunnel::TunnelConfig, ConfigContext},
     CLI_FIELD_MANAGER,
 };
 
@@ -20,7 +20,14 @@ pub async fn create_tunnel(
     args: &CreateTunnelArgs,
     context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
-    let client = context.create_client_with_default_context().await?;
+    let config_network = context
+        .insider_config()
+        .try_get_network(&args.network)
+        .ok_or(anyhow!(
+            "Couldn't find network '{}' in the config!",
+            args.network
+        ))?;
+    let client = context.create_client(&config_network.1.id.context).await?;
 
     info!(
         "Creating a tunnel for '{}' network in '{}' namespace...",
@@ -34,8 +41,8 @@ pub async fn create_tunnel(
     let apply_params =
         PostParams::default().with(|p| p.field_manager = Some(CLI_FIELD_MANAGER.to_owned()));
     let tunnel_crd = create_tunnel_crd(
-        &args.network,
-        &global_args.namespace,
+        &config_network.1.id.name,
+        &config_network.1.id.namespace,
         public_key,
         preshared_key,
         args.static_ip.map(|ipv4| ipv4.into()),
@@ -44,7 +51,13 @@ pub async fn create_tunnel(
     debug!("{tunnel_crd:#?}");
 
     create_resource(&client, &tunnel_crd, &apply_params).await?;
-    write_config(args.name.as_deref(), &tunnel_crd, private_key, context)?;
+    write_config(
+        args.name.as_deref(),
+        &args.network,
+        &tunnel_crd,
+        private_key,
+        context,
+    )?;
 
     info!("Tunnel successfully created!");
 
@@ -80,29 +93,30 @@ fn create_tunnel_crd(
 
 fn write_config(
     name: Option<&str>,
+    network: &str,
     crd: &Tunnel,
     private_key: WgKey,
     context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
-    let namespace = crd
-        .require_namespace_or(anyhow!("Missing Tunnel CRD namespace!"))?
-        .to_owned();
+    let config_network = context
+        .insider_config_mut()
+        .try_get_network_mut(network)
+        .ok_or(anyhow!(
+            "Couldn't find network '{}' in the config!",
+            network
+        ))?;
+
     let entry = TunnelConfig::new(
         crd.require_name_or(anyhow!("Missing Tunnel CRD name!"))?
             .to_owned(),
         private_key,
     );
-    let kube_context = context.kube_context_name().to_owned();
 
-    let config = context.insider_config_mut();
-    let network = config.get_or_add_network(&crd.spec.network, || {
-        NetworkConfig::new(namespace, kube_context)
-    })?;
     let local_name = name
         .map(|s| s.to_owned())
-        .unwrap_or_else(|| network.generate_config_tunnel_name());
+        .unwrap_or_else(|| config_network.generate_config_tunnel_name());
 
-    network.try_add_tunnel(local_name, entry)?;
+    config_network.try_add_tunnel(local_name, entry)?;
 
     context
         .insider_config()
