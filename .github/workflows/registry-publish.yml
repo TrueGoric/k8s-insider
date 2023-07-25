@@ -50,7 +50,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build the base k8s-insider-agent image
-        id: build-and-push
+        id: base-build
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
@@ -69,7 +69,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push k8s-insider-controller image
-        id: build-and-push
+        id: controller-build-and-push
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
@@ -86,7 +86,7 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.controller-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "${{ steps.controller-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.controller-build-and-push.outputs.digest }}
   
       - name: Extract Docker metadata for k8s-insider-network-manager
         id: network-manager-meta
@@ -97,7 +97,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push k8s-insider-network-manager image
-        id: build-and-push
+        id: network-manager-build-and-push
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
@@ -114,7 +114,7 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.network-manager-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "${{ steps.network-manager-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.network-manager-build-and-push.outputs.digest }}
 
       - name: Extract Docker metadata for k8s-insider-router
         id: router-meta
@@ -125,7 +125,7 @@ jobs:
             type=semver,pattern={{version}}
 
       - name: Build and push k8s-insider-router image
-        id: build-and-push
+        id: router-build-and-push
         uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
         with:
           context: .
@@ -142,4 +142,4 @@ jobs:
           COSIGN_EXPERIMENTAL: "true"
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${{ steps.router-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+        run: echo "${{ steps.router-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.router-build-and-push.outputs.digest }}
