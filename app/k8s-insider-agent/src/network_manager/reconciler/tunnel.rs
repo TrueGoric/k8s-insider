@@ -148,6 +148,8 @@ async fn prepare_status(
         };
     }
 
+    status.state = TunnelState::Configured;
+
     Ok(status)
 }
 
