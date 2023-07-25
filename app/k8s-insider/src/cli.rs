@@ -81,14 +81,14 @@ pub enum Commands {
     #[command(alias = "del")]
     Delete(DeleteCommand),
     /// List networks/tunnels
-    #[command()]
+    #[command(alias = "ls")]
     List(ListCommand),
     /// Connect to a network
     #[command()]
     Connect(ConnectArgs),
     /// Disconnect from the network
     #[command()]
-    Disconnect,
+    Disconnect(DisconnectArgs),
     /// Get the WireGuard configuration file for a tunnel
     #[command()]
     GetConf(GetConfArgs),
@@ -316,6 +316,13 @@ pub struct ConnectArgs {
 }
 
 #[derive(Debug, Args)]
+pub struct DisconnectArgs {
+    /// Network to disconnect from
+    #[arg()]
+    pub network: Option<String>,    
+}
+
+#[derive(Debug, Args)]
 pub struct GetConfArgs {
     /// Parent network (can be omitted if there's only one network in the config)
     #[arg()]
@@ -349,10 +356,10 @@ pub enum ConfigSubcommands {
     #[command(alias = "a")]
     Add(ConfigAddCommand),
     /// List networks or tunnels defined in the config
-    #[command(alias = "l")]
+    #[command(alias = "l", alias = "ls")]
     List(ConfigListCommand),
     /// Remove a network or a tunnel from the configuration (but not from the cluster)
-    #[command(alias = "r")]
+    #[command(alias = "r", alias = "rm")]
     Remove(ConfigRemoveCommand),
 }
 

@@ -69,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
                 ListSubcommands::Tunnel(_) => todo!(),
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
-            Commands::Disconnect(args) => disconnect(cli.global_args, args, context).await?,
+            Commands::Disconnect(args) => disconnect(args, context).await?,
             Commands::GetConf(args) => get_configuration(args, context).await?,
             Commands::PatchDns(_) => todo!(),
             Commands::Config(config_sub) => match config_sub.subcommand {

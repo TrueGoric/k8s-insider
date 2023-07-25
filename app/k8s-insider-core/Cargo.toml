@@ -13,7 +13,7 @@ ipnet = { workspace = true, features = ["schemars", "serde"] }
 kube = { workspace = true }
 k8s-openapi = { workspace = true }
 log = { workspace = true }
-regex = "1.8.4"
+regex = { workspace = true }
 schemars = { version = "0.8.12", features = ["chrono"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use k8s_insider_core::helpers::RequireMetadata;
 
 use log::info;
@@ -8,7 +8,7 @@ use crate::{
     commands::create_tunnel::create_tunnel,
     config::{network::NetworkConfig, tunnel::TunnelConfig, InsiderConfig},
     context::ConfigContext,
-    wireguard::{connection::tunnel_connect, helpers::await_tunnel_availability},
+    wireguard::helpers::await_tunnel_availability,
 };
 
 pub async fn connect(
@@ -16,7 +16,7 @@ pub async fn connect(
     args: ConnectArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
-    let (config_network, config_tunnel_name, config_tunnel) =
+    let (config_network, _, config_tunnel) =
         match try_get_configs(&args, &context)? {
             Some(config_tuple) => config_tuple,
             None => {
@@ -37,22 +37,8 @@ pub async fn connect(
         network_name, global_args.namespace
     );
 
-    let peer_config_name = format!("{}.conf", config_tunnel_name);
-    let peer_config_path = context.get_path_base().join(peer_config_name);
+    context.connections.create_connection(peer_config)?;
 
-    peer_config
-        .write_configuration(&peer_config_path)
-        .context(format!(
-            "Couldn't write the configuration file to '{}'!",
-            peer_config_path.to_string_lossy()
-        ))?;
-
-    info!(
-        "WireGuard config written to '{}'...",
-        peer_config_path.to_string_lossy()
-    );
-
-    tunnel_connect(&peer_config_path)?;
     info!("Tunnel link created...");
 
     // TODO: check connectivity

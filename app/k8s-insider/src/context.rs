@@ -1,20 +1,24 @@
-use std::path::{PathBuf, Path};
+use std::path::Path;
 
 use anyhow::{anyhow, Context};
 use k8s_insider_core::helpers::With;
-use kube::{config::{Kubeconfig, KubeConfigOptions}, Client, Config};
+use kube::{
+    config::{KubeConfigOptions, Kubeconfig},
+    Client, Config,
+};
 
-use crate::config::InsiderConfig;
+use crate::{config::InsiderConfig, wireguard::connection_manager::ConnectionManager};
 
 pub const DEFAULT_CONFIG_FILENAME: &str = "insider-config";
 pub const KUBECONFIG_ENV_VAR: &str = "KUBECONFIG";
+pub const WGCONF_RELATIVE_FOLDER: &str = "insider-tunnels";
 
 pub struct ConfigContext {
-    kube_config_path: PathBuf,
-    insider_config_path: PathBuf,
-    kube_config: Kubeconfig,
-    insider_config: InsiderConfig,
-    kube_context_name: String,
+    pub kube_context_name: String,
+
+    pub kube_config: Kubeconfig,
+    pub insider_config: InsiderConfig,
+    pub connections: ConnectionManager,
 }
 
 impl ConfigContext {
@@ -63,17 +67,18 @@ impl ConfigContext {
                 .to_owned(),
         };
 
+        let wgconf_path = insider_config_path
+            .parent()
+            .unwrap()
+            .join(WGCONF_RELATIVE_FOLDER);
+        let connections = ConnectionManager::load(wgconf_path)?;
+
         Ok(Self {
-            kube_config_path,
-            insider_config_path,
             kube_config,
             insider_config,
+            connections,
             kube_context_name,
         })
-    }
-
-    pub fn kube_config(&self) -> &Kubeconfig {
-        &self.kube_config
     }
 
     pub fn kube_context_name(&self) -> &str {
@@ -103,9 +108,5 @@ impl ConfigContext {
         let client = Client::try_from(config)?;
 
         Ok(client)
-    }
-
-    pub fn get_path_base(&self) -> &Path {
-        self.insider_config_path.parent().unwrap() // unwrapping is safe since we make sure that this path contains at least a filename
     }
 }

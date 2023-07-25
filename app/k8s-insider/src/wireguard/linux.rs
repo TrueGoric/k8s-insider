@@ -33,3 +33,17 @@ pub fn wg_quick_up(config_path: &Path) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+pub fn wg_quick_down(config_path: &Path) -> anyhow::Result<()> {
+    let command_result = Command::new("sudo")
+        .arg("wg-quick")
+        .arg("down")
+        .arg(config_path)
+        .status()?;
+
+    if !command_result.success() {
+        return Err(anyhow!("An error occurred when removing the tunnel interface!"));
+    }
+
+    Ok(())
+}

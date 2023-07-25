@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use super::tunnel::TunnelConfig;
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Serialize, Deserialize, Clone, Default, Debug, Hash, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkIdentifier {
     pub name: String,
     pub namespace: String,
@@ -23,6 +24,7 @@ impl NetworkIdentifier {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct NetworkConfig {
     #[serde(flatten)]
     pub id: NetworkIdentifier,

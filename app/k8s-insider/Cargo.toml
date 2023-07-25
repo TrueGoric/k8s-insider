@@ -22,6 +22,8 @@ k8s-insider-core = { path = "../k8s-insider-core" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 log = { workspace = true }
+once_cell = "1.18.0"
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
