@@ -72,7 +72,7 @@ impl ConnectionManager {
     }
 
     pub fn create_connection(&mut self, peer_config: WireguardPeerConfig) -> anyhow::Result<()> {
-        let peer_config_name = format!("kube-insider{}.conf", self.active_connections.len());
+        let peer_config_name = format!("insider{}.conf", self.active_connections.len());
         let peer_config_path = self.config_directory.join(peer_config_name);
 
         if self
