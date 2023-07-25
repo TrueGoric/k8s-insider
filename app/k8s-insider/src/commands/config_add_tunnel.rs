@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context};
 use k8s_insider_core::wireguard::keys::WgKey;
+use log::info;
 
 use crate::{cli::ConfigAddTunnelArgs, config::tunnel::TunnelConfig, context::ConfigContext};
 
@@ -7,6 +8,8 @@ pub fn config_add_tunnel(
     args: ConfigAddTunnelArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
+    info!("Adding '{}' tunnel to the config...", args.name);
+
     eprint!("Enter the private key: ");
     let private_key = WgKey::from_base64_stdin()
         .context("Invalid private key from stdin!")?
@@ -27,6 +30,8 @@ pub fn config_add_tunnel(
 
     config_network.try_add_tunnel(local_name, config_tunnel)?;
     config.save()?;
+
+    info!("Tunnel successfully added!");
 
     Ok(())
 }

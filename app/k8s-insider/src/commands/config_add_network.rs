@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::{
     cli::{ConfigAddNetworkArgs, GlobalArgs},
     config::network::NetworkIdentifier,
@@ -9,6 +11,8 @@ pub fn config_add_network(
     args: ConfigAddNetworkArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
+    info!("Adding '{}' network to the config...", args.name);
+
     let kube_context = global_args
         .kube_context
         .unwrap_or_else(|| context.kube_context_name().to_owned());
@@ -20,6 +24,8 @@ pub fn config_add_network(
 
     config.try_add_network(local_name, network)?;
     config.save()?;
+
+    info!("Network successfully added!");
 
     Ok(())
 }
