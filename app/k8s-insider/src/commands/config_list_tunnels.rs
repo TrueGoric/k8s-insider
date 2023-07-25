@@ -3,8 +3,8 @@ use serde::Serialize;
 
 use crate::{
     cli::ConfigListTunnelsArgs,
-    config::{network::NetworkConfig, tunnel::TunnelConfig, ConfigContext},
-    output::CliPrint,
+    config::{network::NetworkConfig, tunnel::TunnelConfig},
+    output::CliPrint, context::ConfigContext,
 };
 
 pub fn config_list_tunnels(

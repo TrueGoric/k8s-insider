@@ -16,7 +16,7 @@ use log::info;
 
 use crate::{
     cli::{GlobalArgs, UninstallArgs},
-    config::ConfigContext,
+    context::ConfigContext,
 };
 
 pub async fn uninstall(

@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{anyhow, Context};
 
 use crate::{
-    cli::GetConfArgs, config::ConfigContext, wireguard::connection::await_tunnel_availability,
+    cli::GetConfArgs, context::ConfigContext, wireguard::helpers::await_tunnel_availability,
 };
 
 pub async fn get_configuration(args: GetConfArgs, context: ConfigContext) -> anyhow::Result<()> {

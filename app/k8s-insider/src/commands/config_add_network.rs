@@ -1,6 +1,7 @@
 use crate::{
     cli::{ConfigAddNetworkArgs, GlobalArgs},
-    config::{network::NetworkIdentifier, ConfigContext},
+    config::network::NetworkIdentifier,
+    context::ConfigContext,
 };
 
 pub fn config_add_network(

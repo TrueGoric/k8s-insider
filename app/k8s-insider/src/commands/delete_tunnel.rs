@@ -7,8 +7,7 @@ use kube::api::DeleteParams;
 use log::info;
 
 use crate::{
-    cli::{DeleteTunnelArgs, GlobalArgs},
-    config::ConfigContext,
+    cli::{DeleteTunnelArgs, GlobalArgs}, context::ConfigContext, 
 };
 
 pub async fn delete_tunnel(

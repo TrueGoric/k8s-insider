@@ -6,8 +6,9 @@ use log::info;
 use crate::{
     cli::{ConnectArgs, CreateTunnelArgs, GlobalArgs},
     commands::create_tunnel::create_tunnel,
-    config::{tunnel::TunnelConfig, ConfigContext, InsiderConfig, network::NetworkConfig},
-    wireguard::connection::{await_tunnel_availability, tunnel_connect},
+    config::{network::NetworkConfig, tunnel::TunnelConfig, InsiderConfig},
+    context::ConfigContext,
+    wireguard::{connection::tunnel_connect, helpers::await_tunnel_availability},
 };
 
 pub async fn connect(
@@ -15,19 +16,20 @@ pub async fn connect(
     args: ConnectArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
-    let (config_network, config_tunnel_name, config_tunnel) = match try_get_configs(&args, &context)? {
-        Some(config_tuple) => config_tuple,
-        None => {
-            info!("No tunnels found locally in the network, creating one...");
+    let (config_network, config_tunnel_name, config_tunnel) =
+        match try_get_configs(&args, &context)? {
+            Some(config_tuple) => config_tuple,
+            None => {
+                info!("No tunnels found locally in the network, creating one...");
 
-            create_tunnel(&global_args, &CreateTunnelArgs::default(), &mut context).await?;
+                create_tunnel(&global_args, &CreateTunnelArgs::default(), &mut context).await?;
 
-            try_get_configs(&args, &context)?.unwrap()
-        },
-    };
-    
+                try_get_configs(&args, &context)?.unwrap()
+            }
+        };
 
-    let (peer_config, _, network) = await_tunnel_availability(config_network, config_tunnel, &context).await?;
+    let (peer_config, _, network) =
+        await_tunnel_availability(config_network, config_tunnel, &context).await?;
     let network_name = network.require_name_or(anyhow!("Network CRD doesn't have a name!"))?;
 
     info!(
@@ -60,18 +62,20 @@ pub async fn connect(
     Ok(())
 }
 
-fn try_get_configs<'a>(args: &ConnectArgs, context: &'a ConfigContext) -> anyhow::Result<Option<(&'a NetworkConfig, &'a String, &'a TunnelConfig)>> {
-    let (_, config_network) = get_network_config(args.network.as_deref(), context.insider_config())?;
-    let config_tunnel =
-        match try_get_tunnel_config(args.name.as_deref(), config_network)? {
-            Some(config) => Some(config),
-            None => config_network.try_get_default_tunnel()?
-        };
-    
+fn try_get_configs<'a>(
+    args: &ConnectArgs,
+    context: &'a ConfigContext,
+) -> anyhow::Result<Option<(&'a NetworkConfig, &'a String, &'a TunnelConfig)>> {
+    let (_, config_network) =
+        get_network_config(args.network.as_deref(), context.insider_config())?;
+    let config_tunnel = match try_get_tunnel_config(args.name.as_deref(), config_network)? {
+        Some(config) => Some(config),
+        None => config_network.try_get_default_tunnel()?,
+    };
+
     if let Some((config_tunnel_name, config_tunnel)) = config_tunnel {
         Ok(Some((config_network, config_tunnel_name, config_tunnel)))
-    }
-    else {
+    } else {
         Ok(None)
     }
 }
@@ -84,7 +88,9 @@ fn get_network_config<'a>(
         Some(name) => Ok(config.try_get_network(name).ok_or(anyhow!(
             "Specified network is not present in the configuration!"
         ))?),
-        None => Ok(config.try_get_default_network()?.ok_or(anyhow!("No networks defined in the config!"))?),
+        None => Ok(config
+            .try_get_default_network()?
+            .ok_or(anyhow!("No networks defined in the config!"))?),
     }
 }
 

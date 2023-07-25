@@ -11,7 +11,8 @@ use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::{tunnel::TunnelConfig, ConfigContext},
+    config::tunnel::TunnelConfig,
+    context::ConfigContext,
     CLI_FIELD_MANAGER,
 };
 

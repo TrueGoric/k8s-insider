@@ -1,6 +1,6 @@
 use log::{info, warn};
 
-use crate::{cli::ConfigRemoveNetworkArgs, config::ConfigContext};
+use crate::{cli::ConfigRemoveNetworkArgs, context::ConfigContext};
 
 pub fn config_remove_network(
     args: ConfigRemoveNetworkArgs,

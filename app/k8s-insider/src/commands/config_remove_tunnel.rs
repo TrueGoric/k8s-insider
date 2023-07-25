@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use log::{info, warn};
 
-use crate::{cli::ConfigRemoveTunnelArgs, config::ConfigContext};
+use crate::{cli::ConfigRemoveTunnelArgs, context::ConfigContext};
 
 pub fn config_remove_tunnel(
     args: ConfigRemoveTunnelArgs,
@@ -16,7 +16,7 @@ pub fn config_remove_tunnel(
             "'{}' network is not present in the config!",
             args.network
         ))?;
-    
+
     if config_network.try_remove_tunnel(&args.name).is_ok() {
         insider_config.save()?;
         info!("Tunnel successfully removed!");

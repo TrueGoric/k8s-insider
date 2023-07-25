@@ -2,8 +2,7 @@ use insider_macros::TableOutputRow;
 use serde::Serialize;
 
 use crate::{
-    cli::ConfigListNetworksArgs,
-    config::{network::NetworkConfig, ConfigContext},
+    cli::ConfigListNetworksArgs, config::network::NetworkConfig, context::ConfigContext,
     output::CliPrint,
 };
 

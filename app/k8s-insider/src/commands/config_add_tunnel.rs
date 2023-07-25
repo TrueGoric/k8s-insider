@@ -1,10 +1,7 @@
 use anyhow::{anyhow, Context};
 use k8s_insider_core::wireguard::keys::WgKey;
 
-use crate::{
-    cli::ConfigAddTunnelArgs,
-    config::{tunnel::TunnelConfig, ConfigContext},
-};
+use crate::{cli::ConfigAddTunnelArgs, config::tunnel::TunnelConfig, context::ConfigContext};
 
 pub fn config_add_tunnel(
     args: ConfigAddTunnelArgs,

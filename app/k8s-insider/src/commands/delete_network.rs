@@ -6,8 +6,7 @@ use kube::api::DeleteParams;
 use log::info;
 
 use crate::{
-    cli::{DeleteNetworkArgs, GlobalArgs},
-    config::ConfigContext,
+    cli::{DeleteNetworkArgs, GlobalArgs}, context::ConfigContext,
 };
 
 pub async fn delete_network(

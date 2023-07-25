@@ -11,8 +11,8 @@ use serde::Serialize;
 
 use crate::{
     cli::{GlobalArgs, ListNetworksArgs, OutputFormat},
-    config::ConfigContext,
-    output::{TableCellOption, TableCellSlice, TableOutputDisplay, SerializableOutputDisplay},
+    context::ConfigContext,
+    output::{SerializableOutputDisplay, TableCellOption, TableCellSlice, TableOutputDisplay},
 };
 
 pub async fn list_networks(
@@ -23,7 +23,10 @@ pub async fn list_networks(
     let client = context.create_client_with_default_context().await?;
     let list_params = ListParams::default();
     let networks = list_resources::<Network>(&client, &global_args.namespace, &list_params).await?;
-    let network_views = networks.iter().map(|n| n.into()).collect::<Vec<NetworkView>>();
+    let network_views = networks
+        .iter()
+        .map(|n| n.into())
+        .collect::<Vec<NetworkView>>();
 
     match args.output {
         OutputFormat::Names => network_views.print_names(),
@@ -69,16 +72,12 @@ impl<'a> From<&'a Network> for NetworkView<'a> {
                 .map(|e| e.as_slice().into())
                 .into(),
             allowed_ips: value
-            .status
-            .as_ref()
-            .and_then(|s| s.allowed_ips.as_ref())
-            .map(|e| e.as_slice().into())
-            .into(),
-            state: value
-            .status
-            .as_ref()
-            .map(|s| &s.state)
-            .into(),
+                .status
+                .as_ref()
+                .and_then(|s| s.allowed_ips.as_ref())
+                .map(|e| e.as_slice().into())
+                .into(),
+            state: value.status.as_ref().map(|s| &s.state).into(),
         }
     }
 }

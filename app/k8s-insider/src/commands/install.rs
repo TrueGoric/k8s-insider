@@ -20,7 +20,7 @@ use log::{debug, info, warn};
 
 use crate::{
     cli::{GlobalArgs, InstallArgs},
-    config::ConfigContext,
+    context::ConfigContext,
     CLI_FIELD_MANAGER,
 };
 

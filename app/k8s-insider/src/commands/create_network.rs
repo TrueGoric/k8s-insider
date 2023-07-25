@@ -11,7 +11,8 @@ use log::{debug, info, warn};
 
 use crate::{
     cli::{CreateNetworkArgs, GlobalArgs, ServiceType},
-    config::{network::NetworkIdentifier, ConfigContext},
+    config::network::NetworkIdentifier,
+    context::ConfigContext,
     CLI_FIELD_MANAGER,
 };
 

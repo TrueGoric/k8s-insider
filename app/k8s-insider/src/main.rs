@@ -10,11 +10,11 @@ use commands::{
     config_list_networks::config_list_networks, config_list_tunnels::config_list_tunnels,
     config_remove_network::config_remove_network, config_remove_tunnel::config_remove_tunnel,
     connect::connect, create_network::create_network, create_tunnel::create_tunnel,
-    delete_network::delete_network, delete_tunnel::delete_tunnel,
+    delete_network::delete_network, delete_tunnel::delete_tunnel, disconnect::disconnect,
     get_configuration::get_configuration, install::install, list_networks::list_networks,
     uninstall::uninstall,
 };
-use config::ConfigContext;
+use context::ConfigContext;
 use env_logger::Target;
 use log::LevelFilter;
 
@@ -22,6 +22,8 @@ use crate::cli::Cli;
 
 mod cli;
 mod commands;
+mod context;
+mod helpers;
 mod config;
 mod output;
 mod wireguard;
@@ -67,7 +69,7 @@ async fn main() -> anyhow::Result<()> {
                 ListSubcommands::Tunnel(_) => todo!(),
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
-            Commands::Disconnect => todo!(),
+            Commands::Disconnect(args) => disconnect(cli.global_args, args, context).await?,
             Commands::GetConf(args) => get_configuration(args, context).await?,
             Commands::PatchDns(_) => todo!(),
             Commands::Config(config_sub) => match config_sub.subcommand {
