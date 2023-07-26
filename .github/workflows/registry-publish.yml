@@ -56,7 +56,7 @@ jobs:
           file: Dockerfile.app
           push: false
           tags: app-build
-          load: true,
+          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
