@@ -57,8 +57,6 @@ jobs:
           file: ./Dockerfile.app
           push: false
           tags: app-build
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Extract Docker metadata for k8s-insider-controller
         id: controller-meta
@@ -77,8 +75,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.controller-meta.outputs.tags }}
           labels: ${{ steps.controller-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-controller image
         if: ${{ github.event_name != 'pull_request' }}
@@ -105,8 +101,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.network-manager-meta.outputs.tags }}
           labels: ${{ steps.network-manager-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-network-manager image
         if: ${{ github.event_name != 'pull_request' }}
@@ -133,8 +127,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.router-meta.outputs.tags }}
           labels: ${{ steps.router-meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-router image
         if: ${{ github.event_name != 'pull_request' }}
