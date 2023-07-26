@@ -56,6 +56,7 @@ jobs:
           file: Dockerfile.app
           push: false
           tags: app-build
+          load: true,
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -77,6 +78,8 @@ jobs:
           labels: ${{ steps.controller-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-contexts: |
+            app-build=docker-image://app-build
 
       - name: Sign the published k8s-insider-controller image
         if: ${{ github.event_name != 'pull_request' }}
@@ -105,6 +108,8 @@ jobs:
           labels: ${{ steps.network-manager-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-contexts: |
+            app-build=docker-image://app-build
 
       - name: Sign the published k8s-insider-network-manager image
         if: ${{ github.event_name != 'pull_request' }}
@@ -132,6 +137,8 @@ jobs:
           labels: ${{ steps.router-meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-contexts: |
+            app-build=docker-image://app-build
 
       - name: Sign the published k8s-insider-router image
         if: ${{ github.event_name != 'pull_request' }}
