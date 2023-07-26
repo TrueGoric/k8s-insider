@@ -51,16 +51,17 @@ jobs:
 
       - name: Build the base k8s-insider-agent image
         id: base-build
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
+        uses: docker/build-push-action@v4.1.1
         with:
-          context: .
-          file: ./Dockerfile.app
+          file: Dockerfile.app
           push: false
           tags: app-build
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Extract Docker metadata for k8s-insider-controller
         id: controller-meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4.6.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ env.CONTROLLER_IMAGE_NAME }}
           tags: |
@@ -68,13 +69,14 @@ jobs:
 
       - name: Build and push k8s-insider-controller image
         id: controller-build-and-push
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
+        uses: docker/build-push-action@v4.1.1
         with:
-          context: .
-          file: ./Dockerfile.controller
+          file: Dockerfile.controller
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.controller-meta.outputs.tags }}
           labels: ${{ steps.controller-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-controller image
         if: ${{ github.event_name != 'pull_request' }}
@@ -86,7 +88,7 @@ jobs:
   
       - name: Extract Docker metadata for k8s-insider-network-manager
         id: network-manager-meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4.6.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ env.NETWORK_MANAGER_IMAGE_NAME }}
           tags: |
@@ -94,13 +96,15 @@ jobs:
 
       - name: Build and push k8s-insider-network-manager image
         id: network-manager-build-and-push
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
+        uses: docker/build-push-action@v4.1.1
         with:
           context: .
-          file: ./Dockerfile.network-manager
+          file: Dockerfile.network-manager
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.network-manager-meta.outputs.tags }}
           labels: ${{ steps.network-manager-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-network-manager image
         if: ${{ github.event_name != 'pull_request' }}
@@ -112,7 +116,7 @@ jobs:
 
       - name: Extract Docker metadata for k8s-insider-router
         id: router-meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        uses: docker/metadata-action@v4.6.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}/${{ env.ROUTER_IMAGE_NAME }}
           tags: |
@@ -120,13 +124,14 @@ jobs:
 
       - name: Build and push k8s-insider-router image
         id: router-build-and-push
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a
+        uses: docker/build-push-action@v4.1.1
         with:
-          context: .
-          file: ./Dockerfile.router
+          file: Dockerfile.router
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.router-meta.outputs.tags }}
           labels: ${{ steps.router-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Sign the published k8s-insider-router image
         if: ${{ github.event_name != 'pull_request' }}
