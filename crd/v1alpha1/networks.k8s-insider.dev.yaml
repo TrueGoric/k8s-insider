@@ -222,6 +222,10 @@ spec:
                 description: server public key
                 nullable: true
                 type: string
+              serviceDomain:
+                description: cluster's service domain
+                nullable: true
+                type: string
               state:
                 description: network state
                 enum:

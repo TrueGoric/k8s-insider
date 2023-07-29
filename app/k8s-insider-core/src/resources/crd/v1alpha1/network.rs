@@ -86,6 +86,8 @@ pub struct NetworkStatus {
     pub state: NetworkState,
     /// server public key
     pub server_public_key: Option<String>,
+    /// cluster's service domain
+    pub service_domain: Option<String>,
     /// dns address
     pub dns: Option<IpAddrPair>,
     /// publicly available address

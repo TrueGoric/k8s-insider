@@ -96,6 +96,7 @@ async fn try_reconcile(
     let status = NetworkStatus {
         state: NetworkState::Deployed,
         allowed_ips: Some(release.get_allowed_fitcidrs()),
+        service_domain: release.service_domain,
         dns: release.kube_dns,
         endpoints: get_service_accessible_addresses(service.as_ref(), &node_slice).await,
         server_public_key: Some(release.server_keys.get_public_key().to_base64()),
