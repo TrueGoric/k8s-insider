@@ -19,6 +19,7 @@ pub fn config_list_tunnels(
             .iter()
             .flat_map(|n| {
                 n.1.list_tunnels().map(|t| TunnelConfigViewSourceData {
+                    local_network_name: n.0,
                     network: n.1,
                     local_tunnel_name: t.0,
                     tunnel: t.1,
@@ -29,6 +30,7 @@ pub fn config_list_tunnels(
             .list_networks()
             .flat_map(|n| {
                 n.1.list_tunnels().map(|t| TunnelConfigViewSourceData {
+                    local_network_name: n.0,
                     network: n.1,
                     local_tunnel_name: t.0,
                     tunnel: t.1,
@@ -48,6 +50,7 @@ pub fn config_list_tunnels(
 }
 
 struct TunnelConfigViewSourceData<'a> {
+    pub local_network_name: &'a String,
     pub local_tunnel_name: &'a String,
     pub network: &'a NetworkConfig,
     pub tunnel: &'a TunnelConfig,
@@ -55,6 +58,7 @@ struct TunnelConfigViewSourceData<'a> {
 
 #[derive(Serialize, TableOutputRow)]
 struct TunnelConfigView<'a> {
+    pub local_network_name: &'a str,
     #[name_column]
     pub local_name: &'a str,
     pub network: &'a str,
@@ -66,6 +70,7 @@ struct TunnelConfigView<'a> {
 impl<'a> From<TunnelConfigViewSourceData<'a>> for TunnelConfigView<'a> {
     fn from(value: TunnelConfigViewSourceData<'a>) -> Self {
         TunnelConfigView {
+            local_network_name: value.local_network_name,
             local_name: value.local_tunnel_name,
             network: &value.network.id.name,
             context: &value.network.id.context,
