@@ -2,6 +2,14 @@
 name = "k8s-insider"
 version = "0.1.0"
 edition = "2021"
+authors = ["Marcin Jędrasik <marcin.jedrasik@artifexidearum.net>"]
+license = "GNU GPL 3 or later"
+description = "A zero-config way to access your kubernetes cluster network"
+readme = "../README.md"
+homepage = "https://github.com/truegoric/k8s-insider"
+repository = "https://github.com/truegoric/k8s-insider"
+keywords = ["cli", "kubernetes", "vpn", "developer-tools", "operator", "kubectl", "wireguard", "krew"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
