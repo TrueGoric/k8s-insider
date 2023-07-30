@@ -4,7 +4,6 @@ use thiserror::Error;
 pub mod connection_manager;
 pub mod operations;
 pub mod helpers;
-pub mod linux;
 pub mod peer_config;
 
 #[derive(Debug, Error)]

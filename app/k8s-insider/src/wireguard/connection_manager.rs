@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fs::{self},
     io::{BufRead, BufReader},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Context};
@@ -46,7 +46,17 @@ impl ConnectionManager {
             reader.read_line(&mut header)?;
 
             let tunnel_id = match TunnelIdentifier::from_wgconf_header(&header) {
-                Ok(id) => id,
+                Ok(id) => match id {
+                    Some(id) => id,
+                    None => {
+                        warn!(
+                            "WireGuard config at path '{}' is missing the k8s-insider header!",
+                            config_path.to_string_lossy()
+                        );
+
+                        continue;
+                    }
+                },
                 Err(error) => {
                     warn!(
                         "Invalid WireGuard config in connections, ignoring! (path: {}, error: {})",
@@ -58,9 +68,7 @@ impl ConnectionManager {
                 }
             };
 
-            let tunnel_info = TunnelInfo {
-                path: config_path,
-            };
+            let tunnel_info = TunnelInfo { path: config_path };
 
             active_connections.insert(tunnel_id.network, tunnel_info);
         }
@@ -71,17 +79,46 @@ impl ConnectionManager {
         })
     }
 
+    pub fn get_peer_config_path(&self, network: &NetworkIdentifier) -> anyhow::Result<&Path> {
+        match self.active_connections.get(network) {
+            Some(tunnel_info) => Ok(&tunnel_info.path),
+            None => Err(anyhow!(
+                "Couldn't find WireGuard configuration for '{}' network!",
+                network.name
+            )),
+        }
+    }
+
+    pub fn get_peer_config(
+        &self,
+        network: &NetworkIdentifier,
+    ) -> anyhow::Result<WireguardPeerConfig> {
+        if let Some(tunnel_info) = self.active_connections.get(network) {
+            let config_file = fs::File::open(&tunnel_info.path)?;
+            let mut reader = BufReader::new(config_file);
+
+            let config = WireguardPeerConfig::from_reader(&mut reader)?;
+
+            Ok(config)
+        } else {
+            Err(anyhow!(
+                "Couldn't find WireGuard configuration for '{}' network!",
+                network.name
+            ))
+        }
+    }
+
     pub fn create_connection(&mut self, peer_config: WireguardPeerConfig) -> anyhow::Result<()> {
         let peer_config_name = format!("insider{}.conf", self.active_connections.len());
         let peer_config_path = self.config_directory.join(peer_config_name);
+        let tunnel = peer_config.tunnel.as_ref().ok_or(anyhow!(
+            "WireGuardPeerConfig is missing tunnel information!"
+        ))?;
 
-        if self
-            .active_connections
-            .contains_key(&peer_config.tunnel.network)
-        {
+        if self.active_connections.contains_key(&tunnel.network) {
             return Err(anyhow!(
                 "User is already connected to '{}' network!",
-                peer_config.tunnel.network.name
+                tunnel.network.name
             ));
         }
 
@@ -103,15 +140,27 @@ impl ConnectionManager {
             path: peer_config_path,
         };
 
-        self.active_connections
-            .insert(peer_config.tunnel.network, tunnel_info);
+        let network = peer_config.tunnel.unwrap().network;
+
+        self.active_connections.insert(network, tunnel_info);
 
         Ok(())
     }
-    
+
+    pub fn get_wg_tunnel_ifname(&self, network: &NetworkIdentifier) -> anyhow::Result<&str> {
+        Ok(self
+            .get_peer_config_path(network)?
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap())
+    }
+
     pub fn remove_single_connection(&mut self) -> anyhow::Result<()> {
         if self.active_connections.len() > 1 {
-            return Err(anyhow!("There are multiple active connections - you must choose one!"));
+            return Err(anyhow!(
+                "There are multiple active connections - you must choose one!"
+            ));
         }
 
         if self.active_connections.is_empty() {
@@ -133,7 +182,10 @@ impl ConnectionManager {
 
             Ok(())
         } else {
-            Err(anyhow!("Couldn't find WireGuard configuration for '{}' network!", network_id.name))
+            Err(anyhow!(
+                "Couldn't find WireGuard configuration for '{}' network!",
+                network_id.name
+            ))
         }
     }
 }

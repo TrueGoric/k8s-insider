@@ -97,7 +97,7 @@ pub fn get_peer_config(
     ))?;
 
     let peer_config =
-        WireguardPeerConfig::from_crd(tunnel_id, peer_private_key, network, tunnel)
+        WireguardPeerConfig::from_crd(Some(tunnel_id), peer_private_key, network, tunnel)
             .context("Couldn't create the WireGuard interface configuration!")?;
 
     Ok(peer_config)

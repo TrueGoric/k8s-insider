@@ -18,7 +18,7 @@ impl TunnelIdentifier {
         Self { network, name }
     }
 
-    pub fn from_wgconf_header(header: &str) -> anyhow::Result<Self> {
+    pub fn from_wgconf_header(header: &str) -> anyhow::Result<Option<Self>> {
         let regex = regex!(
             r"^# k8s-insider::\[\[(?x)
                 (?P<context>[-0-9A-Za-z.]+)::
@@ -27,34 +27,37 @@ impl TunnelIdentifier {
                 (?P<tunnel>[-0-9A-Za-z.]+)\]\]\s*$"
         );
 
-        let captures = regex
-            .captures(header)
-            .ok_or(anyhow!("Unsupported header format!"))?;
-        let context = captures
-            .name("context")
-            .ok_or(anyhow!("Missing context in the header!"))?
-            .as_str();
-        let namespace = captures
-            .name("namespace")
-            .ok_or(anyhow!("Missing namespace in the header!"))?
-            .as_str();
-        let network = captures
-            .name("network")
-            .ok_or(anyhow!("Missing network name in the header!"))?
-            .as_str();
-        let tunnel = captures
-            .name("tunnel")
-            .ok_or(anyhow!("Missing tunnel name in the header!"))?
-            .as_str();
+        let captures = regex.captures(header);
 
-        Ok(Self {
-            network: NetworkIdentifier {
-                name: network.to_owned(),
-                namespace: namespace.to_owned(),
-                context: context.to_owned(),
-            },
-            name: tunnel.to_owned(),
-        })
+        if let Some(captures) = captures {
+            let context = captures
+                .name("context")
+                .ok_or(anyhow!("Missing context in the header!"))?
+                .as_str();
+            let namespace = captures
+                .name("namespace")
+                .ok_or(anyhow!("Missing namespace in the header!"))?
+                .as_str();
+            let network = captures
+                .name("network")
+                .ok_or(anyhow!("Missing network name in the header!"))?
+                .as_str();
+            let tunnel = captures
+                .name("tunnel")
+                .ok_or(anyhow!("Missing tunnel name in the header!"))?
+                .as_str();
+
+            Ok(Some(Self {
+                network: NetworkIdentifier {
+                    name: network.to_owned(),
+                    namespace: namespace.to_owned(),
+                    context: context.to_owned(),
+                },
+                name: tunnel.to_owned(),
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn generate_wgconf_header(&self) -> String {
@@ -102,19 +105,21 @@ mod tests {
             name: "default-8lkprtfr6247fjmmgv0k266v7njtvaqvc8nji6nmjc4tetht6he0".to_owned()
         });
 
-        test_header_parse("# k8s-insider::[[e2er2o::what.you-gonna.-.d00::custom::dsf1j2j22j2j2lj2j]]", TunnelIdentifier {
-            network: NetworkIdentifier {
-                context: "e2er2o".to_owned(),
-                namespace: "what.you-gonna.-.d00".to_owned(),
-                name: "custom".to_owned(),
+        test_header_parse(
+            "# k8s-insider::[[e2er2o::what.you-gonna.-.d00::custom::dsf1j2j22j2j2lj2j]]",
+            TunnelIdentifier {
+                network: NetworkIdentifier {
+                    context: "e2er2o".to_owned(),
+                    namespace: "what.you-gonna.-.d00".to_owned(),
+                    name: "custom".to_owned(),
+                },
+                name: "dsf1j2j22j2j2lj2j".to_owned(),
             },
-            name: "dsf1j2j22j2j2lj2j".to_owned()
-        });
-
+        );
     }
 
     fn test_header_parse(header: &str, expected: TunnelIdentifier) {
-        let id = TunnelIdentifier::from_wgconf_header(header).unwrap();
+        let id = TunnelIdentifier::from_wgconf_header(header).unwrap().unwrap();
 
         assert_eq!(id, expected);
     }
