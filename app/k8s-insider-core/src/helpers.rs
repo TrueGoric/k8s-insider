@@ -83,7 +83,6 @@ pub trait RequireMetadata<E> {
     fn require_namespace_or(&self, error: E) -> Result<&str, E>;
     fn require_name_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E>;
     fn require_namespace_or_else(&self, error: impl FnOnce() -> E) -> Result<&str, E>;
-
 }
 
 impl<T: Resource, E> RequireMetadata<E> for T {
