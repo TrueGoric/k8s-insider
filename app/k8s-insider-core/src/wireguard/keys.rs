@@ -1,6 +1,7 @@
 use std::{
+    fmt::Display,
     hash::{Hash, Hasher},
-    ops::{Deref, DerefMut}, fmt::Display,
+    ops::{Deref, DerefMut},
 };
 
 use thiserror::Error;
@@ -12,10 +13,12 @@ pub struct InvalidWgKey;
 
 #[derive(Debug, Error)]
 pub enum WgKeyError {
+    #[error("No key was provided!")]
+    EmptyInput,
     #[error("Couldn't parse the key from base64 string!")]
     InvalidKey,
     #[error("{}", .0)]
-    IoError(std::io::Error)
+    IoError(std::io::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,9 +27,14 @@ pub struct WgKey(wireguard_control::Key);
 impl WgKey {
     pub fn from_base64_stdin() -> Result<Self, WgKeyError> {
         let mut buffer = String::new();
-        
+
         match std::io::stdin().read_line(&mut buffer) {
-            Ok(_) => Self::from_base64(&buffer).map_err(|_| WgKeyError::InvalidKey),
+            Ok(bytes_read) => match bytes_read {
+                0 => Err(WgKeyError::EmptyInput),
+                _ => {
+                    Self::from_base64(&buffer).map_err(|_| WgKeyError::InvalidKey)
+                }
+            },
             Err(error) => Err(WgKeyError::IoError(error)),
         }
     }
@@ -46,9 +54,9 @@ impl WgKey {
     pub fn get_public(&self) -> Self {
         WgKey(self.deref().get_public())
     }
-    
+
     pub fn to_dnssec_base32(&self) -> String {
-        data_encoding::BASE32_DNSSEC.encode(&self.0.0)
+        data_encoding::BASE32_DNSSEC.encode(&self.0 .0)
     }
 }
 
@@ -108,21 +116,24 @@ impl Display for WgKey {
 
 #[derive(Debug, Clone)]
 pub enum Keys {
-    Pair {
-        private: WgKey,
-        public: WgKey
-    },
+    Pair { private: WgKey, public: WgKey },
     Public(WgKey),
 }
 
 impl Keys {
     pub fn generate_new_pair() -> Self {
         let key_pair = KeyPair::generate();
-        Self::Pair { private:  key_pair.private.into(), public: key_pair.public.into() }
+        Self::Pair {
+            private: key_pair.private.into(),
+            public: key_pair.public.into(),
+        }
     }
 
     pub fn from_private_key(key: WgKey) -> Self {
-        Self::Pair { public: key.get_public(), private: key }
+        Self::Pair {
+            public: key.get_public(),
+            private: key,
+        }
     }
 
     pub fn from_public_key(key: WgKey) -> Self {
@@ -147,6 +158,11 @@ impl Keys {
 #[cfg(test)]
 mod tests {
     use super::WgKey;
+
+    #[test]
+    fn base_parses_key() {
+        WgKey::from_base64("kCuE5DRnJPlQtInX27vKR2JjXe6VgOE3LB3HCH3KI38=").unwrap();
+    }
 
     #[test]
     fn base_preserves_key() {

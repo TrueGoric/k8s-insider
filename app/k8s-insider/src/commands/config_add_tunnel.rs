@@ -8,17 +8,21 @@ pub fn config_add_tunnel(
     args: ConfigAddTunnelArgs,
     mut context: ConfigContext,
 ) -> anyhow::Result<()> {
-    info!("Adding '{}' tunnel to the config...", args.name);
+    info!("Adding '{}' tunnel to the '{}' network config...", args.name, args.network);
 
-    eprint!("Enter the private key: ");
-    let private_key = WgKey::from_base64_stdin()
-        .context("Invalid private key from stdin!")?
-        .to_base64();
     let config = context.insider_config_mut();
     let config_network = config.try_get_network_mut(&args.network).ok_or(anyhow!(
         "'{}' network is not present in the config!",
         args.network
     ))?;
+
+    eprint!("Enter the private key: ");
+    let private_key = WgKey::from_base64_stdin()
+        .context("Invalid private key from stdin!")?
+        .to_base64();
+
+    eprintln!();
+
     let config_tunnel = TunnelConfig {
         name: args.name,
         private_key,
