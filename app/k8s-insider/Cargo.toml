@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Marcin Jędrasik <marcin.jedrasik@artifexidearum.net>"]
 license = "GNU GPL 3 or later"
 description = "A zero-config way to access your kubernetes cluster network"
-readme = "../README.md"
+readme = "../../README.md"
 homepage = "https://github.com/truegoric/k8s-insider"
 repository = "https://github.com/truegoric/k8s-insider"
 keywords = ["cli", "kubernetes", "vpn", "developer-tools", "operator", "kubectl", "wireguard", "krew"]
@@ -24,9 +24,9 @@ anyhow = { workspace = true }
 clap = { version = "4.3.2", features = ["derive"] }
 env_logger = { workspace = true }
 home = "0.5.5"
-insider-macros = { path = "../insider-macros" }
 ipnet = { workspace = true }
 k8s-insider-core = { path = "../k8s-insider-core" }
+k8s-insider-macros = { path = "../k8s-insider-macros" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 log = { workspace = true }

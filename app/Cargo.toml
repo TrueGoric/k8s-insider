@@ -1,9 +1,9 @@
 [workspace]
 members = [
-    "insider-macros",
     "k8s-insider",
     "k8s-insider-agent",
     "k8s-insider-core",
+    "k8s-insider-macros",
 ]
 
 [workspace.dependencies]

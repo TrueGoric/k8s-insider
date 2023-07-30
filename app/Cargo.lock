@@ -868,14 +868,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "insider-macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn 2.0.26",
-]
-
-[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -972,9 +964,9 @@ dependencies = [
  "clap",
  "env_logger",
  "home",
- "insider-macros",
  "ipnet",
  "k8s-insider-core",
+ "k8s-insider-macros",
  "k8s-openapi",
  "kube",
  "log",
@@ -1031,6 +1023,14 @@ dependencies = [
  "thiserror",
  "tokio",
  "wireguard-control",
+]
+
+[[package]]
+name = "k8s-insider-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn 2.0.26",
 ]
 
 [[package]]
