@@ -92,6 +92,29 @@ impl InsiderConfig {
         panic!("Your brother's ten times better than you");
     }
 
+    pub fn get_network_or_default(&self, network: Option<&str>) -> anyhow::Result<(&String, &NetworkConfig)> {
+        Ok(match network {
+            Some(network) => self
+                .try_get_network(network)
+                .ok_or(anyhow!("Couldn't find network '{network}' in the config!"))?,
+            None => self
+                .try_get_default_network()?
+                .ok_or(anyhow!("No networks defined in the config!"))?,
+        })
+    }
+
+    pub fn get_network_or_default_mut(&mut self, network: Option<&str>) -> anyhow::Result<&mut NetworkConfig> {
+        Ok(match network {
+            Some(network) => self
+                .try_get_network_mut(network)
+                .ok_or(anyhow!("Couldn't find network '{network}' in the config!"))?,
+            None => self
+                .try_get_default_network_mut()?
+                .ok_or(anyhow!("No networks defined in the config!"))?,
+        })
+    }
+
+
     pub fn try_get_default_network(&self) -> anyhow::Result<Option<(&String, &NetworkConfig)>> {
         if self.networks.len() > 1 {
             return Err(anyhow!(
@@ -100,6 +123,16 @@ impl InsiderConfig {
         }
 
         Ok(self.networks.first_key_value())
+    }
+
+    pub fn try_get_default_network_mut(&mut self) -> anyhow::Result<Option<&mut NetworkConfig>> {
+        if self.networks.len() > 1 {
+            return Err(anyhow!(
+                "No default network: multiple networks written to config!"
+            ));
+        }
+
+        Ok(self.networks.first_entry().map(|e| e.into_mut()))
     }
 
     pub fn try_get_network(&self, name: &str) -> Option<(&String, &NetworkConfig)> {

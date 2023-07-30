@@ -11,7 +11,7 @@ use log::{debug, info};
 
 use crate::{
     cli::{CreateTunnelArgs, GlobalArgs},
-    config::tunnel::TunnelConfig,
+    config::{network::NetworkConfig, tunnel::TunnelConfig},
     context::ConfigContext,
     CLI_FIELD_MANAGER,
 };
@@ -21,18 +21,15 @@ pub async fn create_tunnel(
     args: &CreateTunnelArgs,
     context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
-    let config_network = context
-        .insider_config()
-        .try_get_network(&args.network)
-        .ok_or(anyhow!(
-            "Couldn't find network '{}' in the config!",
-            args.network
-        ))?;
-    let client = context.create_client(&config_network.1.id.context).await?;
+    let (_, config_network) = context
+        .insider_config
+        .get_network_or_default(args.network.as_deref())?;
+
+    let client = context.create_client(&config_network.id.context).await?;
 
     info!(
         "Creating a tunnel for '{}' network in '{}' namespace...",
-        args.network, global_args.namespace
+        config_network.id.name, global_args.namespace
     );
 
     let private_key = WgKey::generate_private_key();
@@ -42,8 +39,8 @@ pub async fn create_tunnel(
     let apply_params =
         PostParams::default().with(|p| p.field_manager = Some(CLI_FIELD_MANAGER.to_owned()));
     let tunnel_crd = create_tunnel_crd(
-        &config_network.1.id.name,
-        &config_network.1.id.namespace,
+        &config_network.id.name,
+        &config_network.id.namespace,
         public_key,
         preshared_key,
         args.static_ip.map(|ipv4| ipv4.into()),
@@ -52,13 +49,22 @@ pub async fn create_tunnel(
     debug!("{tunnel_crd:#?}");
 
     create_resource(&client, &tunnel_crd, &apply_params).await?;
+
+    let config_network = context
+        .insider_config
+        .get_network_or_default_mut(args.network.as_deref())?;
+
     write_config(
+        config_network,
         args.name.as_deref(),
-        &args.network,
         &tunnel_crd,
         private_key,
-        context,
     )?;
+
+    context
+        .insider_config
+        .save()
+        .context("Couldn't save the configuration file!")?;
 
     info!("Tunnel successfully created!");
 
@@ -93,20 +99,11 @@ fn create_tunnel_crd(
 }
 
 fn write_config(
+    config_network: &mut NetworkConfig,
     name: Option<&str>,
-    network: &str,
     crd: &Tunnel,
     private_key: WgKey,
-    context: &mut ConfigContext,
 ) -> anyhow::Result<()> {
-    let config_network = context
-        .insider_config_mut()
-        .try_get_network_mut(network)
-        .ok_or(anyhow!(
-            "Couldn't find network '{}' in the config!",
-            network
-        ))?;
-
     let entry = TunnelConfig::new(
         crd.require_name_or(anyhow!("Missing Tunnel CRD name!"))?
             .to_owned(),
@@ -118,11 +115,6 @@ fn write_config(
         .unwrap_or_else(|| config_network.generate_config_tunnel_name());
 
     config_network.try_add_tunnel(local_name, entry)?;
-
-    context
-        .insider_config()
-        .save()
-        .context("Couldn't save the configuration file!")?;
 
     Ok(())
 }
