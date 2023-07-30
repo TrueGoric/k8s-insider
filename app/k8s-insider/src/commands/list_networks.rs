@@ -1,11 +1,11 @@
 use std::net::SocketAddr;
 
-use insider_macros::TableOutputRow;
 use k8s_insider_core::{
     ip::{addrpair::IpAddrPair, netpair::IpNetPair, schema::IpNetFit},
     kubernetes::operations::list_resources,
     resources::crd::v1alpha1::network::{Network, NetworkService, NetworkState},
 };
+use k8s_insider_macros::TableOutputRow;
 use kube::api::ListParams;
 use serde::Serialize;
 

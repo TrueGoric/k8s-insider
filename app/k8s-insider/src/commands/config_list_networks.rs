@@ -1,4 +1,4 @@
-use insider_macros::TableOutputRow;
+use k8s_insider_macros::TableOutputRow;
 use serde::Serialize;
 
 use crate::{

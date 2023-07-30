@@ -1,9 +1,9 @@
-use insider_macros::TableOutputRow;
 use k8s_insider_core::{
     ip::addrpair::IpAddrPair,
     kubernetes::operations::list_resources,
     resources::crd::v1alpha1::tunnel::{Tunnel, TunnelState},
 };
+use k8s_insider_macros::TableOutputRow;
 use kube::api::ListParams;
 use serde::Serialize;
 

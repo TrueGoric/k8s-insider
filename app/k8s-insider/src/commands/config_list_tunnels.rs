@@ -1,10 +1,11 @@
-use insider_macros::TableOutputRow;
+use k8s_insider_macros::TableOutputRow;
 use serde::Serialize;
 
 use crate::{
     cli::ConfigListTunnelsArgs,
     config::{network::NetworkConfig, tunnel::TunnelConfig},
-    output::CliPrint, context::ConfigContext,
+    context::ConfigContext,
+    output::CliPrint,
 };
 
 pub fn config_list_tunnels(
