@@ -13,5 +13,6 @@ pub mod disconnect;
 pub mod get_configuration;
 pub mod install;
 pub mod list_networks;
+pub mod list_tunnels;
 pub mod patch_dns;
 pub mod uninstall;

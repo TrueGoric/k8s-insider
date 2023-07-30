@@ -12,7 +12,7 @@ use commands::{
     connect::connect, create_network::create_network, create_tunnel::create_tunnel,
     delete_network::delete_network, delete_tunnel::delete_tunnel, disconnect::disconnect,
     get_configuration::get_configuration, install::install, list_networks::list_networks,
-    patch_dns::patch_dns, uninstall::uninstall,
+    list_tunnels::list_tunnels, patch_dns::patch_dns, uninstall::uninstall,
 };
 use context::ConfigContext;
 use env_logger::Target;
@@ -67,7 +67,9 @@ async fn main() -> anyhow::Result<()> {
                 ListSubcommands::Network(args) => {
                     list_networks(cli.global_args, args, context).await?
                 }
-                ListSubcommands::Tunnel(_) => todo!(),
+                ListSubcommands::Tunnel(args) => {
+                    list_tunnels(cli.global_args, args, context).await?
+                }
             },
             Commands::Connect(args) => connect(cli.global_args, args, context).await?,
             Commands::Disconnect(args) => disconnect(args, context).await?,

@@ -287,6 +287,11 @@ pub struct ListNetworksArgs {
 
 #[derive(Debug, Args)]
 pub struct ListTunnelsArgs {
+    /// Limit the search to tunnels belonging to a particular network (optional)
+    /// 
+    /// The list is filtered locally due to limitations in k8s API.
+    #[arg()]
+    pub network: Option<String>,
     /// Output format
     #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table)]
     pub output: OutputFormat,
