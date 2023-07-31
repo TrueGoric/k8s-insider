@@ -14,6 +14,7 @@ mod helpers;
 mod network_manager;
 mod release;
 mod router;
+mod wireguard;
 
 #[tokio::main()]
 async fn main() -> Result<(), Box<dyn Error>> {

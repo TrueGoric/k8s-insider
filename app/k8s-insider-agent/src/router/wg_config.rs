@@ -11,6 +11,8 @@ use tokio::sync::watch::Receiver;
 
 use wireguard_control::{Backend, Device, DeviceUpdate, PeerConfigBuilder, PeerInfo};
 
+use crate::wireguard::ConvertKey;
+
 use super::reconciler::context::ReconcilerContext;
 
 const INTERFACE_NAME: &str = "wg0";
@@ -90,7 +92,7 @@ impl ConfigurationSynchronizer {
         let mut local_peers = current_status
             .peers
             .into_iter()
-            .map(|i| (i.config.public_key.clone().into(), i))
+            .map(|i| (i.config.public_key.to_owned().convert(), i))
             .collect::<HashMap<WgKey, PeerInfo>>();
 
         for tunnel in remote_peers {
@@ -103,7 +105,7 @@ impl ConfigurationSynchronizer {
             if let Some(local_peer_info) = local_peers.remove(&key) {
                 let changed_preshared_key = get_new_if_changed(
                     local_peer_info.config.preshared_key,
-                    Some(preshared_key.into()),
+                    Some(preshared_key.convert()),
                 );
                 let changed_ip = get_new_if_changed(
                     local_peer_info
@@ -117,7 +119,7 @@ impl ConfigurationSynchronizer {
                 if changed_ip.is_some() || changed_preshared_key.is_some() {
                     info!("Updating peer {key} (tunnel: {name})...");
 
-                    let mut peer = PeerConfigBuilder::new(&key);
+                    let mut peer = PeerConfigBuilder::new(&key.convert());
 
                     if let Some(ip) = changed_ip {
                         peer = peer.add_allowed_ip(ip.into(), 32).replace_allowed_ips();
@@ -132,9 +134,9 @@ impl ConfigurationSynchronizer {
             } else {
                 info!("Adding new peer {key} (tunnel {name})...");
 
-                let mut peer = PeerConfigBuilder::new(&key)
+                let mut peer = PeerConfigBuilder::new(&key.convert())
                     .set_persistent_keepalive_interval(PERSISTENT_KEEPALIVE_INTERVAL_SECS)
-                    .set_preshared_key(preshared_key.into());
+                    .set_preshared_key(preshared_key.convert());
 
                 if let Some(ipv4) = status.address.and_then(|address| address.try_get_ipv4()) {
                     peer = peer.add_allowed_ip(ipv4.into(), 32);
@@ -147,7 +149,7 @@ impl ConfigurationSynchronizer {
         for (leftover_key, _) in local_peers {
             info!("Removing peer {leftover_key}...");
 
-            builder = builder.remove_peer_by_key(&leftover_key);
+            builder = builder.remove_peer_by_key(&leftover_key.convert());
         }
 
         if let Err(error) = builder.apply(&interface_name, Backend::Kernel) {

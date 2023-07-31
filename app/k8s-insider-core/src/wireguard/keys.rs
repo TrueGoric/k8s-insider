@@ -99,6 +99,18 @@ impl Hash for WgKey {
     }
 }
 
+impl From<[u8; 32]> for WgKey {
+    fn from(value: [u8; 32]) -> Self {
+        WgKey(value)
+    }
+}
+
+impl From<WgKey> for [u8; 32] {
+    fn from(value: WgKey) -> Self {
+        value.0
+    }
+}
+
 impl TryFrom<&[u8]> for WgKey {
     type Error = InvalidWgKey;
 
