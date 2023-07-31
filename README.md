@@ -17,13 +17,13 @@ Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for
  - IPv6 support
 
 ## Requirements
- - Windows:
-   - `kubectl` with configured contexts
-   - `WireGuard for Windows` for creating local tunnels
  - GNU/Linux:
    - `kubectl` with configured contexts
    - `wireguard-tools` for creating local tunnels
    - `systemd-resolved` for DNS patch functionality
+ - Windows:
+   - `kubectl` with configured contexts
+   - `WireGuard for Windows` for creating local tunnels
 
 ## Installation
 TODO
