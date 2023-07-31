@@ -23,7 +23,7 @@ Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for
  - GNU/Linux:
    - `kubectl` with configured contexts
    - `wireguard-tools` for creating local tunnels
-   - `systemd-resolved` for DNS patch functionalityTODO
+   - `systemd-resolved` for DNS patch functionality
 
 ## Installation
 TODO
