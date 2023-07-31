@@ -31,7 +31,6 @@ pub fn tunnel_disconnect(config_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
 pub fn patch_dns_linux(ifname: &str, domain: &str) -> anyhow::Result<()> {
     use crate::os::linux::resolvectl_domain;
 
