@@ -1,11 +1,12 @@
 use std::{
     fmt::Display,
     hash::{Hash, Hasher},
-    ops::{Deref, DerefMut},
 };
 
+use rand::{RngCore, SeedableRng};
+use rand_chacha::ChaCha20Rng;
 use thiserror::Error;
-pub use wireguard_control::{InvalidKey, Key, KeyPair};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 #[derive(Debug, Error)]
 #[error("Couldn't parse the key from base64 string!")]
@@ -22,7 +23,7 @@ pub enum WgKeyError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WgKey(wireguard_control::Key);
+pub struct WgKey([u8; 32]);
 
 impl WgKey {
     pub fn from_base64_stdin() -> Result<Self, WgKeyError> {
@@ -31,64 +32,78 @@ impl WgKey {
         match std::io::stdin().read_line(&mut buffer) {
             Ok(bytes_read) => match bytes_read {
                 0 => Err(WgKeyError::EmptyInput),
-                _ => {
-                    Self::from_base64(&buffer).map_err(|_| WgKeyError::InvalidKey)
-                }
+                _ => Self::from_base64(&buffer).map_err(|_| WgKeyError::InvalidKey),
             },
             Err(error) => Err(WgKeyError::IoError(error)),
         }
     }
 
-    pub fn from_base64(key: &str) -> Result<Self, InvalidWgKey> {
-        Ok(WgKey(Key::from_base64(key).map_err(|_| InvalidWgKey)?))
-    }
-
     pub fn generate_private_key() -> Self {
-        WgKey(Key::generate_private())
+        let mut key = Self::get_random_raw();
+
+        Self::clamp_key(&mut key);
+
+        WgKey(key)
     }
 
     pub fn generate_preshared_key() -> Self {
-        WgKey(Key::generate_preshared())
+        let key = Self::get_random_raw();
+
+        WgKey(key)
     }
 
     pub fn get_public(&self) -> Self {
-        WgKey(self.deref().get_public())
+        let secret = StaticSecret::from(self.0);
+        let key = PublicKey::from(&secret);
+
+        WgKey(key.to_bytes())
     }
 
     pub fn to_dnssec_base32(&self) -> String {
-        data_encoding::BASE32_DNSSEC.encode(&self.0 .0)
+        data_encoding::BASE32_DNSSEC.encode(&self.0)
     }
-}
 
-impl Deref for WgKey {
-    type Target = wireguard_control::Key;
+    pub fn from_base64(encoded_key: &str) -> Result<Self, InvalidWgKey> {
+        let encoded_key_bytes = encoded_key.as_bytes();
+        let decoded_bytes = data_encoding::BASE64
+            .decode_len(encoded_key_bytes.len())
+            .map_err(|_| InvalidWgKey)?;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        if decoded_bytes != 32 {
+            return Err(InvalidWgKey);
+        }
+
+        let mut key = [0u8; 32];
+
+        data_encoding::BASE64
+            .decode_mut(encoded_key_bytes, &mut key)
+            .map_err(|_| InvalidWgKey)?;
+
+        Ok(WgKey(key))
     }
-}
 
-impl DerefMut for WgKey {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+    pub fn to_base64(&self) -> String {
+        data_encoding::BASE64.encode(&self.0)
+    }
+
+    fn get_random_raw() -> [u8; 32] {
+        let mut random = ChaCha20Rng::from_entropy();
+        let mut key = [0u8; 32];
+
+        random.fill_bytes(&mut key);
+
+        key
+    }
+
+    fn clamp_key(key: &mut [u8; 32]) {
+        key[0] &= 0xF8;
+        key[31] = (key[31] & 0x7F) | 0x40;
     }
 }
 
 impl Hash for WgKey {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0 .0.hash(state)
-    }
-}
-
-impl From<Key> for WgKey {
-    fn from(value: Key) -> Self {
-        Self(value)
-    }
-}
-
-impl From<WgKey> for Key {
-    fn from(value: WgKey) -> Self {
-        value.0
+        self.0.hash(state)
     }
 }
 
@@ -96,7 +111,7 @@ impl TryFrom<&[u8]> for WgKey {
     type Error = InvalidWgKey;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        Ok(Key(value.try_into().map_err(|_| InvalidWgKey)?).into())
+        value.try_into().map_err(|_| InvalidWgKey)
     }
 }
 
@@ -104,13 +119,13 @@ impl TryFrom<Vec<u8>> for WgKey {
     type Error = InvalidWgKey;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Key(value.try_into().map_err(|_| InvalidWgKey)?).into())
+        value.try_into().map_err(|_| InvalidWgKey)
     }
 }
 
 impl Display for WgKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0.to_base64().as_str())
+        f.write_str(self.to_base64().as_str())
     }
 }
 
@@ -122,11 +137,10 @@ pub enum Keys {
 
 impl Keys {
     pub fn generate_new_pair() -> Self {
-        let key_pair = KeyPair::generate();
-        Self::Pair {
-            private: key_pair.private.into(),
-            public: key_pair.public.into(),
-        }
+        let private = WgKey::generate_private_key();
+        let public = private.get_public();
+
+        Self::Pair { private, public }
     }
 
     pub fn from_private_key(key: WgKey) -> Self {

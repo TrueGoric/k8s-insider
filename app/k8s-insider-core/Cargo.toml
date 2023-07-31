@@ -23,10 +23,11 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 serde_with = "3.0.0"
 thiserror = { workspace = true }
-wireguard-control = { workspace = true }
 futures = { workspace = true }
 data-encoding = "2.4.0"
 rand = "0.8.5"
 num-traits = "0.2.15"
 itertools = "0.11.0"
 tokio = { workspace = true }
+x25519-dalek = { version = "2.0.0-rc.3", features = ["static_secrets"] }
+rand_chacha = "0.3.1"

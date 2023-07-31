@@ -5,7 +5,6 @@ use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::{core::ObjectMeta, Resource};
 use thiserror::Error;
-use wireguard_control::{InvalidKey, Key};
 
 use crate::{
     helpers::AndIfSome,
@@ -128,9 +127,9 @@ impl RouterInfoBuilder {
             .status
             .as_ref()
             .and_then(|status| status.server_public_key.as_ref())
-            .map(|key| Ok(WgKey::from(Key::from_base64(key)?)))
+            .map(|key| WgKey::from_base64(key))
             .transpose() // I love that I can do this
-            .map_err(|_: InvalidKey| {
+            .map_err(|_| {
                 ResourceGenerationError::DependentInvalidData("server_public_key".into())
             })?;
 

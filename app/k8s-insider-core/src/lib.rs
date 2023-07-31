@@ -1,5 +1,4 @@
 pub mod detectors;
-pub mod generators;
 pub mod helpers;
 pub mod ip;
 pub mod kubernetes;
