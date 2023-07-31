@@ -65,19 +65,11 @@ impl WgKey {
 
     pub fn from_base64(encoded_key: &str) -> Result<Self, InvalidWgKey> {
         let encoded_key_bytes = encoded_key.as_bytes();
-        let decoded_bytes = data_encoding::BASE64
-            .decode_len(encoded_key_bytes.len())
+        let key = data_encoding::BASE64
+            .decode(encoded_key_bytes)
             .map_err(|_| InvalidWgKey)?;
 
-        if decoded_bytes != 32 {
-            return Err(InvalidWgKey);
-        }
-
-        let mut key = [0u8; 32];
-
-        data_encoding::BASE64
-            .decode_mut(encoded_key_bytes, &mut key)
-            .map_err(|_| InvalidWgKey)?;
+        let key = key.try_into().map_err(|_| InvalidWgKey)?;
 
         Ok(WgKey(key))
     }
