@@ -26,7 +26,10 @@ Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for
    - `WireGuard for Windows` for creating local tunnels
 
 ## Installation
-TODO
+### `cargo`
+```bash
+cargo install --locked k8s-insider
+```
 
 ## Quickstart
 ```bash

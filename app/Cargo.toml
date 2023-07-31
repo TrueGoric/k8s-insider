@@ -23,3 +23,10 @@ thiserror = "1.0.40"
 tokio = { version = "1.28.2", features = ["macros", "io-util"] }
 tokio-stream = { version = "0.1.14" }
 wireguard-control = { git = "https://github.com/tonarino/innernet.git", rev = "dc7ae0e15c22648de99833871fb75ff019e93aca", version = "1.6.0" }
+
+[workspace.metadata.release]
+allow-branch = ["main"]
+pre-release-commit-message = "Release {{version}}"
+shared-version = true
+tag-message = "Release {{crate_name}} version {{version}}"
+tag-prefix = ""
