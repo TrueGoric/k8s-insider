@@ -1,4 +1,4 @@
-use std::{time::{SystemTime, Duration}, any::type_name};
+use std::{time::{SystemTime, Duration}, any::type_name, fmt::Display};
 
 use kube::Resource;
 
@@ -120,5 +120,22 @@ impl<T: Resource, E> RequireMetadata<E> for T {
             .as_ref()
             .ok_or_else(error)?
             .as_str())
+    }
+}
+
+pub trait ErrLogger {
+    fn log_error(self) -> Self;
+}
+
+impl<T, E: Display> ErrLogger for Result<T, E> {
+    fn log_error(self) -> Self {
+        match self {
+            Ok(ok) => Ok(ok),
+            Err(err) => {
+                log::error!("Error: {err}");
+
+                Err(err)
+            },
+        }
     }
 }

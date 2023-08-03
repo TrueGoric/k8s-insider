@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
-    helpers::AndIf,
+    helpers::{AndIf, ErrLogger},
     kubernetes::operations::{
         apply_cluster_resource, apply_resource, check_if_resource_exists,
         create_namespace_if_not_exists,
@@ -89,54 +89,74 @@ async fn prepare_release(
     args: InstallArgs,
     client: &Client,
 ) -> anyhow::Result<ControllerRelease> {
+    let service_cidr = match &args.service_cidr {
+        Some(value) => {
+            info!("Using service CIDR: {value}");
+            Ok(value.trunc().into())
+        }
+        None => detect_service_cidr(client)
+            .await
+            .log_error()
+            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+    };
+
+    let pod_cidr = match &args.pod_cidr {
+        Some(value) => {
+            info!("Using pod CIDR: {value}");
+            Ok(value.trunc().into())
+        }
+        None => detect_pod_cidr(client)
+            .await
+            .log_error()
+            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+    };
+
+    let kube_dns = match &args.kube_dns {
+        Some(value) => {
+            info!("Using DNS service IP: {value}");
+            Ok(Some(value.parse()?))
+        }
+        None => detect_dns_service(client)
+            .await
+            .log_error()
+            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+    };
+
+    let service_domain = match &args.service_domain {
+        Some(value) => {
+            info!("Using cluster domain: {value}");
+            Ok(Some(value.clone()))
+        }
+        None => detect_cluster_domain(client)
+            .await
+            .log_error()
+            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+    };
+
+    info!("Using controller image: {}", args.controller_image);
+    let controller_image_name = args.controller_image.clone();
+
+    info!(
+        "Using network manager image: {}",
+        args.network_manager_image
+    );
+    let network_manager_image_name = args.network_manager_image.clone();
+
+    info!("Using router image: {}", args.router_image);
+    let router_image_name = args.router_image.clone();
+
     let release_info = ControllerRelease {
         namespace: {
             info!("Using release namespace: {}", namespace);
             namespace
         },
-        service_cidr: match &args.service_cidr {
-            Some(value) => {
-                info!("Using service CIDR: {value}");
-                value.trunc().into()
-            }
-            None => detect_service_cidr(client).await?,
-        },
-        pod_cidr: match &args.pod_cidr {
-            Some(value) => {
-                info!("Using pod CIDR: {value}");
-                value.trunc().into()
-            }
-            None => detect_pod_cidr(client).await?,
-        },
-        kube_dns: match &args.kube_dns {
-            Some(value) => {
-                info!("Using DNS service IP: {value}");
-                Some(value.parse()?)
-            }
-            None => detect_dns_service(client).await?,
-        },
-        service_domain: match &args.service_domain {
-            Some(value) => {
-                info!("Using cluster domain: {value}");
-                Some(value.clone())
-            }
-            None => detect_cluster_domain(client).await?,
-        },
-        controller_image_name: {
-            info!("Using controller image: {}", args.controller_image);
-            args.controller_image.clone()
-        },
-        network_manager_image_name: {
-            info!(
-                "Using network manager image: {}",
-                args.network_manager_image
-            );
-            args.network_manager_image.clone()
-        },
-        router_image_name: {
-            info!("Using router image: {}", args.router_image);
-            args.router_image.clone()
-        },
+        service_cidr: service_cidr?,
+        pod_cidr: pod_cidr?,
+        kube_dns: kube_dns?,
+        service_domain: service_domain?,
+        controller_image_name,
+        network_manager_image_name,
+        router_image_name,
     };
 
     debug!("{release_info:#?}");
