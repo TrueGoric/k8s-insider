@@ -10,6 +10,9 @@ WG_MTU=$(ip link show $ETH_IF | awk -e '{for (i=1; i<=NF;i++){ if ($i == "mtu") 
 
 echo '[tunnel] Setting up WireGuard...'
 
+echo '[tunnel] chmod wgconf...'
+chmod 600 $WG_SERVER_CONFIG_PATH
+
 echo '[tunnel] wg link up...'
 wg-quick up $WG_SERVER_CONFIG_PATH
 
