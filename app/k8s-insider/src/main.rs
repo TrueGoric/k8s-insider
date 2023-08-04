@@ -24,7 +24,7 @@ mod cli;
 mod commands;
 mod config;
 mod context;
-mod helpers;
+mod macros;
 mod os;
 mod output;
 mod wireguard;

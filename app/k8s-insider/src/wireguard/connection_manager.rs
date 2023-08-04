@@ -17,6 +17,7 @@ use super::{operations::tunnel_disconnect, peer_config::WireguardPeerConfig};
 
 struct TunnelInfo {
     pub path: PathBuf,
+    pub tunnel_name: String,
 }
 
 pub struct ConnectionManager {
@@ -68,7 +69,7 @@ impl ConnectionManager {
                 }
             };
 
-            let tunnel_info = TunnelInfo { path: config_path };
+            let tunnel_info = TunnelInfo { path: config_path, tunnel_name: tunnel_id.name };
 
             active_connections.insert(tunnel_id.network, tunnel_info);
         }
@@ -115,11 +116,18 @@ impl ConnectionManager {
             "WireGuardPeerConfig is missing tunnel information!"
         ))?;
 
-        if self.active_connections.contains_key(&tunnel.network) {
-            return Err(anyhow!(
-                "User is already connected to '{}' network!",
-                tunnel.network.name
-            ));
+        if let Some(info) = self.active_connections.get(&tunnel.network) {
+            return match info.tunnel_name == tunnel.name {
+                true => {
+                    tunnel_connect(&info.path)?;
+
+                    Ok(())
+                },
+                false => Err(anyhow!(
+                    "User is already connected to '{}' network!",
+                    tunnel.network.name
+                )),
+            };
         }
 
         peer_config
@@ -138,9 +146,10 @@ impl ConnectionManager {
 
         let tunnel_info = TunnelInfo {
             path: peer_config_path,
+            tunnel_name: tunnel.name.clone()
         };
 
-        let network = peer_config.tunnel.unwrap().network;
+        let network = tunnel.network.clone();
 
         self.active_connections.insert(network, tunnel_info);
 
