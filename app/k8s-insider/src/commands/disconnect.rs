@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use log::info;
 
 use crate::{cli::DisconnectArgs, context::ConfigContext};
 
@@ -18,6 +19,8 @@ pub async fn disconnect(args: DisconnectArgs, mut context: ConfigContext) -> any
         Some(config_network) => context.connections.remove_connection(&config_network.id)?,
         None => context.connections.remove_single_connection()?,
     }
+
+    info!("Disconnected!");
 
     Ok(())
 }

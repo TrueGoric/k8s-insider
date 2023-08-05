@@ -1,6 +1,7 @@
 use std::{path::Path, process::Command};
 
 use anyhow::anyhow;
+use log::debug;
 
 pub fn confine_file_to_owner(path: &Path) -> anyhow::Result<()> {
     // windows_permissions::wrappers::
@@ -24,8 +25,10 @@ pub fn install_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
 
 pub fn uninstall_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
     let config_name = config_path
-        .file_name()
+        .file_stem()
         .ok_or(anyhow!("Invalid config path!"))?;
+
+    debug!("Attempting to remove {} tunnel...", config_name.to_string_lossy());
 
     let command_result = Command::new("wireguard")
         .arg("/uninstalltunnelservice")
@@ -37,6 +40,8 @@ pub fn uninstall_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
             "An error occurred when removing the tunnel service!"
         ));
     }
+
+    debug!("Tunnel {} removed!", config_name.to_string_lossy());
 
     Ok(())
 }
