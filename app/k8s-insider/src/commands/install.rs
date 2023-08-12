@@ -94,10 +94,9 @@ async fn prepare_release(
             info!("Using service CIDR: {value}");
             Ok(value.trunc().into())
         }
-        None => detect_service_cidr(client)
-            .await
-            .log_error()
-            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+        None => detect_service_cidr(client).await.log_error().map_err(|_| {
+            anyhow!("Couldn't autodetect some parameters! Try passing them manually.")
+        }),
     };
 
     let pod_cidr = match &args.pod_cidr {
@@ -105,10 +104,9 @@ async fn prepare_release(
             info!("Using pod CIDR: {value}");
             Ok(value.trunc().into())
         }
-        None => detect_pod_cidr(client)
-            .await
-            .log_error()
-            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+        None => detect_pod_cidr(client).await.log_error().map_err(|_| {
+            anyhow!("Couldn't autodetect some parameters! Try passing them manually.")
+        }),
     };
 
     let kube_dns = match &args.kube_dns {
@@ -116,10 +114,9 @@ async fn prepare_release(
             info!("Using DNS service IP: {value}");
             Ok(Some(value.parse()?))
         }
-        None => detect_dns_service(client)
-            .await
-            .log_error()
-            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+        None => detect_dns_service(client).await.log_error().map_err(|_| {
+            anyhow!("Couldn't autodetect some parameters! Try passing them manually.")
+        }),
     };
 
     let service_domain = match &args.service_domain {
@@ -130,7 +127,9 @@ async fn prepare_release(
         None => detect_cluster_domain(client)
             .await
             .log_error()
-            .map_err(|_| anyhow!("Couldn't autodetect some parameters! Try passing them manually.")),
+            .map_err(|_| {
+                anyhow!("Couldn't autodetect some parameters! Try passing them manually.")
+            }),
     };
 
     info!("Using controller image: {}", args.controller_image);

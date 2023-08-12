@@ -1,6 +1,7 @@
 use std::{path::Path, process::Command};
 
 use anyhow::anyhow;
+use k8s_insider_core::helpers::escape_quotes_powershell;
 use log::debug;
 
 pub fn confine_file_to_owner(path: &Path) -> anyhow::Result<()> {
@@ -9,6 +10,11 @@ pub fn confine_file_to_owner(path: &Path) -> anyhow::Result<()> {
 }
 
 pub fn install_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
+    debug!(
+        "Installing tunnel service for '{}'...",
+        config_path.to_string_lossy()
+    );
+
     let command_result = Command::new("wireguard")
         .arg("/installtunnelservice")
         .arg(config_path)
@@ -28,7 +34,10 @@ pub fn uninstall_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
         .file_stem()
         .ok_or(anyhow!("Invalid config path!"))?;
 
-    debug!("Attempting to remove {} tunnel...", config_name.to_string_lossy());
+    debug!(
+        "Attempting to remove {} tunnel...",
+        config_name.to_string_lossy()
+    );
 
     let command_result = Command::new("wireguard")
         .arg("/uninstalltunnelservice")
@@ -46,6 +55,44 @@ pub fn uninstall_tunnel_service(config_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn add_dns_client_nrpt_rule(domain: &str, dns: &str) {
-    // Add-DnsClientNrptRule -Namespace "pqr.com" -NameServers "10.0.0.1"
+pub fn add_dns_client_nrpt_rule(domain: &str, dns: &str) -> anyhow::Result<()> {
+    let script = format!(
+        "Add-DnsClientNrptRule -Namespace \".{}\" -NameServers \"{}\"",
+        escape_quotes_powershell(domain),
+        escape_quotes_powershell(dns)
+    );
+    let command_result = Command::new("powershell")
+        .arg("-Command")
+        .arg(script)
+        .status()?;
+
+    if !command_result.success() {
+        return Err(anyhow!(
+            "An error occurred when patching the Name Resolution Policy Table!"
+        ));
+    }
+
+    Ok(())
+}
+
+pub fn remove_dns_client_nrpt_rule(dns: &str, domain: &str) -> anyhow::Result<()> {
+    let script = format!(
+        "Get-DnsClientNrptRule \
+            | Where-Object {{$_.Namespace -eq \".{domain}\" -and $_.NameServers -eq \"{}\"}} \
+            | ForEach-Object -Process {{Remove-DnsClientNrptRule -Name $_.Name -Force}}",
+        escape_quotes_powershell(dns)
+    );
+
+    let command_result = Command::new("powershell")
+        .arg("-Command")
+        .arg(script)
+        .status()?;
+
+    if !command_result.success() {
+        return Err(anyhow!(
+            "An error occurred when removing NRPT rules!"
+        ));
+    }
+
+    Ok(())
 }

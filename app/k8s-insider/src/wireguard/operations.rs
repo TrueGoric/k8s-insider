@@ -37,8 +37,9 @@ pub fn tunnel_disconnect(config_path: &Path) -> anyhow::Result<()> {
 pub fn tunnel_disconnect(config_path: &Path) -> anyhow::Result<()> {
     use crate::os::windows::uninstall_tunnel_service;
 
-    uninstall_tunnel_service(config_path)
-        .context("Couldn't remove the WireGuard tunnel service! Administrator privileges might be required.")?;
+    uninstall_tunnel_service(config_path).context(
+        "Couldn't remove the WireGuard tunnel service! Administrator privileges might be required.",
+    )?;
 
     Ok(())
 }
@@ -52,6 +53,24 @@ pub fn patch_dns_linux(ifname: &str, domain: &str) -> anyhow::Result<()> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn patch_dns_windows(ifname: &str, domain: &str) -> anyhow::Result<()> {
-    todo!();
+pub fn patch_dns_windows(dns: &str, domain: &str) -> anyhow::Result<()> {
+    use crate::os::windows::add_dns_client_nrpt_rule;
+
+    add_dns_client_nrpt_rule(domain, dns)?;
+
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+pub fn unpatch_dns(dns: &str) -> anyhow::Result<()> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+pub fn unpatch_dns(dns: &str, domain: &str) -> anyhow::Result<()> {
+    use crate::os::windows::remove_dns_client_nrpt_rule;
+
+    remove_dns_client_nrpt_rule(dns, domain)?;
+
+    Ok(())
 }

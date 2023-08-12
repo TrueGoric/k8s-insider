@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
-    fs,
-    io::{self, BufRead, Seek},
+    fs::{self, File},
+    io::{self, BufRead, BufReader, Seek},
     net::{AddrParseError, SocketAddr},
     path::Path,
 };
@@ -16,6 +16,7 @@ use k8s_insider_core::{
     },
     wireguard::keys::{InvalidWgKey, WgKey},
 };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::config::tunnel::TunnelIdentifier;
@@ -24,14 +25,16 @@ use super::WireguardError;
 
 #[derive(Debug, Error)]
 pub enum WireguardParseError {
+    #[error("An error occured when reading file! {}", .0)]
+    IoError(io::Error),
     #[error("Invalid config file! {}", .0)]
     IniError(ini::Error),
+    #[error("Invalid meta file! {}", .0)]
+    SerializerError(serde_json::Error),
     #[error("Config file is missing {} section!", .0)]
     MissingSection(Cow<'static, str>),
     #[error("Config file is missing {} value!", .0)]
     MissingValue(Cow<'static, str>),
-    #[error("This WireGuard config has an invalid header!")]
-    HeaderParseError,
     #[error("Value {} contains invalid IP pair value!", .1)]
     IpPairParseError(IpPairError, Cow<'static, str>),
     #[error("Value {} contains an invalid base64 WireGuard key!", .1)]
@@ -42,9 +45,57 @@ pub enum WireguardParseError {
     IpNetParseError(Cow<'static, str>),
 }
 
-pub struct WireguardPeerConfig {
-    pub tunnel: Option<TunnelIdentifier>,
+#[derive(Debug, Error)]
+pub enum WireguardWriteError {
+    #[error("An error occured when writing file! {}", .0)]
+    IoError(io::Error),
+    #[error("An error occured when serializing file! {}", .0)]
+    SerializerError(serde_json::Error),
+}
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InsiderPeerMeta {
+    pub tunnel: TunnelIdentifier,
+    pub cluster_domain: Option<String>,
+    pub dns_patched: bool,
+}
+
+impl InsiderPeerMeta {
+    pub fn from_file(path: &Path) -> Result<Self, WireguardParseError> {
+        let file = File::open(path).map_err(WireguardParseError::IoError)?;
+        let reader = BufReader::new(file);
+
+        serde_json::from_reader(reader).map_err(WireguardParseError::SerializerError)
+    }
+
+    pub fn from_crd(
+        tunnel_id: &TunnelIdentifier,
+        network: &Network,
+    ) -> Result<Self, WireguardError> {
+        let network_status = network.status.as_ref().ok_or(WireguardError::NetworkNotReady)?;
+
+        if network_status.state != NetworkState::Deployed {
+            return Err(WireguardError::NetworkInvalidState(network_status.state));
+        }
+
+        Ok(InsiderPeerMeta {
+            tunnel: tunnel_id.to_owned(),
+            cluster_domain: network_status.service_domain.to_owned(),
+            dns_patched: false,
+        })
+    }
+
+    pub fn write(&self, path: &Path) -> Result<(), WireguardWriteError> {
+        let meta =
+            serde_json::to_string_pretty(self).map_err(WireguardWriteError::SerializerError)?;
+
+        fs::write(path, meta).map_err(WireguardWriteError::IoError)?;
+
+        Ok(())
+    }
+}
+
+pub struct WireguardPeerConfig {
     pub address: IpAddrPair,
     pub dns: Option<IpAddrPair>,
 
@@ -58,70 +109,63 @@ pub struct WireguardPeerConfig {
 
 impl WireguardPeerConfig {
     pub fn from_crd(
-        tunnel_id: Option<&TunnelIdentifier>,
         peer_private_key: WgKey,
         network: &Network,
         tunnel: &Tunnel,
     ) -> Result<Self, WireguardError> {
-        if let Some(ref network_status) = network.status {
-            if network_status.state != NetworkState::Deployed {
-                return Err(WireguardError::NetworkInvalidState(network_status.state));
-            }
-
-            if let Some(ref tunnel_status) = tunnel.status {
-                if tunnel_status.state != TunnelState::Configured
-                    && tunnel_status.state != TunnelState::Connected
-                {
-                    return Err(WireguardError::TunnelInvalidState(tunnel_status.state));
-                }
-
-                let address = tunnel_status
-                    .address
-                    .ok_or(WireguardError::AddressNotAssigned)?;
-                let dns = network_status.dns;
-                let server_public_key = network_status
-                    .server_public_key
-                    .as_deref()
-                    .and_then(|k| WgKey::from_base64(k).ok())
-                    .ok_or(WireguardError::NetworkInvalidServerPublicKey)?;
-                let preshared_key = WgKey::from_base64(&tunnel.spec.preshared_key)
-                    .map_err(|_| WireguardError::TunnelInvalidPresharedKey)?;
-                let server_endpoint = network_status
-                    .endpoints
-                    .as_deref()
-                    .and_then(|e| e.iter().next())
-                    .ok_or(WireguardError::NetworkMissingEndpoint)?
-                    .to_owned();
-                let allowed_ips = network_status
-                    .allowed_ips
-                    .as_deref()
-                    .map(|v| v.iter().map(|ip| ip.into()).collect())
-                    .ok_or(WireguardError::NetworkMissingAllowedIps)?;
-
-                Ok(WireguardPeerConfig {
-                    tunnel: tunnel_id.map(|id| id.to_owned()),
-                    address,
-                    dns,
-                    peer_private_key,
-                    server_public_key,
-                    preshared_key,
-                    server_endpoint,
-                    allowed_ips,
-                })
-            } else {
-                Err(WireguardError::TunnelNotReady)
-            }
-        } else {
-            Err(WireguardError::NetworkNotReady)
+        let network_status = network
+            .status
+            .as_ref()
+            .ok_or(WireguardError::NetworkNotReady)?;
+        if network_status.state != NetworkState::Deployed {
+            return Err(WireguardError::NetworkInvalidState(network_status.state));
         }
+
+        let tunnel_status = tunnel
+            .status
+            .as_ref()
+            .ok_or(WireguardError::TunnelNotReady)?;
+        if tunnel_status.state != TunnelState::Configured
+            && tunnel_status.state != TunnelState::Connected
+        {
+            return Err(WireguardError::TunnelInvalidState(tunnel_status.state));
+        }
+
+        let address: IpAddrPair = tunnel_status
+            .address
+            .ok_or(WireguardError::AddressNotAssigned)?;
+        let dns = network_status.dns;
+        let server_public_key = network_status
+            .server_public_key
+            .as_deref()
+            .and_then(|k| WgKey::from_base64(k).ok())
+            .ok_or(WireguardError::NetworkInvalidServerPublicKey)?;
+        let preshared_key = WgKey::from_base64(&tunnel.spec.preshared_key)
+            .map_err(|_| WireguardError::TunnelInvalidPresharedKey)?;
+        let server_endpoint = network_status
+            .endpoints
+            .as_deref()
+            .and_then(|e| e.iter().next())
+            .ok_or(WireguardError::NetworkMissingEndpoint)?
+            .to_owned();
+        let allowed_ips = network_status
+            .allowed_ips
+            .as_deref()
+            .map(|v| v.iter().map(|ip| ip.into()).collect())
+            .ok_or(WireguardError::NetworkMissingAllowedIps)?;
+
+        Ok(WireguardPeerConfig {
+            address,
+            dns,
+            peer_private_key,
+            server_public_key,
+            preshared_key,
+            server_endpoint,
+            allowed_ips,
+        })
     }
 
     pub fn generate_configuration_file(&self) -> String {
-        let header = self
-            .tunnel
-            .as_ref()
-            .map(|t| t.generate_wgconf_header())
-            .unwrap_or_default();
         let address = self.address;
         let private_key = self.peer_private_key.to_base64();
         let dns = self.dns.map(|i| format!("DNS = {i}")).unwrap_or_default();
@@ -136,8 +180,7 @@ impl WireguardPeerConfig {
             .join(",");
 
         format!(
-            "{header}
-[Interface]
+            "[Interface]
 Address = {address}
 PrivateKey = {private_key}
 {dns}
@@ -150,25 +193,22 @@ AllowedIPs = {allowed_ips}"
         )
     }
 
-    pub fn write_configuration(&self, path: &Path) -> Result<(), io::Error> {
+    pub fn write(&self, path: &Path) -> Result<(), WireguardWriteError> {
         let config = self.generate_configuration_file();
 
-        fs::write(path, config)?;
+        fs::write(path, config).map_err(WireguardWriteError::IoError)?;
 
         Ok(())
     }
 
+    pub fn from_file(path: &Path) -> Result<Self, WireguardParseError> {
+        let file = File::open(path).map_err(WireguardParseError::IoError)?;
+        let mut reader = BufReader::new(file);
+
+        Self::from_reader(&mut reader)
+    }
+
     pub fn from_reader<R: BufRead + Seek>(reader: &mut R) -> Result<Self, WireguardParseError> {
-        let mut header_buffer = String::new();
-        reader.read_line(&mut header_buffer).unwrap();
-
-        let tunnel = match TunnelIdentifier::from_wgconf_header(&header_buffer) {
-            Ok(id) => id,
-            Err(_) => return Err(WireguardParseError::HeaderParseError),
-        };
-
-        reader.rewind().unwrap();
-
         let ini = Ini::read_from(reader).map_err(WireguardParseError::IniError)?;
         let interface_section = ini
             .section(Some("Interface"))
@@ -240,7 +280,6 @@ AllowedIPs = {allowed_ips}"
         }
 
         Ok(Self {
-            tunnel,
             address,
             dns,
             peer_private_key,
@@ -249,5 +288,29 @@ AllowedIPs = {allowed_ips}"
             server_endpoint,
             allowed_ips,
         })
+    }
+}
+
+pub struct WireguardPeerConfigHandle<'a> {
+    pub config: WireguardPeerConfig,
+    pub config_path: &'a Path,
+    pub meta: InsiderPeerMeta,
+    pub meta_path: &'a Path,
+}
+
+impl<'a> WireguardPeerConfigHandle<'a> {
+    pub fn write_configuration(&'a self) -> Result<(), WireguardWriteError> {
+        self.config.write(self.config_path)
+    }
+
+    pub fn write_meta(&'a self) -> Result<(), WireguardWriteError> {
+        self.meta.write(self.meta_path)
+    }
+
+    pub fn write_all(&'a self) -> Result<(), WireguardWriteError> {
+        self.write_configuration()?;
+        self.write_meta()?;
+
+        Ok(())
     }
 }

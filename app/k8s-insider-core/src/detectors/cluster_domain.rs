@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use anyhow::{anyhow, Context};
 use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{Api, Client};
-use log::info;
+use log::{info, warn};
 use serde_yaml::Value;
 
 const KUBELET_CONFIGMAP_NAME: &str = "kubelet-config";
@@ -21,6 +21,7 @@ pub async fn detect_cluster_domain(client: &Client) -> anyhow::Result<Option<Str
         .context("Cluster domain autodetection failed!")?;
 
     if kubelet_configmap.is_none() {
+        warn!("Couldn't autodetect cluster's service domain! Some DNS features may be unavailable.");
         return Ok(None);
     }
 

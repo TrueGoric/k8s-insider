@@ -108,7 +108,7 @@ pub struct InstallArgs {
     /// Cluster service CIDR (autodetected if unset)
     #[arg(long)]
     pub service_cidr: Option<Ipv4Net>,
-    /// Cluster domain name assigned to services (autodetected if unset)
+    /// Cluster domain name assigned to pods and services (autodetected if unset)
     #[arg(long)]
     pub service_domain: Option<String>,
     /// Cluster pod CIDR (autodetected if unset)

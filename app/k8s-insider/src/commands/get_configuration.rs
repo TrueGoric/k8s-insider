@@ -35,12 +35,12 @@ pub async fn get_configuration(args: GetConfArgs, context: ConfigContext) -> any
         }
     };
 
-    let (peer_config, _, _) =
+    let (_, peer_config, _, _) =
         await_tunnel_availability(config_network, config_tunnel, &context).await?;
 
     if let Some(output) = args.output {
         peer_config
-            .write_configuration(Path::new(&output))
+            .write(Path::new(&output))
             .context(format!("Couldn't write the output to {output}"))?;
     } else {
         print!("{}", peer_config.generate_configuration_file());

@@ -38,7 +38,7 @@ pub async fn connect(
     }
     let config_network = config_network;
     let config_tunnel = config_tunnel_opt.unwrap().1;
-    let (peer_config, _, network) =
+    let (peer_meta, peer_config, _, network) =
         await_tunnel_availability(config_network, config_tunnel, &context).await?;
     let network_name = network.require_name_or(anyhow!("Network CRD doesn't have a name!"))?;
 
@@ -47,7 +47,9 @@ pub async fn connect(
         network_name, global_args.namespace
     );
 
-    context.connections.create_connection(peer_config)?;
+    context
+        .connections
+        .create_connection(peer_meta, peer_config)?;
 
     info!("Tunnel link created...");
 

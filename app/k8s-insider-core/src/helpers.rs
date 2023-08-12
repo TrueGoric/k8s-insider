@@ -139,3 +139,7 @@ impl<T, E: Display> ErrLogger for Result<T, E> {
         }
     }
 }
+
+pub fn escape_quotes_powershell(str: &str) -> String {
+    str.replace('\"', "\"\"")
+}
