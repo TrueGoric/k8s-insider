@@ -8,7 +8,6 @@ pub mod crd;
 pub mod labels;
 pub mod meta;
 pub mod router;
-pub mod templates;
 
 #[derive(Debug, Error)]
 pub enum ResourceGenerationError {
