@@ -77,12 +77,12 @@ impl RouterRelease {
                 }]),
                 // resources: todo!(), // this too
                 security_context: Some(SecurityContext {
-                    allow_privilege_escalation: Some(true),
+                    allow_privilege_escalation: Some(false),
                     capabilities: Some(Capabilities {
                         add: Some(vec!["NET_ADMIN".to_owned()]),
                         ..Default::default()
                     }),
-                    privileged: Some(true),
+                    privileged: Some(false),
                     ..Default::default()
                 }),
                 ..Default::default()
