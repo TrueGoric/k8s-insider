@@ -132,17 +132,26 @@ async fn prepare_release(
             }),
     };
 
-    info!("Using controller image: {}", args.controller_image);
+    info!(
+        "Using controller image: {}:{}",
+        args.controller_image, args.controller_image_tag
+    );
     let controller_image_name = args.controller_image.clone();
+    let controller_image_tag = args.controller_image_tag.clone();
 
     info!(
-        "Using network manager image: {}",
-        args.network_manager_image
+        "Using network manager image: {}:{}",
+        args.network_manager_image, args.network_manager_image_tag
     );
     let network_manager_image_name = args.network_manager_image.clone();
+    let network_manager_image_tag = args.network_manager_image_tag.clone();
 
-    info!("Using router image: {}", args.router_image);
+    info!(
+        "Using router image: {}:{}",
+        args.router_image, args.router_image_tag
+    );
     let router_image_name = args.router_image.clone();
+    let router_image_tag = args.router_image_tag.clone();
 
     let release_info = ControllerRelease {
         namespace: {
@@ -154,8 +163,11 @@ async fn prepare_release(
         kube_dns: kube_dns?,
         service_domain: service_domain?,
         controller_image_name,
+        controller_image_tag,
         network_manager_image_name,
+        network_manager_image_tag,
         router_image_name,
+        router_image_tag,
     };
 
     debug!("{release_info:#?}");

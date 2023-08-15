@@ -28,6 +28,7 @@ mod macros;
 mod os;
 mod output;
 mod wireguard;
+mod version;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
 

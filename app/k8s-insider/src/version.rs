@@ -1,0 +1,1 @@
+pub const LOCAL_INSIDER_VERSION: &str = env!("CARGO_PKG_VERSION");

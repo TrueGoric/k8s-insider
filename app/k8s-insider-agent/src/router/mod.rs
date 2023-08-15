@@ -14,7 +14,7 @@ pub mod reconciler;
 pub mod tunnel;
 pub mod wg_config;
 
-pub const ROUTER_FIELD_MANAGER: &str = "k8s-insider-router";
+pub const _ROUTER_FIELD_MANAGER: &str = "k8s-insider-router";
 
 pub const WIREGUARD_CONFIG_DIRECTORY: &str = "/config";
 pub const WIREGUARD_CONFIG_PATH: &str = "/config/wg0.conf";

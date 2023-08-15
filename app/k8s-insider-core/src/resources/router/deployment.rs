@@ -66,7 +66,7 @@ impl RouterRelease {
                     }),
                     ..Default::default()
                 }]),
-                image: Some(self.router_image_name.to_owned()),
+                image: Some(self.router_image.to_owned()),
                 image_pull_policy: Some("IfNotPresent".to_owned()),
                 name: metadata_name,
                 ports: Some(vec![ContainerPort {
@@ -161,7 +161,7 @@ impl RouterRelease {
                                 value: Some(self.namespace.to_owned()),
                                 ..Default::default()
                             }]),
-                            image: Some(self.network_manager_image_name.to_owned()),
+                            image: Some(self.network_manager_image.to_owned()),
                             image_pull_policy: Some("IfNotPresent".to_owned()),
                             name: metadata_name,
                             // resources: todo!(), // this too

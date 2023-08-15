@@ -44,9 +44,9 @@ pub struct RouterRelease {
     pub service_domain: Option<String>,
     pub service_cidr: IpNetPair,
     pub pod_cidr: IpNetPair,
-    pub controller_image_name: String,
-    pub network_manager_image_name: String,
-    pub router_image_name: String,
+    pub controller_image: String,
+    pub network_manager_image: String,
+    pub router_image: String,
 
     pub server_keys: Keys,
     pub peer_cidr: IpNetPair,
@@ -102,9 +102,9 @@ impl RouterReleaseBuilder {
             .service_domain(controller_release.service_domain.to_owned())
             .service_cidr(controller_release.service_cidr)
             .pod_cidr(controller_release.pod_cidr)
-            .controller_image_name(controller_release.controller_image_name.to_owned())
-            .network_manager_image_name(controller_release.network_manager_image_name.to_owned())
-            .router_image_name(controller_release.router_image_name.to_owned())
+            .controller_image(controller_release.get_controller_image())
+            .network_manager_image(controller_release.get_network_manager_image())
+            .router_image(controller_release.get_router_image())
     }
 
     pub fn with_router_info(&mut self, router_info: RouterInfo) -> &mut Self {
@@ -258,11 +258,11 @@ PostUp = {route_up}"
         fn up4_snip(net: Ipv4Net) -> String {
             format!("ip -4 route add {} dev %i", net)
         }
-    
+
         fn up6_snip(net: Ipv6Net) -> String {
             format!("ip -6 route add {} dev %i", net)
         }
-    
+
         match self.peer_cidr {
             IpNetPair::Ipv4 { netv4 } => up4_snip(netv4),
             IpNetPair::Ipv6 { netv6 } => up6_snip(netv6),
@@ -271,7 +271,6 @@ PostUp = {route_up}"
             }
         }
     }
-    
 }
 
 impl From<NetworkService> for RouterService {

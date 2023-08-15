@@ -61,7 +61,7 @@ impl ControllerRelease {
                                 }),
                                 ..Default::default()
                             }]),
-                            image: Some(self.controller_image_name.to_owned()),
+                            image: Some(self.get_controller_image()),
                             image_pull_policy: Some("IfNotPresent".to_owned()),
                             name: metadata_name,
                             // resources: todo!(), // this too

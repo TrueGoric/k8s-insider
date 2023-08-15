@@ -3,14 +3,16 @@ use std::net::Ipv4Addr;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use ipnet::Ipv4Net;
 
+use crate::version::LOCAL_INSIDER_VERSION;
+
 pub const DEFAULT_NAMESPACE: &str = "kube-insider";
 
 pub const DEFAULT_PEER_CIDR: &str = "10.11.11.0/24";
 
-pub const DEFAULT_CONTROLLER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-controller:latest";
+pub const DEFAULT_CONTROLLER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-controller";
 pub const DEFAULT_NETWORK_MANAGER_IMAGE: &str =
-    "ghcr.io/truegoric/k8s-insider-network-manager:latest";
-pub const DEFAULT_ROUTER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-router:latest";
+    "ghcr.io/truegoric/k8s-insider-network-manager";
+pub const DEFAULT_ROUTER_IMAGE: &str = "ghcr.io/truegoric/k8s-insider-router";
 
 pub const DEFAULT_NETWORK_NAME: &str = "default";
 
@@ -126,6 +128,15 @@ pub struct InstallArgs {
     /// Substitutes the k8s-insider-router container image if specified
     #[arg(long, default_value = DEFAULT_ROUTER_IMAGE)]
     pub router_image: String,
+    /// Substitutes the k8s-insider-controller image tag if specified
+    #[arg(long, default_value = LOCAL_INSIDER_VERSION)]
+    pub controller_image_tag: String,
+    /// Substitutes the k8s-insider-controller image tag if specified
+    #[arg(long, default_value = LOCAL_INSIDER_VERSION)]
+    pub network_manager_image_tag: String,
+    /// Substitutes the k8s-insider-router image tag if specified
+    #[arg(long, default_value = LOCAL_INSIDER_VERSION)]
+    pub router_image_tag: String,
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,

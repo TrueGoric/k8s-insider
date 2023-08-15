@@ -9,7 +9,7 @@ impl ControllerRelease {
         let mut configmap_data = BTreeMap::from([
             (
                 "KUBE_INSIDER_NAMESPACE".to_owned(),
-                self.namespace.to_owned(),
+                self.namespace.clone(),
             ),
             (
                 "KUBE_INSIDER_SERVICE_CIDR".to_owned(),
@@ -21,15 +21,27 @@ impl ControllerRelease {
             ),
             (
                 "KUBE_INSIDER_CONTROLLER_IMAGE_NAME".to_owned(),
-                self.controller_image_name.to_string(),
+                self.controller_image_name.clone(),
+            ),
+            (
+                "KUBE_INSIDER_CONTROLLER_IMAGE_TAG".to_owned(),
+                self.controller_image_tag.clone(),
             ),
             (
                 "KUBE_INSIDER_NETWORK_MANAGER_IMAGE_NAME".to_owned(),
-                self.network_manager_image_name.to_string(),
+                self.network_manager_image_name.clone(),
+            ),
+            (
+                "KUBE_INSIDER_NETWORK_MANAGER_IMAGE_TAG".to_owned(),
+                self.network_manager_image_tag.clone(),
             ),
             (
                 "KUBE_INSIDER_ROUTER_IMAGE_NAME".to_owned(),
-                self.router_image_name.to_string(),
+                self.router_image_name.clone(),
+            ),
+            (
+                "KUBE_INSIDER_ROUTER_IMAGE_TAG".to_owned(),
+                self.router_image_tag.clone(),
             ),
         ]);
 
