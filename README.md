@@ -35,7 +35,7 @@ cargo install --locked k8s-insider
 ```bash
 k8s-insider install
 k8s-insider create network
-k8s-install connect
+k8s-insider connect
 ```
 
 ## Current limitations
