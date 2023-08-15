@@ -1,6 +1,6 @@
 [package]
 name = "k8s-insider-macros"
-version = "0.3.0"
+version = "0.2.12"
 edition = "2021"
 license = "GNU GPL 3 or later"
 description = "Package containing macros used by k8s-insider crates"
