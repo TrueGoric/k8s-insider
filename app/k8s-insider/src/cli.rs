@@ -92,7 +92,7 @@ pub enum Commands {
     #[command()]
     Disconnect(DisconnectArgs),
     /// Get the WireGuard configuration file for a tunnel
-    #[command()]
+    #[command(alias = "get-config", alias = "get-configuration")]
     GetConf(GetConfArgs),
     /// Patch the DNS resolver to avoid loops when deploying on the local machine
     #[command()]
@@ -100,6 +100,9 @@ pub enum Commands {
     /// Modify k8s-insider configuration
     #[command(alias = "cfg", alias = "conf")]
     Config(ConfigCommand),
+    /// Print k8s-insider version
+    #[command(alias = "ver")]
+    Version(VersionArgs),
 }
 
 #[derive(Debug, Args)]
@@ -470,6 +473,13 @@ pub struct ConfigRemoveTunnelArgs {
     /// Parent network of the tunnel
     #[arg()]
     pub network: String,
+}
+
+#[derive(Debug, Args)]
+pub struct VersionArgs {
+    /// Output format
+    #[arg(short = 'o', long, value_enum, default_value_t = OutputFormat::Table)]
+    pub output: OutputFormat,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]

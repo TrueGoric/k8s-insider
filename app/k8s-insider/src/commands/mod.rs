@@ -16,3 +16,4 @@ pub mod list_networks;
 pub mod list_tunnels;
 pub mod patch_dns;
 pub mod uninstall;
+pub mod version;

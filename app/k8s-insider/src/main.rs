@@ -12,7 +12,7 @@ use commands::{
     connect::connect, create_network::create_network, create_tunnel::create_tunnel,
     delete_network::delete_network, delete_tunnel::delete_tunnel, disconnect::disconnect,
     get_configuration::get_configuration, install::install, list_networks::list_networks,
-    list_tunnels::list_tunnels, patch_dns::patch_dns, uninstall::uninstall,
+    list_tunnels::list_tunnels, patch_dns::patch_dns, uninstall::uninstall, version::print_version,
 };
 use context::ConfigContext;
 use env_logger::Target;
@@ -27,8 +27,8 @@ mod context;
 mod macros;
 mod os;
 mod output;
-mod wireguard;
 mod version;
+mod wireguard;
 
 pub const CLI_FIELD_MANAGER: &str = "k8s-insider";
 
@@ -98,6 +98,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
             },
+            Commands::Version(args) => print_version(cli.global_args, args, context).await?,
         }
     }
 

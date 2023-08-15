@@ -69,6 +69,7 @@ impl<I: IntoIterator<Item = T>, T: TableOutputRow> TableOutputDisplay for I {
     }
 
     fn print_table(self) {
+        // TODO: might wanna justify the columns somehow
         for row in self {
             row.print_row();
         }
