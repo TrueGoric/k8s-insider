@@ -62,7 +62,11 @@ pub fn patch_dns_windows(dns: &str, domain: &str) -> anyhow::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-pub fn unpatch_dns(dns: &str) -> anyhow::Result<()> {
+pub fn unpatch_dns(_dns: &str, _domain: &str) -> anyhow::Result<()> {
+    // current approach using resolved binds domains to interfaces
+    // and DNS patching is currently removed when the connection is down
+    // so we just nod
+    
     Ok(())
 }
 

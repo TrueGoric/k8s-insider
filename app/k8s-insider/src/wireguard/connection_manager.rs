@@ -158,9 +158,9 @@ impl ConnectionManager {
         {
             use crate::wireguard::operations::patch_dns_linux;
 
-            let interface_name: &str = config_handle.path.file_stem().unwrap().to_str().unwrap();
+            let interface_name: &str = config_handle.config_path.file_stem().unwrap().to_str().unwrap();
 
-            patch_dns_linux(interface_name, &cluster_domain)?;
+            patch_dns_linux(interface_name, cluster_domain)?;
 
             info!("Configured '{interface_name}' interface to handle DNS requests for '{cluster_domain}' domain with systemd-resolved!")
         }
