@@ -219,4 +219,4 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         with:
           command: release
-          args: publish --config app/crates-release.toml --execute
+          args: publish --config app/crates-release.toml --execute --no-confirm
