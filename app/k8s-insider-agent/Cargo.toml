@@ -21,3 +21,7 @@ thiserror = "1.0.40"
 tokio = { workspace = true, features = ["rt-multi-thread", "sync", "fs"] }
 tokio-stream = { workspace = true }
 wireguard-control = { workspace = true }
+
+[package.metadata.release]
+release = false # temporarily, due to the dependency on wireguard-control
+publish = false
