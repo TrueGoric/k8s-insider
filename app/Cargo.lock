@@ -958,7 +958,7 @@ dependencies = [
 
 [[package]]
 name = "k8s-insider"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -982,7 +982,7 @@ dependencies = [
 
 [[package]]
 name = "k8s-insider-agent"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "env_logger",
@@ -1000,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "k8s-insider-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "k8s-insider-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "quote",
  "syn 2.0.26",
