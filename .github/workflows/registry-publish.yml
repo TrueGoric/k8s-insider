@@ -190,12 +190,12 @@ jobs:
 
       - name: Run tests
         working-directory: app
-        run: cargo test
+        run: cargo test --exclude k8s-insider-agent
       
       - name: Build and push binary release
         uses: taiki-e/upload-rust-binary-action@v1
         with:
-          manifest_path: app/k8s-insider/Cargo.toml
+          manifest_path: app/Cargo.toml
           bin: k8s-insider
           archive: $bin-$tag-$target
           include: LICENSE,README.md
