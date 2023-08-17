@@ -190,7 +190,7 @@ jobs:
 
       - name: Run tests
         working-directory: app
-        run: cargo test --exclude k8s-insider-agent
+        run: cargo test --workspace --exclude k8s-insider-agent
       
       - name: Build and push binary release
         uses: taiki-e/upload-rust-binary-action@v1
