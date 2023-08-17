@@ -10,9 +10,9 @@ use kube::api::ListParams;
 use serde::Serialize;
 
 use crate::{
-    cli::{GlobalArgs, ListNetworksArgs, OutputFormat},
+    cli::{GlobalArgs, ListNetworksArgs},
     context::ConfigContext,
-    output::{SerializableOutputDisplay, TableCellOption, TableCellSlice, TableOutputDisplay},
+    output::{CliPrint, TableCellOption, TableCellSlice},
 };
 
 pub async fn list_networks(
@@ -28,14 +28,7 @@ pub async fn list_networks(
         .map(|n| n.into())
         .collect::<Vec<NetworkView>>();
 
-    match args.output {
-        OutputFormat::Names => network_views.print_names(),
-        OutputFormat::Table => network_views.print_table(),
-        OutputFormat::TableWithHeaders => network_views.print_table_with_headers(),
-        OutputFormat::Json => network_views.print_json()?,
-        OutputFormat::JsonPretty => network_views.print_json_pretty()?,
-        OutputFormat::Yaml => network_views.print_yaml()?,
-    };
+    network_views.print(args.output)?;
 
     Ok(())
 }

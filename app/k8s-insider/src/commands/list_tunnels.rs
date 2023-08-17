@@ -8,9 +8,9 @@ use kube::api::ListParams;
 use serde::Serialize;
 
 use crate::{
-    cli::{GlobalArgs, ListTunnelsArgs, OutputFormat},
+    cli::{GlobalArgs, ListTunnelsArgs},
     context::ConfigContext,
-    output::{SerializableOutputDisplay, TableCellOption, TableOutputDisplay},
+    output::{CliPrint, TableCellOption},
 };
 
 pub async fn list_tunnels(
@@ -30,14 +30,7 @@ pub async fn list_tunnels(
         None => tunnel_views.map(|t| t.into()).collect::<Vec<TunnelView>>(),
     };
 
-    match args.output {
-        OutputFormat::Names => tunnel_views.print_names(),
-        OutputFormat::Table => tunnel_views.print_table(),
-        OutputFormat::TableWithHeaders => tunnel_views.print_table_with_headers(),
-        OutputFormat::Json => tunnel_views.print_json()?,
-        OutputFormat::JsonPretty => tunnel_views.print_json_pretty()?,
-        OutputFormat::Yaml => tunnel_views.print_yaml()?,
-    };
+    tunnel_views.print(args.output)?;
 
     Ok(())
 }

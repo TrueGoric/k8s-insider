@@ -9,10 +9,10 @@ use log::debug;
 use serde::Serialize;
 
 use crate::{
-    cli::{GlobalArgs, OutputFormat, VersionArgs},
+    cli::{GlobalArgs, VersionArgs},
     context::ConfigContext,
-    output::{SerializableOutputDisplay, TableOutputDisplay},
-    version::{LOCAL_INSIDER_VERSION, get_latest_version},
+    output::CliPrint,
+    version::{get_latest_version, LOCAL_INSIDER_VERSION},
 };
 
 pub async fn print_version(
@@ -51,7 +51,7 @@ pub async fn print_version(
             debug!("Couldn't fetch latest k8s-insider version! {error}");
 
             None
-        },
+        }
     };
 
     let version_table = vec![
@@ -62,14 +62,7 @@ pub async fn print_version(
         VersionView::get_router_image_version(release.as_ref()),
     ];
 
-    match args.output {
-        OutputFormat::Names => version_table.print_names(),
-        OutputFormat::Table => version_table.print_table(),
-        OutputFormat::TableWithHeaders => version_table.print_table_with_headers(),
-        OutputFormat::Json => version_table.print_json()?,
-        OutputFormat::JsonPretty => version_table.print_json_pretty()?,
-        OutputFormat::Yaml => version_table.print_yaml()?,
-    };
+    version_table.print(args.output)?;
 
     Ok(())
 }
