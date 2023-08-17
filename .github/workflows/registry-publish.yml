@@ -189,17 +189,18 @@ jobs:
           components: rustfmt, clippy
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        working-directory: app
+        run: cargo test
       
       - name: Build and push binary release
         uses: taiki-e/upload-rust-binary-action@v1
         with:
+          manifest_path: app/k8s-insider/Cargo.toml
           bin: k8s-insider
           archive: $bin-$tag-$target
           include: LICENSE,README.md
           token: ${{ secrets.GITHUB_TOKEN }}
+          checksum: sha256
 
   cli-crates-io:
     name: Publish k8s-insider to crates.io
@@ -217,9 +218,7 @@ jobs:
           tool: cargo-release
       
       - name: Publish k8s-insider to crates.io
-        uses: actions-rs/cargo@v1
+        working-directory: app
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        with:
-          command: release
-          args: publish --config app/crates-release.toml --execute --no-confirm
+        run: cargo release publish --config crates-release.toml --execute --no-confirm
