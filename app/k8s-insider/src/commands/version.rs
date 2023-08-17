@@ -12,7 +12,7 @@ use crate::{
     cli::{GlobalArgs, OutputFormat, VersionArgs},
     context::ConfigContext,
     output::{SerializableOutputDisplay, TableOutputDisplay},
-    version::LOCAL_INSIDER_VERSION,
+    version::{LOCAL_INSIDER_VERSION, get_latest_version},
 };
 
 pub async fn print_version(
@@ -45,8 +45,18 @@ pub async fn print_version(
         }
     };
 
+    let latest_version = match get_latest_version().await {
+        Ok(version) => Some(version),
+        Err(error) => {
+            debug!("Couldn't fetch latest k8s-insider version! {error}");
+
+            None
+        },
+    };
+
     let version_table = vec![
         VersionView::get_local_cli_version(),
+        VersionView::get_latest_version(latest_version.as_deref()),
         VersionView::get_controller_image_version(release.as_ref()),
         VersionView::get_network_manager_image_version(release.as_ref()),
         VersionView::get_router_image_version(release.as_ref()),
@@ -76,6 +86,13 @@ impl<'a> VersionView<'a> {
         Self {
             component: "k8s-insider CLI (local)",
             version: LOCAL_INSIDER_VERSION,
+        }
+    }
+
+    pub fn get_latest_version(version: Option<&'a str>) -> Self {
+        Self {
+            component: "k8s-insider CLI (latest)",
+            version: version.unwrap_or("unknown"),
         }
     }
 
