@@ -30,3 +30,4 @@ pre-release-commit-message = "Release {{version}}"
 shared-version = true
 tag-message = "Release {{crate_name}} version {{version}}"
 tag-prefix = ""
+publish = false

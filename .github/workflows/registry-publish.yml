@@ -1,10 +1,5 @@
 name: Publish app
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 on:
   push:
     tags: [ 'v*.*.*' ]
@@ -18,9 +13,24 @@ env:
   ROUTER_IMAGE_NAME: k8s-insider-router
 
 jobs:
-  controller:
-    name: Build and publish k8s-insider-controller image
+  release:
+    name: Create a GitHub release
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create new release
+        uses: taiki-e/create-gh-release-action@v1
+        with:
+          branch: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  controller:
+    name: Build and publish k8s-insider container images
+    runs-on: ubuntu-latest
+    needs:
+      - release
     services:
       registry:
         image: registry:2
@@ -154,3 +164,59 @@ jobs:
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
         run: echo "${{ steps.router-meta.outputs.tags }}" | xargs -I {} cosign sign {}@${{ steps.router-build-and-push.outputs.digest }}
+
+  cli-binaries:
+    name: Build and publish k8s-insider CLI binaries
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          # - macos-latest
+    runs-on: ${{ matrix.os }}
+    needs:
+      - release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install stable Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          components: rustfmt, clippy
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+      
+      - name: Build and push binary release
+        uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: k8s-insider
+          archive: $bin-$tag-$target
+          include: LICENSE,README.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  cli-crates-io:
+    name: Publish k8s-insider to crates.io
+    runs-on: ubuntu-latest
+    needs:
+      - release
+      - cli-binaries
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install cargo-release
+        uses: taiki-e/cache-cargo-install-action@v1
+        with:
+          tool: cargo-release
+      
+      - name: Publish k8s-insider to crates.io
+        uses: actions-rs/cargo@v1
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        with:
+          command: release
+          args: publish --config app/crates-release.toml --execute
