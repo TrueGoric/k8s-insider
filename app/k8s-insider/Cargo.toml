@@ -8,7 +8,7 @@ description = "A zero-config way to access your kubernetes cluster network"
 readme = "../../README.md"
 homepage = "https://github.com/truegoric/k8s-insider"
 repository = "https://github.com/truegoric/k8s-insider"
-keywords = ["cli", "kubernetes", "vpn", "developer-tools", "operator", "kubectl", "wireguard", "krew"]
+keywords = ["kubernetes", "vpn", "developer-tools", "kubectl", "wireguard"]
 categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
