@@ -1,6 +1,6 @@
 [package]
 name = "k8s-insider-agent"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 license = "GNU GPL 3 or later"
 description = "A controller daemon for k8s-insider enabled kubernetes clusters"
@@ -13,7 +13,7 @@ anyhow = { workspace = true }
 env_logger = { workspace = true }
 futures = "0.3.28"
 ipnet = { workspace = true }
-k8s-insider-core = { version = "0.3.2", path = "../k8s-insider-core" }
+k8s-insider-core = { version = "0.3.3", path = "../k8s-insider-core" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true, features = ["runtime"] }
 log = { workspace = true }
