@@ -2,7 +2,7 @@
 name = "k8s-insider-agent"
 version = "0.3.4"
 edition = "2021"
-license = "GNU GPL 3 or later"
+license = "GPL-3.0-or-later"
 description = "A controller daemon for k8s-insider enabled kubernetes clusters"
 repository = "https://github.com/truegoric/k8s-insider"
 
