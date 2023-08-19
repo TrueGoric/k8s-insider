@@ -50,9 +50,10 @@ impl<'a, T: Display> Display for TableCellSlice<'a, T> {
 }
 
 pub trait TableOutputRow {
-    fn print_name(&self);
-    fn print_header();
-    fn print_row(&self);
+    fn get_name(&self) -> String;
+    fn get_column_names() -> Vec<String>;
+    fn get_column_count() -> usize;
+    fn get_row(&self) -> Vec<String>;
 }
 
 pub trait TableOutputDisplay {
@@ -64,20 +65,47 @@ pub trait TableOutputDisplay {
 impl<I: IntoIterator<Item = T>, T: TableOutputRow> TableOutputDisplay for I {
     fn print_names(self) {
         for row in self {
-            row.print_name();
+            println!("{}", row.get_name());
         }
     }
 
     fn print_table(self) {
-        // TODO: might wanna justify the columns somehow
-        for row in self {
-            row.print_row();
-        }
+        let rows = self.into_iter().map(|v| v.get_row()).collect::<Vec<_>>();
+
+        print_table_internal::<T>(rows);
     }
 
     fn print_table_with_headers(self) {
-        T::print_header();
-        self.print_table();
+        let rows = std::iter::once(T::get_column_names())
+            .chain(self.into_iter().map(|v| v.get_row()))
+            .collect::<Vec<_>>();
+
+        print_table_internal::<T>(rows);
+    }
+}
+
+fn print_table_internal<T: TableOutputRow>(rows: Vec<Vec<String>>) {
+    let column_count = T::get_column_count();
+    let column_widths = (0..column_count)
+        .map(|index| {
+            rows.iter()
+                .map(|row| row[index].len())
+                .max()
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+
+    for row in rows {
+        for i in 0..column_count {
+            let current_cell = &row[i];
+            let current_width = column_widths[i];
+
+            if i != column_count - 1 {
+                print!("{current_cell:<current_width$}   ");
+            } else {
+                println!("{current_cell:<current_width$}");
+            }
+        }
     }
 }
 

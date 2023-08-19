@@ -1,6 +1,9 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Fields, punctuated::Punctuated, Field, token::Comma, Ident};
+use syn::{
+    parse_macro_input, punctuated::Punctuated, token::Comma, Data, DeriveInput, Field, Fields,
+    Ident,
+};
 
 #[proc_macro_derive(TableOutputRow, attributes(name_column))]
 pub fn derive_output_display(input: TokenStream) -> TokenStream {
@@ -18,22 +21,28 @@ pub fn derive_output_display(input: TokenStream) -> TokenStream {
     };
     let name_field = get_name_column_field(&fields);
     let capitalized_field_names = get_capitalized_field_names(&fields);
-    let field_names = fields.iter().map(|f| f.ident.as_ref().unwrap()).collect::<Vec<_>>();
-    let interpolations_source = "{}\t".repeat(field_names.len());
-    let interpolations = interpolations_source.trim_end();
+    let field_names = fields
+        .iter()
+        .map(|f| f.ident.as_ref().unwrap())
+        .collect::<Vec<_>>();
+    let field_count = field_names.len();
 
     let output = quote! {
         impl<#struct_generics_params> crate::output::TableOutputRow for #struct_ident<#struct_generics_params> #struct_generics_where {
-            fn print_name(&self) {
-                ::std::println!("{}", self.#name_field);
+            fn get_name(&self) -> ::std::string::String {
+                ::std::string::ToString::to_string(&self.#name_field)
             }
 
-            fn print_header() {
-                ::std::println!(#capitalized_field_names);
+            fn get_column_names() -> ::std::vec::Vec<::std::string::String> {
+                ::std::vec![#(#capitalized_field_names.to_owned()),*]
             }
 
-            fn print_row(&self) {
-                ::std::println!(#interpolations, #(self.#field_names),*);
+            fn get_column_count() -> usize {
+                #field_count
+            }
+
+            fn get_row(&self) -> ::std::vec::Vec<::std::string::String> {
+                ::std::vec![#(::std::string::ToString::to_string(&self.#field_names)),*]
             }
         }
     };
@@ -41,12 +50,12 @@ pub fn derive_output_display(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-fn get_capitalized_field_names(fields: &Punctuated<Field, Comma>) -> String {
+fn get_capitalized_field_names(
+    fields: &Punctuated<Field, Comma>,
+) -> impl Iterator<Item = String> + '_ {
     fields
-    .iter()
-    .map(|f| f.ident.as_ref().unwrap().to_string().to_uppercase())
-    .collect::<Vec<_>>()
-    .join("\t")
+        .iter()
+        .map(|f| f.ident.as_ref().unwrap().to_string().to_uppercase())
 }
 
 fn get_name_column_field(fields: &Punctuated<Field, Comma>) -> &Ident {
