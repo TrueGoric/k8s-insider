@@ -26,10 +26,17 @@ Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for
    - `WireGuard for Windows` for creating local tunnels
 
 ## Installation
-### `cargo`
+### `cargo` (GNU/Linux and Windows)
 ```bash
 cargo install --locked k8s-insider
 ```
+
+### `krew` (GNU/Linux and Windows)
+```bash
+kubectl krew install insider
+```
+
+When installing with `kubectl krew` the app will be accessible through `kubectl insider` command instead of the regular `k8s-insider`.
 
 ## Quickstart
 ```bash
