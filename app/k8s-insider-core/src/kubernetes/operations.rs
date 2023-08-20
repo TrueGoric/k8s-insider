@@ -460,7 +460,7 @@ where
     T: Serialize + Clone + DeserializeOwned + Debug,
 {
     info!(
-        "Removing '{resource_name}' {} from the cluster...",
+        "Removing '{resource_name}' {} resource from the cluster...",
         pretty_type_name::<T>()
     );
 

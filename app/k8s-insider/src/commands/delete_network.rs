@@ -28,9 +28,13 @@ pub async fn delete_network(
     );
 
     let delete_params = DeleteParams::background().and_if(args.dry_run, DeleteParams::dry_run);
-    let was_removed =
-        try_remove_resource::<Network>(&client, &args.name, &global_args.namespace, &delete_params)
-            .await?;
+    let was_removed = try_remove_resource::<Network>(
+        &client,
+        &config_network.id.name,
+        &config_network.id.namespace,
+        &delete_params,
+    )
+    .await?;
 
     if was_removed {
         context
