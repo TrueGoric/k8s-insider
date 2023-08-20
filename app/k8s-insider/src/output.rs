@@ -101,7 +101,7 @@ fn print_table_internal<T: TableOutputRow>(rows: Vec<Vec<String>>) {
             let current_width = column_widths[i];
 
             if i != column_count - 1 {
-                print!("{current_cell:<current_width$}   ");
+                print!("{current_cell:<current_width$}\t");
             } else {
                 println!("{current_cell:<current_width$}");
             }
