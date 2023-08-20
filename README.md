@@ -1,8 +1,12 @@
 # k8s-insider
 A zero-config way to access you kubernetes cluster network
 
-## What
-Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources. Powered by WireGuard and Rust.
+## Overview
+Originally a workaround that got out of hand, k8s-insider is a one-stop-shop for accessing your development kubernetes cluster networked resources.
+
+The app works by deploying an operator to the cluster and applying CRDs with network and tunnel definitions, which are then reconciled by the operator pods. After networks and tunnels are applied to the cluster and reconciled, the CLI app reads their state and generates and/or applies WireGuard configurations on the user's machine.
+
+`Network` and `Tunnel` CRDs are namespaced and can be RBACed easily. The traffic is routed through separate _router_ pods and can be shaped with network policies.
 
 ## Features
  - Multiple networks per cluster
