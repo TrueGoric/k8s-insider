@@ -42,7 +42,10 @@ pub async fn get_service_accessible_addresses(
             Some(additional_ips) => Some(chain![external_ips, additional_ips].collect()),
             None => Some(external_ips.collect()),
         },
-        "ClusterIP" => todo!(),
+        "ClusterIP" => match get_clusterip_addresses(service_spec) {
+            Some(additional_ips) => Some(chain![external_ips, additional_ips].collect()),
+            None => Some(external_ips.collect()),
+        },
         _ => None,
     }
 }
@@ -93,6 +96,19 @@ fn get_loadbalancer_addresses<'a>(
                 })
             })
         })
+}
+
+fn get_clusterip_addresses(
+    service_spec: &ServiceSpec,
+) -> Option<impl Iterator<Item = SocketAddr> + '_> {
+    let port = get_first_port(service_spec)?;
+
+    service_spec.cluster_ips.as_ref().map(move |ips| {
+        ips.iter().filter_map(move |ip| {
+            let ip = ip.parse().ok()?;
+            Some(SocketAddr::new(ip, port))
+        })
+    })
 }
 
 fn get_node_address_iterator<'a>(nodes: &'a [&'a Node]) -> impl Iterator<Item = &'a NodeAddress> {
