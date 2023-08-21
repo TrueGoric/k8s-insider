@@ -55,9 +55,6 @@ fn get_nodeport_addresses<'a>(
     nodes: &'a [&'a Node],
 ) -> Option<impl Iterator<Item = SocketAddr> + 'a> {
     let port = get_first_node_port(service_spec)?;
-
-    // TODO: IPs from annotations
-
     let node_external_ips = get_node_address_iterator(nodes)
         .filter_map(|node_address| match node_address.type_.as_str() {
             "ExternalIP" => node_address.address.as_str().parse::<IpAddr>().ok(),
