@@ -213,7 +213,7 @@ spec:
                     type: string
                 type: object
               endpoints:
-                description: publicly available address
+                description: publicly available addresses
                 items:
                   type: string
                 nullable: true
