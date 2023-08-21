@@ -1,7 +1,9 @@
 use std::net::{IpAddr, SocketAddr};
 
 use itertools::chain;
-use k8s_openapi::api::core::v1::{Node, NodeAddress, Service, ServiceSpec};
+use k8s_openapi::api::core::v1::{
+    Node, NodeAddress, PortStatus, Service, ServiceSpec, ServiceStatus,
+};
 
 pub async fn get_service_accessible_addresses(
     service: Option<&Service>,
@@ -20,6 +22,7 @@ pub async fn get_service_accessible_addresses(
         None => return None,
     };
 
+    // this is a simplified approach, a cartesian product may be more applicable
     let external_ips = service_spec
         .external_ips
         .as_deref()
@@ -35,7 +38,10 @@ pub async fn get_service_accessible_addresses(
             Some(additional_ips) => Some(chain![external_ips, additional_ips].collect()),
             None => Some(external_ips.collect()),
         },
-        "LoadBalancer" => todo!(),
+        "LoadBalancer" => match get_loadbalancer_addresses(service_spec, service.status.as_ref()) {
+            Some(additional_ips) => Some(chain![external_ips, additional_ips].collect()),
+            None => Some(external_ips.collect()),
+        },
         "ClusterIP" => todo!(),
         _ => None,
     }
@@ -65,6 +71,30 @@ fn get_nodeport_addresses<'a>(
     Some(chain![node_external_ips, node_internal_ips])
 }
 
+fn get_loadbalancer_addresses<'a>(
+    service_spec: &'a ServiceSpec,
+    service_status: Option<&'a ServiceStatus>,
+) -> Option<impl Iterator<Item = SocketAddr> + 'a> {
+    service_status
+        .and_then(|s| s.load_balancer.as_ref())
+        .and_then(|l| l.ingress.as_ref())
+        .map(|i| {
+            i.iter().flat_map(|e| {
+                let port = e
+                    .ports
+                    .as_ref()
+                    .and_then(|p| get_first_loadbalancer_port(p))
+                    .or_else(|| get_first_node_port(service_spec));
+
+                e.ip.iter().filter_map(move |ip| {
+                    let ip = ip.parse().ok()?;
+                    let port = port?;
+                    Some(SocketAddr::new(ip, port))
+                })
+            })
+        })
+}
+
 fn get_node_address_iterator<'a>(nodes: &'a [&'a Node]) -> impl Iterator<Item = &'a NodeAddress> {
     nodes
         .iter()
@@ -91,4 +121,8 @@ fn get_first_node_port(service_spec: &ServiceSpec) -> Option<u16> {
         .and_then(|i| i.first())
         .and_then(|i| i.node_port)
         .map(|port| port as u16)
+}
+
+fn get_first_loadbalancer_port(ports: &[PortStatus]) -> Option<u16> {
+    ports.iter().map(|p| p.port as u16).next()
 }
