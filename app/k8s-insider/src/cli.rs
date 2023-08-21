@@ -140,6 +140,9 @@ pub struct InstallArgs {
     /// Substitutes the k8s-insider-router image tag if specified
     #[arg(long, default_value = LOCAL_INSIDER_VERSION)]
     pub router_image_tag: String,
+    /// Upgrade k8s-insider release on a cluster to the local version
+    #[arg(long)]
+    pub upgrade: bool,
     /// If set, no action will be taken on the cluster
     #[arg(long)]
     pub dry_run: bool,

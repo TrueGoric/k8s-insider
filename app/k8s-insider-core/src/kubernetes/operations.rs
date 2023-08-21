@@ -17,7 +17,7 @@ use kube::{
     },
     Api, Client, Resource,
 };
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::helpers::pretty_type_name;
 
@@ -150,25 +150,6 @@ pub async fn try_remove_namespace(
     namespace_api.delete(name, delete_params).await?;
 
     Ok(())
-}
-
-pub async fn check_if_resource_exists<T: Clone + DeserializeOwned + Debug>(
-    release_params: &ListParams,
-    api: &Api<T>,
-) -> anyhow::Result<bool> {
-    let matching_deployments = api
-        .list_metadata(release_params)
-        .await
-        .context("Couldn't retrieve resources from the cluster!")?;
-
-    match matching_deployments.items.len() {
-        0 => Ok(false),
-        1 => Ok(true),
-        _ => {
-            warn!("There are multiple resources matching the release! This could cause unintented behavior!");
-            Ok(true)
-        }
-    }
 }
 
 pub async fn create_resource<T>(

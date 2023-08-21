@@ -3,18 +3,17 @@ use k8s_insider_core::{
     detectors::{detect_cluster_domain, detect_dns_service, detect_pod_cidr, detect_service_cidr},
     helpers::{AndIf, ErrLogger},
     kubernetes::operations::{
-        apply_cluster_resource, apply_resource, check_if_resource_exists,
-        create_namespace_if_not_exists,
+        apply_cluster_resource, apply_resource, create_namespace_if_not_exists, list_resources,
     },
     resources::{
         controller::ControllerRelease, crd::v1alpha1::create_v1alpha1_crds,
         labels::get_controller_listparams,
     },
 };
-use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::core::v1::ConfigMap;
 use kube::{
     api::{ListParams, PatchParams},
-    Api, Client,
+    Client,
 };
 use log::{debug, info, warn};
 
@@ -31,32 +30,93 @@ pub async fn install(
 ) -> anyhow::Result<()> {
     let client = context.create_client_with_default_context().await?;
 
-    info!(
-        "Installing k8s-insider into '{}' namespace...",
-        global_args.namespace
-    );
+    if args.upgrade {
+        info!(
+            "Upgrading cluster's k8s-insider release in '{}' namespace...",
+            global_args.namespace
+        );
+    } else {
+        info!(
+            "Installing k8s-insider into '{}' namespace...",
+            global_args.namespace
+        );
+    }
 
     let no_crds = args.no_crds;
     let dry_run = args.dry_run;
-    let release_params = get_controller_listparams();
 
     debug!("Checking if k8s-insider is already installed...");
-    if check_if_release_exists(&release_params, &global_args.namespace, &client).await? {
+
+    let release_params = get_controller_listparams();
+    let installed_release =
+        try_get_installed_release(&release_params, &global_args.namespace, &client).await?;
+
+    if let Some(release) = installed_release {
         if args.force {
             warn!(
                 "k8s-insider is already installed in the namespace '{}', force deploying...",
                 global_args.namespace
             );
+        } else if args.upgrade {
+            perform_upgrade(release, args, client, dry_run, no_crds).await?;
         } else {
             return Err(anyhow!(
                 "k8s-insider is already installed in the namespace '{}'!",
                 global_args.namespace
             ));
         }
+    } else {
+        perform_installation(global_args, args, client, dry_run, no_crds).await?;
     }
 
+    Ok(())
+}
+
+async fn perform_installation(
+    global_args: GlobalArgs,
+    args: InstallArgs,
+    client: Client,
+    dry_run: bool,
+    no_crds: bool,
+) -> anyhow::Result<()> {
     debug!("Preparing release...");
+
     let release_info = prepare_release(global_args.namespace, args, &client).await?;
+
+    apply_release(dry_run, no_crds, client, release_info).await?;
+
+    info!("Successfully deployed k8s-insider!");
+
+    Ok(())
+}
+
+async fn perform_upgrade(
+    current_release: ControllerRelease,
+    args: InstallArgs,
+    client: Client,
+    dry_run: bool,
+    no_crds: bool,
+) -> anyhow::Result<()> {
+    // might wanna make this a little bit more elegant when a breaking change is introduced,
+    // but KISS and YAGNI and stuff
+
+    debug!("Preparing upgrade...");
+
+    let release_info = prepare_upgrade(current_release, args)?;
+
+    apply_release(dry_run, no_crds, client, release_info).await?;
+
+    info!("Successfully upgraded k8s-insider!");
+
+    Ok(())
+}
+
+async fn apply_release(
+    dry_run: bool,
+    no_crds: bool,
+    client: Client,
+    release_info: ControllerRelease,
+) -> Result<(), anyhow::Error> {
     let apply_params = PatchParams::apply(CLI_FIELD_MANAGER).and_if(dry_run, |s| s.dry_run());
 
     if no_crds {
@@ -67,21 +127,24 @@ pub async fn install(
 
     deploy_release(release_info, &client, &apply_params).await?;
 
-    info!("Successfully deployed k8s-insider!");
-
     Ok(())
 }
 
-async fn check_if_release_exists(
+async fn try_get_installed_release(
     release_params: &ListParams,
     namespace: &str,
     client: &Client,
-) -> anyhow::Result<bool> {
-    check_if_resource_exists::<Deployment>(
-        release_params,
-        &Api::namespaced(client.clone(), namespace),
-    )
-    .await
+) -> anyhow::Result<Option<ControllerRelease>> {
+    let configmap = list_resources::<ConfigMap>(client, namespace, release_params).await?;
+
+    if configmap.is_empty() {
+        return Ok(None);
+    }
+
+    let release = ControllerRelease::from_configmap(&configmap[0])
+        .context("Couldn't parse release ConfigMap!")?;
+
+    Ok(Some(release))
 }
 
 async fn prepare_release(
@@ -173,6 +236,34 @@ async fn prepare_release(
     debug!("{release_info:#?}");
 
     Ok(release_info)
+}
+
+fn prepare_upgrade(
+    mut current_release: ControllerRelease,
+    args: InstallArgs,
+) -> anyhow::Result<ControllerRelease> {
+    info!(
+        "Setting controller image: {}:{}",
+        args.controller_image, args.controller_image_tag
+    );
+    current_release.controller_image_name = args.controller_image;
+    current_release.controller_image_tag = args.controller_image_tag;
+
+    info!(
+        "Setting network manager image: {}:{}",
+        args.network_manager_image, args.network_manager_image_tag
+    );
+    current_release.network_manager_image_name = args.network_manager_image;
+    current_release.network_manager_image_tag = args.network_manager_image_tag;
+
+    info!(
+        "Setting router image: {}:{}",
+        args.router_image, args.router_image_tag
+    );
+    current_release.router_image_name = args.router_image;
+    current_release.router_image_tag = args.router_image_tag;
+
+    Ok(current_release)
 }
 
 async fn deploy_release(

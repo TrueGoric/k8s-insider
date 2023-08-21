@@ -56,7 +56,6 @@ impl ControllerRelease {
         ConfigMap {
             metadata: self.generate_default_metadata(),
             data: Some(configmap_data),
-            immutable: Some(true),
             ..Default::default()
         }
     }
