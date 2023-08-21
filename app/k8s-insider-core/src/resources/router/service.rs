@@ -61,7 +61,7 @@ impl RouterRelease {
                 ips: ip,
             } => Some(ServiceSpec {
                 external_ips: Some(ip.iter().map(|ip| ip.to_string()).collect()),
-                ..get_base_servicespec("ClusterIp", Some(labels), cluster_ip, port)
+                ..get_base_servicespec("ClusterIP", Some(labels), cluster_ip, port)
             }),
         };
 
