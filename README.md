@@ -35,12 +35,12 @@ The app works by deploying an operator to the cluster and applying CRDs with net
 cargo install --locked k8s-insider
 ```
 
-### `krew` (GNU/Linux and Windows)
+<!--### `krew` (GNU/Linux and Windows)
 ```bash
 kubectl krew install insider
 ```
 
-When installing with `kubectl krew` the app will be accessible through `kubectl insider` command instead of the regular `k8s-insider`.
+When installing with `kubectl krew` the app will be accessible through `kubectl insider` command instead of the regular `k8s-insider`.-->
 
 ## Quickstart
 ```bash
