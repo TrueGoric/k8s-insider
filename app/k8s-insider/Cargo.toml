@@ -1,6 +1,6 @@
 [package]
 name = "k8s-insider"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Marcin Jędrasik <marcin.jedrasik@artifexidearum.net>"]
 license = "GPL-3.0-or-later"
@@ -14,7 +14,7 @@ categories = ["command-line-utilities"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-k8s-insider-core = { version = "0.4.0", path = "../k8s-insider-core" }
+k8s-insider-core = { version = "0.4.1", path = "../k8s-insider-core" }
 kube = { workspace = true }
 serde = "1.0.164"
 serde_yaml = "0.9.21"
@@ -25,8 +25,8 @@ clap = { version = "4.3.2", features = ["derive"] }
 env_logger = { workspace = true }
 home = "0.5.5"
 ipnet = { workspace = true }
-k8s-insider-core = { version = "0.4.0", path = "../k8s-insider-core" }
-k8s-insider-macros = { version = "0.4.0", path = "../k8s-insider-macros" }
+k8s-insider-core = { version = "0.4.1", path = "../k8s-insider-core" }
+k8s-insider-macros = { version = "0.4.1", path = "../k8s-insider-macros" }
 k8s-openapi = { workspace = true }
 kube = { workspace = true }
 log = { workspace = true }
