@@ -49,6 +49,8 @@ k8s-insider create network
 k8s-insider connect
 ```
 
+![Demo](demo.gif)
+
 ## Current limitations
 Some autodetection functionality might not work properly on single-binary kubernetes distributions (k3s, k0s, etc.). Please feel free to create an issue or submit a PR for these.
 
