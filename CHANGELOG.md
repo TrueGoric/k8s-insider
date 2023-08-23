@@ -2,6 +2,18 @@
 
 All notable changes to k8s-insider project will be documented in this file.
 
+## [0.4.1] - 2023-08-23
+
+### Documentation
+
+- Added release runbook
+- Hidden krew installation instructions until it gets merged to krew-index
+- Package Bumps -> Package Updates in changelog
+
+### Package Updates
+
+- Bump rustls-webpki from 0.100.1 to 0.100.2 in /app (#15)
+
 ## [0.4.0] - 2023-08-21
 
 ### Bug Fixes
