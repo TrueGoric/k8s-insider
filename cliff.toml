@@ -49,7 +49,7 @@ commit_parsers = [
   { message = "^style", group = "Styling" },
   { message = "^test", group = "Testing" },
   { message = "^devexp", group = "Developer Experience" },
-  { message = "^deps", group = "Package Bumps" },
+  { message = "^deps", group = "Package Updates" },
   { message = "^chore: Release", skip = true },
   { message = "^chore\\(release\\): prepare for", skip = true },
   { message = "^chore\\(cicd\\)", skip = true },
