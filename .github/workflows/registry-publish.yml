@@ -224,15 +224,15 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: cargo release publish --config crates-release.toml --execute --no-confirm
 
-  cli-krew:
-    name: Publish k8s-insider to Krew (as kubectl-insider)
-    runs-on: ubuntu-latest
-    needs:
-      - release
-      - cli-binaries
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+  # cli-krew:
+  #   name: Publish k8s-insider to Krew (as kubectl-insider)
+  #   runs-on: ubuntu-latest
+  #   needs:
+  #     - release
+  #     - cli-binaries
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
 
-      - name: Push manifest to krew-index
-        uses: rajatjindal/krew-release-bot@v0.0.46
+  #     - name: Push manifest to krew-index
+  #       uses: rajatjindal/krew-release-bot@v0.0.46

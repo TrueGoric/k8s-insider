@@ -51,6 +51,7 @@ commit_parsers = [
   { message = "^devexp", group = "Developer Experience" },
   { message = "^chore: Release", skip = true },
   { message = "^chore\\(release\\): prepare for", skip = true },
+  { message = "^chore\\(cicd\\)", skip = true },
   { message = "^chore\\(deps\\)", skip = true },
   { message = "^chore\\(pr\\)", skip = true },
   { message = "^chore\\(pull\\)", skip = true },
